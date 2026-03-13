@@ -1,0 +1,34 @@
+{
+  "contribution_1_coarsening": {
+    "spectral_bond_connectivity": 0.6018542062838749,
+    "random_bond_connectivity": 0.10938331587631532,
+    "improvement_pct": 450.2248688131001,
+    "chemical_purity": 0.6433520599250937,
+    "pass": true
+  },
+  "contribution_2_posterior": {
+    "eigenvalue_ratio_mean": 14.613828521430671,
+    "deviating_directions_mean": 6.934,
+    "iso_variance_error": 1.5448973178863525,
+    "noniso_variance_error": 0.02522493340075016,
+    "pass": true
+  },
+  "contribution_3_equivariance": {
+    "rotation_error_mean": 4.505115880419908e-07,
+    "rotation_error_max": 7.897703540038492e-07,
+    "translation_error_mean": 2.95999658413848e-06,
+    "translation_error_max": 9.12243194761686e-06,
+    "full_pipeline_error_mean": 7.969923810513535e-08,
+    "pass": true
+  },
+  "contribution_4_information": {
+    "reconstruction_monotonic": true,
+    "dimensionality_monotonic": true,
+    "pass": true
+  },
+  "bonus_lanczos": {
+    "exact_cov_error_mean": 5.058825950842599e-07,
+    "lanczos_cov_error_mean": 0.2626508217098468,
+    "pass": true
+  }
+}
