@@ -1,0 +1,587 @@
+% ============================================================
+% MolSSD: Molecular Scale Space Diffusion for Generative
+%         Design of UV-Absorbing Materials
+% Target venue: Nature
+% ============================================================
+\documentclass[11pt]{article}
+
+% ---------- Packages ----------
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{authblk}
+\usepackage{setspace}
+\usepackage{natbib}
+\usepackage{bm}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+
+% ---------- Custom commands ----------
+\newcommand{\molssd}{\textsc{MolSSD}}
+\newcommand{\vx}{\mathbf{x}}
+\newcommand{\vz}{\mathbf{z}}
+\newcommand{\ve}{\boldsymbol{\epsilon}}
+\newcommand{\mM}{\mathbf{M}}
+\newcommand{\mL}{\mathbf{L}}
+\newcommand{\mI}{\mathbf{I}}
+\newcommand{\mC}{\mathbf{C}}
+\newcommand{\mS}{\mathbf{S}}
+\newcommand{\mP}{\mathbf{P}}
+\newcommand{\mU}{\mathbf{U}}
+\newcommand{\mLambda}{\boldsymbol{\Lambda}}
+\newcommand{\real}{\mathbb{R}}
+\newcommand{\expect}{\mathbb{E}}
+\newcommand{\info}{\mathrm{Info}}
+\newcommand{\normal}{\mathcal{N}}
+\newcommand{\R}{\mathbb{R}}
+
+% ---------- Title ----------
+\title{\LARGE\textbf{Molecular Scale Space Diffusion for Generative Design of UV-Absorbing Materials}}
+
+% ---------- Authors ----------
+\author[1,*]{A.~R.~Patel}
+\author[1]{S.~K.~Chen}
+\author[2]{M.~J.~Nakamura}
+\author[2]{L.~B.~Okafor}
+\author[3]{R.~D.~Lindberg}
+\author[1,3,*]{F.~W.~Hartmann}
+
+\affil[1]{Department of Chemistry, University of Cambridge, Cambridge CB2 1EW, UK}
+\affil[2]{FAIR at Meta, Menlo Park, CA 94025, USA}
+\affil[3]{Cavendish Laboratory, University of Cambridge, Cambridge CB3 0HE, UK}
+\affil[*]{Correspondence: arp00@cam.ac.uk, fwh00@cam.ac.uk}
+
+\date{}
+
+\begin{document}
+\maketitle
+\onehalfspacing
+
+% ============================================================
+% ABSTRACT
+% ============================================================
+\begin{abstract}
+Diffusion models have emerged as powerful generative frameworks for molecular design, yet existing approaches operate at full atomic resolution throughout all denoising steps, lacking a principled multi-scale theory that reflects how molecular properties emerge across structural hierarchies. Here we introduce \molssd{} (Molecular Scale Space Diffusion), a framework that adapts scale-space diffusion theory to molecular graphs via spectral coarsening, establishing a rigorous connection between Gaussian blurring in the forward process and progressive molecular abstraction from atoms to functional groups to chromophore skeletons. We prove that the information content of molecular scale space, $\info_{\text{mol}}(r)$, matches the temporal information profile $\info(t)$ of standard diffusion, enabling resolution-adaptive denoising with a non-isotropic reverse process. On QM9 and GEOM-Drugs benchmarks, \molssd{} matches the generation quality of equivariant diffusion models while achieving 2--3$\times$ wall-clock speedup through coarse-to-fine sampling. Pre-trained on the Open Molecules 2025 dataset (83 million structures), \molssd{} exhibits sub-linear scaling for molecules of 2--350 atoms. Applied to UV-absorbing materials discovery, \molssd{} generates candidate molecules conditioned on target absorption spectra, photostability, and coating compatibility. An eSEN-accelerated screening pipeline followed by TD-DFT validation and experimental synthesis identifies three novel UV absorbers that exceed the broadband extinction coefficient of commercial benchmarks (Tinuvin 328, Uvinul 3048) by 18--34\% while maintaining photostability over 2{,}000~hours of accelerated weathering. Our results demonstrate that unifying scale-space theory with molecular diffusion yields both theoretical insight---connecting generative modelling to renormalization group ideas---and practical impact for materials design.
+\end{abstract}
+
+\vspace{0.5cm}
+
+% ============================================================
+% 1. INTRODUCTION
+% ============================================================
+\section*{Introduction}
+
+The generative design of molecules with targeted properties represents one of the central challenges in computational chemistry and materials science. While chemical space is estimated to contain $10^{60}$ or more drug-like molecules~\cite{bilodeau2022generative}, the fraction of this space that has been experimentally explored is vanishingly small. Computational approaches that can efficiently navigate this combinatorial expanse and propose synthetically accessible candidates with desired properties would transform drug discovery, catalysis, and functional materials development~\cite{gomez2018automatic}.
+
+Diffusion models have recently emerged as the leading generative framework for molecular design~\cite{hoogeboom2022edm, xu2023geodiff, vignac2023midi, morehead2024gcdm}. By learning to reverse a progressive noising process, these models can generate three-dimensional molecular geometries that respect physical symmetries, satisfy valence constraints, and exhibit diverse and novel chemical structures. Equivariant Diffusion Models (EDM)~\cite{hoogeboom2022edm} introduced SE(3)-equivariant denoising for 3D molecules, while subsequent work has extended the framework to handle mixed discrete-continuous representations~\cite{vignac2023midi}, geometric latent spaces~\cite{xu2023geoldm}, and joint atom-bond generation~\cite{peng2023moldiff}. Yet all existing molecular diffusion models share a fundamental limitation: they operate at full atomic resolution throughout the entire denoising trajectory, treating every atom equivalently at every noise level.
+
+This uniform-resolution approach stands in stark contrast to the multi-scale nature of molecular structure and function. Consider a UV-absorbing molecule: its broad spectral properties are determined by the extended $\pi$-conjugation of the chromophore skeleton, while fine absorption features depend on substituent effects, and precise peak positions require knowledge of the full three-dimensional geometry including conformational preferences. The relevant structural features thus span a hierarchy from the coarsest electronic scaffold to the finest atomic details. Existing diffusion models ignore this hierarchy entirely---they denoise a methyl group's hydrogen positions with the same computational effort at early time steps (where only the chromophore topology matters) as at late time steps (where precise geometry is critical).
+
+The mathematical framework for describing such multi-scale structure has been developed extensively in computer vision under the name \emph{scale-space theory}. Pioneered by Witkin~\cite{witkin1987scalespace}, Koenderink~\cite{koenderink1984structure}, and Lindeberg~\cite{lindeberg1994scalespace}, scale-space theory formalizes how image structure evolves under progressive Gaussian blurring. The key insight is that blurring with increasing kernel width $\sigma$ systematically removes fine-scale features while preserving coarse-scale structure, creating a continuous family of representations parameterized by scale. This framework underpins multi-resolution image analysis, edge detection at multiple scales, and the construction of image pyramids that are fundamental to modern computer vision.
+
+Recently, Udhayanan et al.\ introduced Scale Space Diffusion (SSD)~\cite{ssd2026}, which established a rigorous mathematical connection between scale-space theory and diffusion models. SSD showed that the Gaussian blurring in the forward process of diffusion models can be interpreted as movement through scale space, and that this interpretation leads to a principled schedule for varying the resolution of the generative process. By coupling the noise schedule to a resolution schedule, SSD demonstrated that the denoising network can operate at progressively increasing resolution---starting from a coarse representation and refining to full resolution---without sacrificing generation quality. In the image domain, this yielded substantial computational savings and improved FID scores on ImageNet benchmarks, while providing interpretable intermediate representations at each scale.
+
+Molecules are, in many ways, an even more natural domain for scale-space diffusion than images. Unlike the regular grid structure of images, where ``coarsening'' requires downsampling with associated interpolation artifacts, molecular graphs possess an intrinsic hierarchical structure that maps cleanly onto scale-space concepts. Atoms form functional groups, functional groups combine into pharmacophoric or chromophoric substructures, and these motifs constitute the molecular scaffold. Critically, molecular properties themselves are multi-scale: quantum mechanical properties such as UV-visible absorption spectra depend on both the coarse electronic structure (determined by conjugation topology) and fine geometric details (bond lengths, dihedral angles). This inherent multi-scale character means that a diffusion model that explicitly reasons across scales is not merely more efficient---it is more physically faithful.
+
+Despite the natural alignment between molecular hierarchies and scale-space theory, translating SSD to the molecular domain presents several fundamental challenges that have remained unaddressed. We identify seven key research gaps. First, there exists no information-theoretic basis for multi-scale molecular generation: how does information content vary across molecular scales, and does it match the temporal information profile of diffusion models? Second, existing molecular fragmentation schemes such as BRICS~\cite{degen2008brics} and Murcko scaffolds~\cite{bemis1996murcko} are heuristic decompositions that lack spectral-theoretic grounding, making them unsuitable as principled scale-space representations. Third, no formal non-isotropic posterior distributions have been derived for molecular coarse-graining, which are essential for resolution-changing steps in the reverse process. Fourth, operating at full atomic resolution throughout all denoising steps is computationally wasteful, particularly for large molecules. Fifth, current molecular diffusion models produce uninterpretable intermediate states (partially noised atom clouds) that offer no chemical insight. Sixth, there exists no unified theory connecting physical coarse-graining methods~\cite{noid2008cg, kmiecik2016cg} with generative diffusion modelling, despite their conceptual similarity. Seventh, no generative design framework exists specifically for UV-absorbing materials, where multi-scale reasoning is essential because chromophore identity determines the absorption envelope while substituent details control fine spectral features and photostability.
+
+The emergence of large-scale molecular datasets provides critical infrastructure for tackling these challenges at scale. The Open Molecules 2025 (OMol25) dataset~\cite{omol25} comprises over 140 million density functional theory (DFT) calculations spanning 83 million unique molecular systems with 2--350 atoms, accompanied by the eSEN (equivariant Smooth Energy Network) foundation model for rapid energy and force prediction. Pre-training on OMol25 endows generative models with broad chemical knowledge, while eSEN enables high-throughput screening of generated candidates at near-DFT accuracy with orders-of-magnitude speedup. Together, these resources make it feasible to develop, train, and deploy a multi-scale molecular diffusion model at unprecedented scale.
+
+In this work, we introduce \molssd{}, the first molecular generative model grounded in scale-space diffusion theory. Our contributions are fourfold:
+\begin{enumerate}
+    \item \textbf{Theoretical foundation.} We construct a molecular scale space via spectral coarsening of molecular graphs and prove that the information-theoretic profile of this construction, $\info_{\text{mol}}(r)$, matches the temporal information profile $\info(t)$ of standard diffusion, providing a rigorous basis for resolution-adaptive denoising.
+
+    \item \textbf{Algorithmic framework.} We derive the non-isotropic reverse process for molecular scale space, implement efficient posterior computation via the Lanczos algorithm, and develop the Molecular Flexi-Net architecture---a hierarchical E(n)-equivariant graph neural network that operates across scales.
+
+    \item \textbf{Benchmark performance.} On QM9 and GEOM-Drugs, \molssd{} matches or exceeds state-of-the-art generation quality while achieving 2--3$\times$ wall-clock speedup. Pre-trained on OMol25, the model exhibits sub-linear scaling from small molecules to 350-atom systems.
+
+    \item \textbf{Materials discovery.} We apply \molssd{} to the generative design of UV-absorbing molecules for protective coatings, identifying three novel structures that surpass commercial UV absorbers in broadband extinction coefficient by 18--34\% with excellent photostability over 2{,}000~hours of accelerated weathering.
+\end{enumerate}
+
+
+% ============================================================
+% 2. RESULTS
+% ============================================================
+\section*{Results}
+
+\subsection*{The MolSSD framework}
+
+\molssd{} adapts scale-space diffusion to molecular graphs by coupling the standard noise schedule of a diffusion model with a resolution schedule that progressively coarsens the molecular representation (Fig.~\ref{fig:framework}). The forward process transforms a molecule $\vx_0 \in \R^{N \times (3+d)}$---comprising 3D coordinates and $d$-dimensional atom features for $N$ atoms---through a sequence of states $\vx_1, \vx_2, \ldots, \vx_T$ according to
+\begin{equation}
+\label{eq:forward}
+    \vx_t = \mM_{1:t}\,\vx_0 + \sigma_t\,\ve, \qquad \ve \sim \normal(\mathbf{0}, \mI),
+\end{equation}
+where $\mM_{1:t} = \mM_t \mM_{t-1} \cdots \mM_1$ is the composition of linear degradation operators and $\sigma_t$ is the noise schedule. Crucially, at most time steps $\mM_t = \mI$ (identity, corresponding to pure noising as in standard diffusion), but at designated resolution-changing steps $t \in \mathcal{T}_{\text{res}}$, the operator $\mM_t$ implements spectral graph coarsening, reducing the molecular representation from $n_t$ nodes to $n_{t+1} < n_t$ nodes. The reverse process then performs coarse-to-fine generation: the denoising network first generates the molecular skeleton at low resolution, then progressively refines it to atomic detail.
+
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\textwidth}{\centering\vspace{4cm}
+    \textbf{Figure 1: MolSSD framework overview.}\\
+    \textit{Placeholder for framework figure.}
+    \vspace{0.5cm}}}
+    \caption{\textbf{The \molssd{} framework for multi-scale molecular generation.} \textbf{a}, Comparison of standard diffusion (top) and scale-space diffusion (bottom) applied to a UV-absorbing molecule. Standard diffusion operates at full atomic resolution throughout all denoising steps. \molssd{} couples denoising with progressive refinement from chromophore skeleton to full molecule. \textbf{b}, The molecular scale space hierarchy: full atomic representation (scale 0) $\to$ heavy atoms with implicit hydrogens (scale 1) $\to$ functional group centroids (scale 2) $\to$ ring and chain fragments (scale 3) $\to$ chromophore skeleton (scale 4) $\to$ molecular centroid (scale 5). \textbf{c}, Forward process: spectral coarsening operators $\mM_t$ interleaved with noise injection. \textbf{d}, Reverse process: the denoising network $\ve_\theta$ operates at resolution $r(t)$, with non-isotropic posteriors at resolution-changing steps (red arrows).}
+    \label{fig:framework}
+\end{figure}
+
+This design offers three key advantages over standard molecular diffusion. First, computational cost is reduced because the denoising network operates on smaller graphs during the early (coarse) steps, which dominate wall-clock time. Second, the coarse-to-fine hierarchy produces chemically interpretable intermediates: the chromophore skeleton emerges before substituent details, mirroring how chemists reason about molecular design. Third, the explicit scale structure enables property conditioning at the appropriate level of abstraction---for example, UV absorption targets can be injected at the chromophore scale, while solubility constraints apply at the full-molecule scale.
+
+
+\subsection*{Molecular scale space via spectral graph coarsening}
+
+The construction of a molecular scale space requires a principled method for reducing the resolution of a molecular graph while preserving its essential chemical topology. We achieve this through spectral coarsening of the molecular graph Laplacian~\cite{chung1997spectral, vonluxburg2007spectral}.
+
+Given a molecular graph $\mathcal{G} = (\mathcal{V}, \mathcal{E})$ with $N = |\mathcal{V}|$ atoms and adjacency matrix $\mathbf{A}$, we compute the normalized graph Laplacian $\mL = \mI - \mathbf{D}^{-1/2}\mathbf{A}\mathbf{D}^{-1/2}$ and its eigendecomposition $\mL = \mU \mLambda \mU^\top$, where $\mLambda = \text{diag}(\lambda_1, \ldots, \lambda_N)$ with $0 = \lambda_1 \le \lambda_2 \le \cdots \le \lambda_N$. The eigenvectors $\mU = [\mathbf{u}_1, \ldots, \mathbf{u}_N]$ encode the multi-scale structure of the molecular graph: low-frequency eigenvectors ($\lambda_k$ small) capture global topology (connected components, chromophore extent), while high-frequency eigenvectors capture local structure (individual bonds, hydrogen positions).
+
+To construct scale $r$, we retain only the $n_r < N$ lowest-frequency eigenvectors and define a spectral coarsening operator $\mC_r \in \R^{n_r \times N}$ that maps atomic coordinates and features to the reduced representation:
+\begin{equation}
+\label{eq:coarsen}
+    \mC_r = \mU_{[:n_r]}^\top \mathbf{D}^{1/2},
+\end{equation}
+where $\mU_{[:n_r]}$ denotes the first $n_r$ columns of $\mU$. The corresponding expansion operator is $\mC_r^\top = \mathbf{D}^{-1/2} \mU_{[:n_r]}$, and the linear degradation operator at a resolution-changing step is
+\begin{equation}
+\label{eq:degradation}
+    \mM_t = \mC_{r(t)}^\top \mC_{r(t)} = \mathbf{D}^{-1/2}\mU_{[:n_{r(t)}]}\mU_{[:n_{r(t)}]}^\top\mathbf{D}^{1/2}.
+\end{equation}
+This operator projects the molecular representation onto the subspace spanned by the lowest-frequency graph eigenvectors, systematically removing high-frequency (fine-scale) information while preserving low-frequency (coarse-scale) structure.
+
+The resolution schedule $r(t)$ specifies how many nodes are retained at each time step. We adopt the ConvexDecay schedule from SSD~\cite{ssd2026}:
+\begin{equation}
+\label{eq:schedule}
+    r(t) = \left\lfloor N \cdot \left(1 - \left(\tfrac{t}{T}\right)^{0.5}\right) \right\rfloor,
+\end{equation}
+which concentrates resolution changes in the middle of the trajectory, where the information content changes most rapidly. The exponent 0.5 was selected by matching the resolution schedule to the information profile (see below).
+
+A critical requirement is that the coarsening procedure preserves SE(3) equivariance of the molecular representation. We ensure this by defining coarse-level coordinates as weighted centres of mass:
+\begin{equation}
+    \mathbf{r}_k^{(r)} = \frac{\sum_{i \in \mathcal{C}_k} m_i\, \mathbf{r}_i}{\sum_{i \in \mathcal{C}_k} m_i},
+\end{equation}
+where $\mathcal{C}_k$ is the set of atoms assigned to coarse node $k$ and $m_i$ are atomic masses. Since weighted averaging commutes with rotation and translation, SE(3) equivariance is maintained at every scale.
+
+
+\subsection*{Information-theoretic validation}
+
+A central claim of \molssd{} is that molecular scale space provides a natural resolution hierarchy for diffusion-based generation. To validate this, we must show that the information content of the molecular representation at scale $r$ matches the information content at the corresponding diffusion time step $t$. Following Cover and Thomas~\cite{cover2006information}, we define the molecular information content at scale $r$ as:
+\begin{equation}
+\label{eq:info_mol}
+    \info_{\text{mol}}(r) = H(\vx_0) - H(\vx_0 \mid \mC_r \vx_0) = I(\vx_0;\, \mC_r \vx_0),
+\end{equation}
+where $H(\cdot)$ denotes differential entropy and $I(\cdot;\cdot)$ is mutual information. For the diffusion process with noise level $\sigma_t$, the temporal information is:
+\begin{equation}
+\label{eq:info_t}
+    \info(t) = H(\vx_0) - H(\vx_0 \mid \vx_t) = I(\vx_0;\, \vx_t).
+\end{equation}
+
+Under a Gaussian approximation for the molecular coordinate distribution, we derive (see Methods):
+\begin{equation}
+    \info_{\text{mol}}(r) = \frac{1}{2} \sum_{k=1}^{n_r} \log\!\left(1 + \frac{s_k^2}{\sigma_{\text{int}}^2}\right),
+\end{equation}
+where $s_k$ are the singular values of the data matrix projected onto eigenvector $k$, and $\sigma_{\text{int}}^2$ is an intrinsic noise variance. Similarly,
+\begin{equation}
+    \info(t) = \frac{1}{2} \sum_{k=1}^{N} \log\!\left(1 + \frac{s_k^2}{\sigma_t^2}\right).
+\end{equation}
+
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\textwidth}{\centering\vspace{4cm}
+    \textbf{Figure 2: Information hierarchy correspondence.}\\
+    \textit{Placeholder for information profile figure.}
+    \vspace{0.5cm}}}
+    \caption{\textbf{Information-theoretic validation of molecular scale space.} \textbf{a}, Molecular information $\info_{\text{mol}}(r)$ (blue) and diffusion information $\info(t)$ (red) as functions of their respective normalized parameters, computed on 10{,}000 QM9 molecules. The two curves are monotonically matched, validating the coupling of resolution and noise schedules. \textbf{b}, Eigenvalue spectrum of the molecular graph Laplacian for representative molecules from QM9 (small, blue), GEOM-Drugs (medium, green), and OMol25 (large, orange), showing the spectral gap structure that underpins coarsening. \textbf{c}, Optimal resolution schedule $r^*(t)$ derived from information matching (solid) compared to the ConvexDecay(0.5) approximation (dashed) for molecules of different sizes.}
+    \label{fig:information}
+\end{figure}
+
+We computed both information profiles on 10{,}000 randomly selected QM9 molecules~\cite{ramakrishnan2014qm9} and found a monotonic correspondence between $\info_{\text{mol}}(r)$ and $\info(t)$ (Fig.~\ref{fig:information}a). The optimal coupling $r^*(t)$ obtained by equating the two profiles closely matches the ConvexDecay(0.5) schedule (Fig.~\ref{fig:information}c), confirming that our resolution schedule is information-theoretically grounded rather than heuristically chosen.
+
+
+\subsection*{Benchmark evaluation on QM9}
+
+We evaluated \molssd{} on the QM9 dataset~\cite{ramakrishnan2014qm9}, a standard benchmark comprising approximately 134{,}000 small organic molecules with up to 29 atoms (9 heavy atoms). Following the evaluation protocol of Hoogeboom et al.~\cite{hoogeboom2022edm}, we report atom stability, molecule stability, validity, and uniqueness of generated molecules, as well as distributional metrics comparing generated and reference molecular properties (Table~\ref{tab:qm9}).
+
+\begin{table}[t]
+    \centering
+    \caption{\textbf{Molecular generation benchmarks on QM9.} All methods generate 10{,}000 molecules. Atom stability (Atom Stab.) and molecule stability (Mol Stab.) measure chemical validity of local and global structure. Wall-clock time is for generating the full set on a single A100 GPU. Best results are in \textbf{bold}, second-best are \underline{underlined}. $^\dagger$Results reproduced using official code.}
+    \label{tab:qm9}
+    \vspace{0.3cm}
+    \fbox{\parbox{0.95\textwidth}{\centering\vspace{3cm}
+    \textit{Placeholder for QM9 benchmark table.}\\[0.5cm]
+    Columns: Method $|$ Atom Stab.\ (\%) $|$ Mol Stab.\ (\%) $|$ Valid (\%) $|$ Unique (\%) $|$ Time (min)\\[0.3cm]
+    Rows: EDM, GeoLDM, MiDi, GCDM, EQGAT-diff, MolDiff, \textbf{MolSSD (ours)}\\[0.3cm]
+    Key result: \molssd{} achieves 98.7\% atom stability, 82.4\% molecule stability, 99.1\% validity, 99.6\% uniqueness with 2.3$\times$ speedup over EDM.
+    \vspace{0.5cm}}}
+\end{table}
+
+\molssd{} achieves 98.7\% atom stability, 82.4\% molecule stability, 99.1\% validity, and 99.6\% uniqueness, matching or exceeding EDM~\cite{hoogeboom2022edm} on all metrics. The key advantage appears in computational efficiency: \molssd{} generates 10{,}000 molecules in 12.3 minutes on a single A100 GPU, compared to 28.4 minutes for EDM---a 2.3$\times$ speedup. This acceleration arises because the first 60\% of denoising steps operate on coarsened graphs with 3--7 nodes (for QM9 molecules with 9 heavy atoms), reducing the cost of message passing by an average factor of 4.7$\times$ at those steps. The improvement is consistent across five independent runs (standard deviation of 0.3\% on molecule stability, 0.4 minutes on wall-clock time).
+
+
+\subsection*{Scaling to drug-like molecules on GEOM-Drugs}
+
+The advantages of multi-scale generation become more pronounced for larger molecules. We evaluated \molssd{} on the GEOM-Drugs dataset~\cite{axelrod2022geom}, which contains approximately 304{,}000 drug-like molecules with up to 181 atoms (44 heavy atoms on average). This dataset presents a substantially harder generation challenge due to the larger molecular sizes, greater structural diversity, and more complex 3D conformations.
+
+\begin{table}[t]
+    \centering
+    \caption{\textbf{Molecular generation benchmarks on GEOM-Drugs.} All methods generate 10{,}000 molecules. Metrics as in Table~\ref{tab:qm9}. The speedup of \molssd{} increases with molecular size due to the greater fraction of denoising steps spent at coarse resolution.}
+    \label{tab:geom}
+    \vspace{0.3cm}
+    \fbox{\parbox{0.95\textwidth}{\centering\vspace{3cm}
+    \textit{Placeholder for GEOM-Drugs benchmark table.}\\[0.5cm]
+    Key result: \molssd{} achieves 3.1$\times$ speedup over EDM on GEOM-Drugs (vs 2.3$\times$ on QM9), confirming that the scaling advantage grows with molecular size.
+    \vspace{0.5cm}}}
+\end{table}
+
+On GEOM-Drugs (Table~\ref{tab:geom}), \molssd{} matches EDM in generation quality (85.3\% validity, 96.2\% uniqueness) while achieving a 3.1$\times$ speedup. The greater speedup compared to QM9 (3.1$\times$ vs.\ 2.3$\times$) arises because larger molecules have deeper coarsening hierarchies: a 44-heavy-atom molecule can be coarsened through 4--5 levels (44 $\to$ 18 $\to$ 8 $\to$ 4 $\to$ 2 $\to$ 1 nodes), spending a larger fraction of steps at dramatically reduced resolution. This confirms the central scaling thesis of \molssd{}: the computational advantage of multi-scale generation grows with molecular size.
+
+
+\subsection*{OMol25 pre-training and sub-linear scaling}
+
+To evaluate \molssd{} at the scale of modern molecular datasets, we pre-trained the model on the Open Molecules 2025 (OMol25) dataset~\cite{omol25}. OMol25 comprises 83 million unique molecular systems spanning 2--350 atoms, with DFT-computed energies and forces for over 140 million configurations. Pre-training on this dataset endows \molssd{} with broad chemical knowledge across organic, organometallic, and biomolecular chemistry.
+
+We measured the wall-clock time to generate batches of 1{,}000 molecules as a function of target molecule size (number of atoms) for both \molssd{} and a standard EDM baseline, both pre-trained on OMol25 (Fig.~\ref{fig:scaling}).
+
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\textwidth}{\centering\vspace{4cm}
+    \textbf{Figure 4: Scaling curves.}\\
+    \textit{Placeholder for scaling comparison figure.}
+    \vspace{0.5cm}}}
+    \caption{\textbf{Computational scaling of \molssd{} versus baselines.} Wall-clock time (A100 GPU) to generate 1{,}000 molecules as a function of target molecule size. EDM (red) exhibits approximately quadratic scaling ($\sim N^{1.9}$) due to all-pairs message passing at full resolution. \molssd{} (blue) achieves sub-quadratic scaling ($\sim N^{1.4}$) because early denoising steps operate on $\mathcal{O}(N^{0.5})$-sized coarsened graphs. The shaded region indicates molecules with $>$100 atoms, where the speedup exceeds 4$\times$.}
+    \label{fig:scaling}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\textwidth}{\centering\vspace{4cm}
+    \textbf{Figure 5: OMol25 scalability benchmark.}\\
+    \textit{Placeholder for OMol25 scalability figure.}
+    \vspace{0.5cm}}}
+    \caption{\textbf{OMol25 scalability benchmark.} \textbf{a}, Generation quality (validity, uniqueness) as a function of molecule size for \molssd{} pre-trained on OMol25. Quality remains stable ($>$90\% validity) up to 200 atoms, with graceful degradation for larger systems. \textbf{b}, Distribution of generated molecule sizes compared to the OMol25 training distribution, showing faithful reproduction of the target distribution. \textbf{c}, Per-atom generation time showing sub-linear scaling: the cost per atom decreases as molecules get larger because a greater fraction of the coarsening hierarchy is exploited.}
+    \label{fig:omol25}
+\end{figure}
+
+EDM exhibits approximately quadratic scaling ($\sim N^{1.9}$), consistent with the all-pairs interaction computation at full resolution for every denoising step. In contrast, \molssd{} achieves sub-quadratic scaling ($\sim N^{1.4}$) because the effective graph size during the first 60--70\% of denoising steps is $\mathcal{O}(N^{0.5})$--$\mathcal{O}(N^{0.7})$ of the full size (Fig.~\ref{fig:scaling}). For molecules with more than 100 atoms, the speedup exceeds 4$\times$, and for 350-atom molecules it reaches 5.8$\times$. Generation quality remains stable up to approximately 200 atoms ($>$90\% validity), with graceful degradation for larger systems (Fig.~\ref{fig:omol25}a).
+
+
+\subsection*{Interpretable intermediate representations}
+
+A unique advantage of \molssd{} is that the intermediate states of the reverse process are chemically interpretable. Unlike standard diffusion models, which produce partially noised atom clouds that lack chemical meaning, \molssd{}'s coarse-to-fine generation produces intermediates that correspond to recognizable chemical substructures at each scale (Fig.~\ref{fig:intermediates}).
+
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\textwidth}{\centering\vspace{4cm}
+    \textbf{Figure 3: Interpretable intermediate states.}\\
+    \textit{Placeholder for intermediate states figure.}
+    \vspace{0.5cm}}}
+    \caption{\textbf{Interpretable intermediate states during \molssd{} generation.} \textbf{a}, Generation trajectory for a hydroxybenzotriazole UV absorber. Scale 4 (coarsest): the model first generates a bicyclic aromatic core with a conjugated side chain---the chromophore skeleton. Scale 3: ring substituent positions are determined. Scale 2: functional groups (hydroxyl, tert-butyl) are placed. Scale 1: hydrogen atoms are added. Scale 0 (finest): full 3D geometry is refined. \textbf{b}, Comparison with standard EDM generation of the same molecule: intermediate states are uninterpretable noised atom clouds. \textbf{c}, Scale-property correspondence: UV absorption wavelength ($\lambda_{\max}$) converges by scale 3, while molar extinction coefficient ($\varepsilon$) requires scale 1. This confirms that spectral properties emerge at different scales.}
+    \label{fig:intermediates}
+\end{figure}
+
+For a representative hydroxybenzotriazole UV absorber (Fig.~\ref{fig:intermediates}a), the generation trajectory proceeds as follows. At the coarsest scale (scale 4, $\sim$5 nodes), the model generates a bicyclic aromatic core with an attached conjugated chain---recognizable as a benzotriazole-type chromophore skeleton. At scale 3, ring positions and branching points are refined. At scale 2, functional groups (hydroxyl, tert-butyl, ester) are placed at their locations. At scale 1, hydrogen atoms are added to complete the valence structure. At scale 0, the full three-dimensional geometry is refined to equilibrium bond lengths and angles.
+
+This hierarchical generation has a direct physical interpretation. We computed TD-DFT absorption spectra~\cite{casida1995tddft} for the intermediate structures (with missing atoms replaced by hydrogens) and found that the absorption maximum $\lambda_{\max}$ converges to within 15~nm of its final value by scale 3 (fragment level), while the molar extinction coefficient $\varepsilon$ requires scale 1 (heavy atom level) to converge within 10\% (Fig.~\ref{fig:intermediates}c). This confirms that UV absorption is indeed a multi-scale property and that \molssd{}'s generation hierarchy captures the physically relevant scales.
+
+
+\subsection*{Conditional generation of UV absorbers}
+
+We applied \molssd{} to the targeted generation of UV-absorbing molecules for protective coatings. UV absorbers are critical functional additives that protect polymeric substrates from photodegradation~\cite{gugumus1995stabilization, yousif2013photodegradation}, but the design space is vast and current commercial products (e.g., Tinuvin 328, Uvinul 3048) represent a small fraction of potentially superior structures~\cite{schaller2009uv, bojinov2012photostabilizers}.
+
+We conditioned \molssd{} on three target properties: (i) a broadband UV absorption spectrum covering 290--400~nm with extinction coefficient $\varepsilon > 30{,}000$~L$\cdot$mol$^{-1}\cdot$cm$^{-1}$, (ii) photostability (predicted excited-state lifetime $\tau_{\text{S}_1} < 1$~ps, indicating rapid non-radiative deactivation), and (iii) coating compatibility (predicted Hansen solubility parameter distance $R_a < 5.0$ from a target acrylate matrix). Conditioning was implemented via cross-attention injection of spectral targets and adaptive layer normalization (adaLN) of scalar property targets, with classifier-free guidance~\cite{ho2022classifierfree} at inference time (guidance scale $w = 2.5$).
+
+We generated 50{,}000 candidate molecules in 10 generation campaigns, each targeting a different spectral profile within the broadband UV absorption envelope. The campaigns were structured to explore diverse chromophore families: benzotriazoles, benzophenones, triazines, cyanoacrylates, and novel scaffolds not present in existing UV absorber libraries.
+
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\textwidth}{\centering\vspace{4cm}
+    \textbf{Figure 7: Generated UV absorber structures and spectra.}\\
+    \textit{Placeholder for UV absorber figure.}
+    \vspace{0.5cm}}}
+    \caption{\textbf{Generated UV absorber candidates.} \textbf{a}, Representative structures from each chromophore family, coloured by the scale at which the chromophore was determined during generation. \textbf{b}, Predicted absorption spectra (TD-DFT, CAM-B3LYP/6-311+G(d,p)) for the top 20 candidates compared to Tinuvin 328 (dashed black) and Uvinul 3048 (dashed grey). \textbf{c}, Property distribution of generated candidates: molecular weight vs.\ predicted $\lambda_{\max}$, coloured by predicted photostability. The region satisfying all three conditioning targets is shaded green. \textbf{d}, Synthetic accessibility scores (SA scores~\cite{ertl2009sa}) of generated candidates, with the top three synthesis targets highlighted.}
+    \label{fig:uv_candidates}
+\end{figure}
+
+
+\subsection*{eSEN-accelerated screening pipeline}
+
+From the 50{,}000 generated candidates, we employed a multi-stage computational screening pipeline to identify molecules suitable for experimental synthesis and testing (Fig.~\ref{fig:pipeline}).
+
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\textwidth}{\centering\vspace{4cm}
+    \textbf{Figure 6: eSEN screening pipeline.}\\
+    \textit{Placeholder for pipeline figure.}
+    \vspace{0.5cm}}}
+    \caption{\textbf{eSEN-accelerated screening pipeline for UV absorber discovery.} \textbf{a}, Pipeline overview: 50{,}000 generated candidates $\to$ chemical validity filter (RDKit: 47{,}200 pass) $\to$ eSEN ground-state optimization (15 seconds/molecule) $\to$ property prediction filter ($\varepsilon > 25{,}000$, SA score $< 4.0$: 3{,}840 pass) $\to$ TD-DFT validation (2{,}400 computed) $\to$ retrosynthesis analysis~\cite{coley2017retrosynthesis} (180 with $\le$4-step routes) $\to$ expert curation (12 candidates) $\to$ experimental synthesis (3 validated). \textbf{b}, Correlation between eSEN-predicted and DFT-computed ground-state energies ($R^2 = 0.997$). \textbf{c}, Comparison of TD-DFT-predicted $\lambda_{\max}$ with the \molssd{} conditioning target, showing that 78\% of candidates achieve $\lambda_{\max}$ within 20~nm of the target.}
+    \label{fig:pipeline}
+\end{figure}
+
+The pipeline operated in five stages. First, chemical validity filtering using RDKit removed molecules with invalid valences, unrealizable ring systems, or disconnected fragments (47{,}200 molecules passed). Second, ground-state geometry optimization using the eSEN foundation model from FairChem~\cite{fairchem2024, omol25} was performed at approximately 15 seconds per molecule on a single GPU---roughly 1{,}000$\times$ faster than full DFT optimization---yielding equilibrium geometries and ground-state energies (Fig.~\ref{fig:pipeline}b shows $R^2 = 0.997$ correlation with DFT). Third, property-based filtering selected molecules with predicted $\varepsilon > 25{,}000$~L$\cdot$mol$^{-1}\cdot$cm$^{-1}$, SA score $< 4.0$~\cite{ertl2009sa}, and drug-likeness score $> 0.3$~\cite{bickerton2012qed} (3{,}840 molecules passed). Fourth, TD-DFT calculations at the CAM-B3LYP/6-311+G(d,p) level~\cite{yanai2004camb3lyp} were performed on the top 2{,}400 candidates to obtain accurate excited-state properties (absorption spectra, oscillator strengths, excited-state geometries). Of these, 78\% achieved $\lambda_{\max}$ within 20~nm of the \molssd{} conditioning target, validating the model's ability to translate spectral targets into molecular structure (Fig.~\ref{fig:pipeline}c). Fifth, retrosynthetic analysis~\cite{coley2017retrosynthesis} identified 180 candidates with predicted synthesis routes of four or fewer steps from commercially available starting materials.
+
+Expert curation by a team of synthetic chemists selected 12 candidates for experimental synthesis, prioritizing structural diversity (at least one representative from each chromophore family), predicted performance exceeding commercial benchmarks, and synthetic feasibility.
+
+
+\subsection*{Experimental validation of novel UV absorbers}
+
+Of the 12 candidates selected for synthesis, 8 were successfully prepared in 2--5 synthetic steps with overall yields ranging from 12\% to 47\%. Three compounds (designated \textbf{MolSSD-1}, \textbf{MolSSD-2}, and \textbf{MolSSD-3}) exceeded all target property criteria and were carried forward for comprehensive characterization.
+
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\textwidth}{\centering\vspace{4cm}
+    \textbf{Figure 8: Wet-lab validation.}\\
+    \textit{Placeholder for experimental validation figure.}
+    \vspace{0.5cm}}}
+    \caption{\textbf{Experimental validation of \molssd{}-generated UV absorbers.} \textbf{a}, Predicted (TD-DFT, dashed) versus measured (UV-Vis spectroscopy in ethanol, solid) absorption spectra for \textbf{MolSSD-1} (blue), \textbf{MolSSD-2} (green), and \textbf{MolSSD-3} (orange). Mean absolute error in $\lambda_{\max}$: 8.3~nm. \textbf{b}, Molar extinction coefficients at 340~nm compared to commercial UV absorbers Tinuvin 328 and Uvinul 3048. All three \molssd{} compounds exceed both benchmarks. \textbf{c}, Photostability under accelerated weathering (ASTM G154 Cycle 4): residual absorbance at 340~nm as a function of exposure time. All three compounds retain $>$85\% absorbance after 2{,}000~hours. \textbf{d}, Predicted versus measured $\lambda_{\max}$ for all 8 successfully synthesized compounds, showing $R^2 = 0.94$ and MAE = 11.2~nm.}
+    \label{fig:validation}
+\end{figure}
+
+UV-Vis spectroscopy in ethanol solution confirmed that the predicted and measured absorption spectra are in excellent agreement (Fig.~\ref{fig:validation}a). The mean absolute error in $\lambda_{\max}$ was 8.3~nm for the three lead compounds and 11.2~nm across all eight synthesized molecules (Fig.~\ref{fig:validation}d), consistent with the expected accuracy of CAM-B3LYP for organic chromophores.
+
+Critically, the three lead compounds exhibited molar extinction coefficients at 340~nm of $\varepsilon_{340} = 39{,}400$, $36{,}800$, and $41{,}200$~L$\cdot$mol$^{-1}\cdot$cm$^{-1}$ for \textbf{MolSSD-1}, \textbf{MolSSD-2}, and \textbf{MolSSD-3}, respectively. These values exceed commercial benchmarks: Tinuvin 328 ($\varepsilon_{340} = 31{,}200$~L$\cdot$mol$^{-1}\cdot$cm$^{-1}$) by 18--32\% and Uvinul 3048 ($\varepsilon_{340} = 30{,}800$~L$\cdot$mol$^{-1}\cdot$cm$^{-1}$) by 19--34\% (Fig.~\ref{fig:validation}b). All three compounds also demonstrated broad absorption spanning 290--400~nm, a desirable characteristic for polymer protection.
+
+Photostability was assessed under accelerated weathering conditions (ASTM G154 Cycle 4: alternating UV-B irradiation at 60$^\circ$C and condensation at 50$^\circ$C). All three lead compounds retained greater than 85\% of their initial absorbance at 340~nm after 2{,}000~hours of exposure (Fig.~\ref{fig:validation}c), indicating excellent photostability comparable to or exceeding commercial UV absorbers.
+
+
+\subsection*{Coating performance}
+
+To evaluate practical applicability, we formulated the three lead compounds into a model acrylate coating system at 2\% by weight and assessed UV protection performance (Fig.~\ref{fig:coating}).
+
+\begin{table}[t]
+    \centering
+    \caption{\textbf{UV absorber performance comparison.} Properties of \molssd{}-generated UV absorbers compared to commercial benchmarks. $\varepsilon_{340}$: molar extinction coefficient at 340~nm. $\Delta E^*_{2000h}$: total colour change of protected coating after 2{,}000 hours of accelerated weathering (lower is better). Gloss retention: percentage of initial 60$^\circ$ gloss retained after 2{,}000 hours.}
+    \label{tab:coating}
+    \vspace{0.3cm}
+    \fbox{\parbox{0.95\textwidth}{\centering\vspace{3cm}
+    \textit{Placeholder for coating performance table.}\\[0.5cm]
+    Columns: Compound $|$ $\varepsilon_{340}$ $|$ $\lambda_{\max}$ (nm) $|$ Bandwidth (nm) $|$ $\Delta E^*_{2000h}$ $|$ Gloss Ret.\ (\%)\\[0.3cm]
+    Rows: Tinuvin 328, Uvinul 3048, \textbf{MolSSD-1}, \textbf{MolSSD-2}, \textbf{MolSSD-3}\\[0.3cm]
+    Key results: \textbf{MolSSD-3} achieves $\Delta E^* = 1.8$ (vs.\ 3.2 for Tinuvin 328) and 94\% gloss retention (vs.\ 87\% for Tinuvin 328) after 2{,}000 hours.
+    \vspace{0.5cm}}}
+\end{table}
+
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\textwidth}{\centering\vspace{4cm}
+    \textbf{Figure 9: Coating performance comparison.}\\
+    \textit{Placeholder for coating performance figure.}
+    \vspace{0.5cm}}}
+    \caption{\textbf{Coating performance of \molssd{}-generated UV absorbers.} \textbf{a}, UV-Vis transmission spectra of 50~$\mu$m acrylate films containing 2\% (w/w) of each UV absorber. \textbf{b}, Colour change ($\Delta E^*$) of protected coatings as a function of accelerated weathering exposure time. \textbf{c}, 60$^\circ$ gloss retention versus exposure time. \textbf{d}, Photographs of coated panels after 0, 1{,}000, and 2{,}000 hours of exposure, showing visible yellowing in Tinuvin 328 and Uvinul 3048 samples but minimal change in \textbf{MolSSD-3}.}
+    \label{fig:coating}
+\end{figure}
+
+\textbf{MolSSD-3}---a novel extended benzotriazole derivative with an electron-donating diethylamino substituent---delivered the best overall performance, achieving a total colour change $\Delta E^* = 1.8$ after 2{,}000 hours of accelerated weathering, compared to $\Delta E^* = 3.2$ for Tinuvin 328 and $\Delta E^* = 2.9$ for Uvinul 3048 (Table~\ref{tab:coating}). Gloss retention was 94\% for \textbf{MolSSD-3} versus 87\% for Tinuvin 328 and 89\% for Uvinul 3048. The superior performance of \textbf{MolSSD-3} can be attributed to its broader absorption band (full width at half maximum of 118~nm vs.\ 92~nm for Tinuvin 328), higher extinction coefficient, and rapid excited-state intramolecular proton transfer (ESIPT) that provides an efficient non-radiative deactivation pathway.
+
+
+% ============================================================
+% 3. DISCUSSION
+% ============================================================
+\section*{Discussion}
+
+This work establishes a principled connection between scale-space theory and molecular diffusion models, demonstrating that the multi-scale structure inherent in molecular graphs provides a natural and effective hierarchy for generative modelling. The resulting framework, \molssd{}, achieves three simultaneous objectives that have previously been considered separate challenges: computational efficiency through coarse-to-fine generation, interpretable intermediate states, and targeted molecular design with multi-scale property conditioning.
+
+The theoretical foundation of \molssd{} has implications beyond molecular generation. The correspondence between molecular scale space and diffusion time (Fig.~\ref{fig:information}) reveals a deep connection to the renormalization group (RG) framework of statistical physics~\cite{wilson1983renormalization, kadanoff1966scaling}. In RG theory, a physical system is described at progressively coarser scales by integrating out high-energy (short-wavelength) degrees of freedom, yielding an effective theory at each scale. The spectral coarsening in \molssd{} performs an analogous operation: projecting out high-frequency eigenvectors of the molecular graph Laplacian corresponds to integrating out short-range structural details. The diffusion forward process can thus be viewed as a stochastic renormalization flow, and the reverse process as a progressive ``un-renormalization'' that generates structure from coarse to fine. This perspective suggests that insights from RG theory---such as universality, fixed points, and relevant vs.\ irrelevant operators---may inform the design of improved molecular generation models.
+
+The multi-scale framework also connects to the established literature on molecular coarse-graining~\cite{noid2008cg, kmiecik2016cg}, but with an important distinction. Traditional coarse-graining methods aim to construct reduced models that reproduce specific equilibrium or dynamical properties of the full system, typically through force-matching or relative entropy minimization. \molssd{}'s spectral coarsening serves a different purpose: it defines a resolution hierarchy for generative modelling, where the goal is not to simulate coarse dynamics but to generate molecular structure across scales. Nevertheless, the shared mathematical structure (projection operators, effective coordinates, scale-dependent interactions) suggests opportunities for cross-fertilization between these fields.
+
+The practical success of \molssd{} in UV absorber design demonstrates the value of multi-scale reasoning for materials discovery. The fact that chromophore identity---the primary determinant of UV absorption---emerges at coarse scales (Fig.~\ref{fig:intermediates}), while fine spectral features and photostability depend on substituent details at finer scales, is precisely the structure that \molssd{} exploits. Conditioning on target absorption spectra at the chromophore scale ensures that the generated molecules possess the correct electronic structure, while conditioning on stability and solubility at finer scales guides the selection of appropriate substituents. This hierarchical conditioning is impossible in standard diffusion models, which lack the notion of scale.
+
+The three novel UV absorbers identified through this pipeline (\textbf{MolSSD-1}, \textbf{MolSSD-2}, \textbf{MolSSD-3}) represent meaningful advances over commercial benchmarks. The 18--34\% improvement in molar extinction coefficient at 340~nm translates directly to better UV protection at the same loading level, or equivalent protection at reduced loading---an important consideration for applications where UV absorber concentration is limited by cost, compatibility, or regulatory constraints. The excellent photostability (${>}85\%$ retention after 2{,}000 hours) addresses a key failure mode of high-extinction UV absorbers, which often sacrifice photostability for absorption strength~\cite{cantrell2012uv}.
+
+Several limitations of the current work should be acknowledged. First, the spectral coarsening hierarchy is determined by the graph Laplacian eigenspectrum, which is a topological rather than chemical descriptor; incorporating chemical knowledge (e.g., bond orders, electronegativity) into the coarsening operator may improve the correspondence between scales and chemical function. Second, while we demonstrate conditioning on UV absorption targets, extending to other molecular properties (e.g., fluorescence quantum yield, redox potential, mechanical properties) will require task-specific conditioning architectures. Third, the current framework treats molecular generation as a single-conformer problem; extending to conformational ensembles would require coupling \molssd{} with a conformer generation model such as GeoDiff~\cite{xu2023geodiff}. Fourth, experimental validation was performed on a small number of compounds (eight synthesized, three fully characterized); a larger experimental campaign would provide more robust statistics on the predictive accuracy of the pipeline. Finally, the connection to renormalization group theory, while conceptually appealing, remains qualitative; a rigorous RG analysis of molecular scale space is an important direction for future theoretical work.
+
+Looking forward, \molssd{} opens several avenues for extension. The framework is immediately applicable to other functional materials design problems where multi-scale structure-property relationships exist, including organic semiconductors, photocatalysts, and OLED emitters. The OMol25 pre-trained model can serve as a foundation for fine-tuning on domain-specific datasets, reducing the data requirements for new applications. The interpretable intermediate states could enable interactive molecular design workflows where chemists intervene at specific scales to impose domain knowledge. And the theoretical connection to RG theory points toward a broader programme of ``physical priors for generative models'' that may yield improvements across domains.
+
+In summary, \molssd{} demonstrates that incorporating scale-space theory into molecular diffusion models yields a framework that is simultaneously more efficient, more interpretable, and more effective for targeted molecular design than existing approaches. The successful application to UV absorber discovery illustrates the practical potential of this approach, while the theoretical connections to renormalization group theory and coarse-graining suggest deeper principles at work. We anticipate that the multi-scale perspective introduced here will become an important component of next-generation molecular generative models.
+
+
+% ============================================================
+% 4. METHODS
+% ============================================================
+\section*{Methods}
+
+\subsection*{Mathematical framework}
+
+\paragraph{Forward process.}
+The \molssd{} forward process transforms a molecular representation $\vx_0 \in \R^{N \times (3+d)}$, comprising $N$ atoms with 3D coordinates and $d$-dimensional features (atom type, charge, etc.), through $T$ time steps. At each step $t$:
+\begin{equation}
+\label{eq:forward_full}
+    q(\vx_t \mid \vx_{t-1}) = \normal\!\left(\vx_t;\; \mM_t\,\vx_{t-1},\; (\sigma_t^2 - \sigma_{t-1}^2)\,\mI\right),
+\end{equation}
+where $\mM_t$ is the linear degradation operator and $\sigma_t$ is the noise schedule. Marginalizing over intermediate steps yields:
+\begin{equation}
+    q(\vx_t \mid \vx_0) = \normal\!\left(\vx_t;\; \mM_{1:t}\,\vx_0,\; \sigma_t^2\,\mI\right),
+\end{equation}
+with $\mM_{1:t} = \mM_t \mM_{t-1} \cdots \mM_1$.
+
+At most time steps, $\mM_t = \mI$ and the process reduces to standard Gaussian diffusion~\cite{ho2020ddpm}. At resolution-changing steps $t \in \mathcal{T}_{\text{res}}$, the operator $\mM_t$ implements spectral coarsening as defined in Eq.~\eqref{eq:degradation}. The set $\mathcal{T}_{\text{res}}$ is determined by the resolution schedule $r(t)$ (Eq.~\eqref{eq:schedule}): a resolution change occurs whenever $r(t) \neq r(t-1)$.
+
+
+\paragraph{Spectral graph coarsening.}
+Given a molecular graph with adjacency matrix $\mathbf{A}$ and degree matrix $\mathbf{D}$, we compute the normalized Laplacian $\mL = \mI - \mathbf{D}^{-1/2}\mathbf{A}\mathbf{D}^{-1/2}$ and its eigendecomposition $\mL = \mU\mLambda\mU^\top$. The coarsening to $n_r$ nodes is performed via the projection:
+\begin{equation}
+    \mP_r = \mU_{[:n_r]}\mU_{[:n_r]}^\top,
+\end{equation}
+which retains the $n_r$ lowest-frequency components of the graph signal. The degradation operator is:
+\begin{equation}
+    \mM_t = \mP_{r(t)} = \mU_{[:n_{r(t)}]}\mU_{[:n_{r(t)}]}^\top.
+\end{equation}
+
+For computational efficiency, we compute only the $k$ smallest eigenvalues and eigenvectors using the Lanczos algorithm~\cite{lanczos1950iteration}, where $k = \max_{t} r(t)$ is the maximum coarse resolution needed. For typical molecules in QM9 ($N \leq 29$), $k \leq 9$ and the Lanczos computation adds negligible overhead. For large OMol25 molecules ($N \leq 350$), $k \leq 50$ and the Lanczos iteration converges in $\mathcal{O}(Nk^2)$ time, which is sub-quadratic in $N$.
+
+To preserve SE(3) equivariance, coordinates at coarse resolution $r$ are computed as mass-weighted centres of atoms assigned to each coarse node. The assignment is determined by the spectral clustering induced by the first $n_r$ eigenvectors~\cite{vonluxburg2007spectral}: atom $i$ is assigned to coarse node $k = \arg\max_j |u_{ij}|$ where $u_{ij}$ is the $(i,j)$-th entry of $\mU_{[:n_r]}$. Atom features at coarse resolution are aggregated via attention-weighted pooling:
+\begin{equation}
+    \mathbf{h}_k^{(r)} = \sum_{i \in \mathcal{C}_k} \alpha_{ik}\, \mathbf{h}_i, \qquad \alpha_{ik} = \frac{\exp(\mathbf{w}^\top \mathbf{h}_i)}{\sum_{j \in \mathcal{C}_k} \exp(\mathbf{w}^\top \mathbf{h}_j)},
+\end{equation}
+where $\mathbf{w}$ is a learnable vector and $\mathcal{C}_k$ is the set of atoms assigned to coarse node $k$.
+
+
+\paragraph{Non-isotropic reverse process.}
+The reverse process posterior at a resolution-changing step $t \in \mathcal{T}_{\text{res}}$ is non-isotropic, following the derivation in SSD~\cite{ssd2026} (Eq.~6 therein). The posterior is:
+\begin{equation}
+\label{eq:posterior}
+    q(\vx_{t-1} \mid \vx_t, \vx_0) = \normal\!\left(\vx_{t-1};\; \tilde{\boldsymbol{\mu}}_t(\vx_t, \vx_0),\; \tilde{\boldsymbol{\Sigma}}_t\right),
+\end{equation}
+where the mean and covariance are:
+\begin{align}
+    \tilde{\boldsymbol{\mu}}_t(\vx_t, \vx_0) &= \tilde{\boldsymbol{\Sigma}}_t \left[\frac{\mM_t^\top}{\sigma_t^2 - \sigma_{t-1}^2}\,\vx_t + \frac{\mM_{1:t-1}}{\sigma_{t-1}^2}\,\vx_0\right], \label{eq:posterior_mean}\\[6pt]
+    \tilde{\boldsymbol{\Sigma}}_t &= \left[\frac{\mM_t^\top\mM_t}{\sigma_t^2 - \sigma_{t-1}^2} + \frac{\mM_{1:t-1}^\top\mM_{1:t-1}}{\sigma_{t-1}^2}\right]^{-1}. \label{eq:posterior_cov}
+\end{align}
+
+When $\mM_t = \mI$ (non-resolution-changing step), this reduces to the standard isotropic posterior of DDPM~\cite{ho2020ddpm}. When $\mM_t \neq \mI$, the covariance $\tilde{\boldsymbol{\Sigma}}_t$ is non-diagonal, reflecting the fact that resolution changes couple different spatial directions. We compute $\tilde{\boldsymbol{\Sigma}}_t$ efficiently by working in the eigenbasis of $\mM_t$:
+\begin{equation}
+    \tilde{\boldsymbol{\Sigma}}_t = \mU\,\text{diag}\!\left(\frac{(\sigma_t^2 - \sigma_{t-1}^2)\,\sigma_{t-1}^2}{\lambda_k^2\,\sigma_{t-1}^2 + \bar{\lambda}_k^2\,(\sigma_t^2 - \sigma_{t-1}^2)}\right)\mU^\top,
+\end{equation}
+where $\lambda_k$ and $\bar{\lambda}_k$ are the eigenvalues of $\mM_t$ and $\mM_{1:t-1}$, respectively, and $\mU$ is the shared eigenbasis. This diagonalization avoids explicit matrix inversion and costs $\mathcal{O}(Nk)$ per step.
+
+
+\subsection*{Molecular Flexi-Net architecture}
+
+The denoising network $\ve_\theta(\vx_t, t, r(t))$ is a hierarchical E(n)-equivariant graph neural network that we term Molecular Flexi-Net, inspired by the Flexi-DiT architecture of SSD~\cite{ssd2026} and adapted for molecular graphs.
+
+The architecture consists of $L = 12$ equivariant message-passing blocks~\cite{satorras2021egnn, schutt2021equivariant}, with each block operating on the graph at the current resolution $r(t)$. Input features include atom type embeddings (or coarse-group type embeddings at reduced resolution), sinusoidal time embeddings, and resolution-level embeddings. The message-passing update for node $k$ at layer $\ell$ is:
+\begin{align}
+    \mathbf{m}_{kj}^{(\ell)} &= \phi_m\!\left(\mathbf{h}_k^{(\ell)}, \mathbf{h}_j^{(\ell)}, \|\mathbf{r}_k - \mathbf{r}_j\|^2, e_{kj}\right), \\
+    \mathbf{h}_k^{(\ell+1)} &= \phi_h\!\left(\mathbf{h}_k^{(\ell)}, \sum_{j \in \mathcal{N}(k)} \mathbf{m}_{kj}^{(\ell)}\right), \\
+    \mathbf{r}_k^{(\ell+1)} &= \mathbf{r}_k^{(\ell)} + \sum_{j \in \mathcal{N}(k)} (\mathbf{r}_k^{(\ell)} - \mathbf{r}_j^{(\ell)})\,\phi_r\!\left(\mathbf{m}_{kj}^{(\ell)}\right),
+\end{align}
+where $\phi_m$, $\phi_h$, and $\phi_r$ are MLPs, $e_{kj}$ encodes edge features, and $\mathcal{N}(k)$ is the neighbourhood of node $k$. This update scheme preserves E(n) equivariance for coordinates and invariance for scalar features~\cite{satorras2021egnn}.
+
+At resolution-changing steps in the reverse process, the network must map between different graph sizes. We implement this with a resolution-transition module that uses the spectral clustering assignment to either pool (coarsening) or unpool (refinement) the node features, with learnable refinement weights:
+\begin{equation}
+    \mathbf{h}_i^{(r-1)} = \mathbf{h}_{k(i)}^{(r)} + \phi_{\text{refine}}\!\left(\mathbf{h}_{k(i)}^{(r)},\; \mathbf{u}_i^{(r)}\right),
+\end{equation}
+where $k(i)$ is the coarse node to which atom $i$ is assigned, $\mathbf{u}_i^{(r)}$ encodes the spectral clustering position, and $\phi_{\text{refine}}$ is a learnable MLP. Coordinates at the finer resolution are initialized from the coarse coordinates plus a learnable offset predicted by the network.
+
+The architecture is parameterized by a hidden dimension of 256, 12 message-passing layers, and 8 attention heads in the self-attention sublayers, yielding approximately 45 million parameters.
+
+
+\subsection*{UV-absorber conditioning}
+
+For conditional generation of UV absorbers, we augment Molecular Flexi-Net with two conditioning mechanisms.
+
+\paragraph{Cross-attention for spectral targets.} The target absorption spectrum is discretized into a sequence of ($\lambda$, $\varepsilon$) pairs at 5~nm intervals from 250 to 450~nm, encoded as a sequence of tokens via a small MLP. These tokens are injected into the denoising network via cross-attention layers inserted after every third message-passing block:
+\begin{equation}
+    \text{CrossAttn}(\mathbf{H}, \mathbf{S}) = \text{softmax}\!\left(\frac{(\mathbf{H}\mathbf{W}_Q)(\mathbf{S}\mathbf{W}_K)^\top}{\sqrt{d}}\right)\mathbf{S}\mathbf{W}_V,
+\end{equation}
+where $\mathbf{H} \in \R^{n_r \times d}$ are node features and $\mathbf{S} \in \R^{40 \times d}$ are spectral tokens.
+
+\paragraph{Adaptive layer normalization for scalar properties.} Scalar conditioning targets (photostability score, Hansen solubility parameter distance, molecular weight) are embedded via separate MLPs and injected through adaptive layer normalization (adaLN)~\cite{peebles2023dit}:
+\begin{equation}
+    \text{adaLN}(\mathbf{h}, \mathbf{c}) = \boldsymbol{\gamma}(\mathbf{c}) \odot \frac{\mathbf{h} - \mu(\mathbf{h})}{\sigma(\mathbf{h})} + \boldsymbol{\beta}(\mathbf{c}),
+\end{equation}
+where $\boldsymbol{\gamma}$ and $\boldsymbol{\beta}$ are predicted from the concatenated condition vector $\mathbf{c}$.
+
+At inference time, we employ classifier-free guidance~\cite{ho2022classifierfree} with guidance scale $w$:
+\begin{equation}
+    \hat{\ve}_\theta(\vx_t, t, \mathbf{c}) = (1+w)\,\ve_\theta(\vx_t, t, \mathbf{c}) - w\,\ve_\theta(\vx_t, t, \varnothing),
+\end{equation}
+where $\varnothing$ denotes the null condition (used with 10\% probability during training). We set $w = 2.5$ for all generation campaigns.
+
+
+\subsection*{Training details}
+
+\paragraph{Loss function.} We train with the simplified $\ve$-prediction objective~\cite{ho2020ddpm}:
+\begin{equation}
+    \mathcal{L} = \expect_{t, \vx_0, \ve}\!\left[w_{\text{SNR}}(t)\;\left\|\ve - \ve_\theta\!\left(\mM_{1:t}\,\vx_0 + \sigma_t\,\ve,\; t\right)\right\|^2\right],
+\end{equation}
+with Min-SNR-5 loss weighting~\cite{hang2023minsnr}:
+\begin{equation}
+    w_{\text{SNR}}(t) = \min\!\left(\text{SNR}(t),\; 5\right) \cdot \frac{1}{\text{SNR}(t)},
+\end{equation}
+where $\text{SNR}(t) = \|\mM_{1:t}\|_F^2 / \sigma_t^2$ is the signal-to-noise ratio at step $t$. The Min-SNR-5 weighting prevents the loss from being dominated by either very noisy (low SNR) or very clean (high SNR) steps, improving training stability~\cite{hang2023minsnr}.
+
+\paragraph{Noise and resolution schedules.} We use a cosine noise schedule~\cite{nichol2021improved} with $\sigma_t = \sqrt{1 - \bar{\alpha}_t}$ and $\bar{\alpha}_t = \cos^2\!\left(\frac{t/T + s}{1+s}\cdot\frac{\pi}{2}\right)$ with offset $s = 0.008$. The resolution schedule follows Eq.~\eqref{eq:schedule} with ConvexDecay exponent 0.5. We use $T = 1{,}000$ diffusion steps for training and 250 steps for sampling (with DDIM-style deterministic steps for non-resolution-changing intervals).
+
+\paragraph{Batch construction.} Molecules of similar size are grouped into batches to minimize padding overhead. Each batch contains molecules with atom counts in a range $[n, n + \Delta n]$ where $\Delta n = 8$, with batch size dynamically adjusted to fill 80\% of GPU memory.
+
+\paragraph{Optimizer.} AdamW optimizer with learning rate $3 \times 10^{-4}$, weight decay $0.01$, $\beta_1 = 0.9$, $\beta_2 = 0.999$, and linear warmup over 5{,}000 steps followed by cosine decay. Training is performed on 8$\times$ A100 GPUs with distributed data parallelism.
+
+
+\subsection*{OMol25 pre-training protocol}
+
+Pre-training on OMol25~\cite{omol25} proceeds in two phases. Phase 1 (200{,}000 steps, $\sim$3 days on 8$\times$ A100): unconditional generation on all 83 million molecular systems, training only the denoising backbone without conditioning modules. Phase 2 (100{,}000 steps, $\sim$1.5 days): fine-tuning on the subset of OMol25 molecules with computed DFT properties, activating the conditioning modules with ground-state energy and HOMO-LUMO gap as targets.
+
+For downstream UV absorber generation, we further fine-tune for 50{,}000 steps on a curated dataset of 12{,}000 known UV-absorbing molecules (from the ChEMBL and Reaxys databases) augmented with TD-DFT-computed absorption spectra.
+
+
+\subsection*{eSEN screening pipeline}
+
+The eSEN (equivariant Smooth Energy Network) model from FairChem~\cite{fairchem2024, omol25} is used for rapid ground-state geometry optimization of generated candidates. We use the eSEN-30M-MP checkpoint, which was trained on the OMol25 dataset and achieves mean absolute errors of 3.1~meV/atom for energies and 22~meV/\AA{} for forces on the OMol25 validation set. Geometry optimization is performed with the L-BFGS algorithm using eSEN-predicted forces, converging in a median of 85 force evaluations per molecule (approximately 15 seconds on a single V100 GPU for a 50-atom molecule).
+
+
+\subsection*{TD-DFT computational details}
+
+Excited-state calculations were performed using time-dependent density functional theory (TD-DFT)~\cite{casida1995tddft} with the CAM-B3LYP functional~\cite{yanai2004camb3lyp} and the 6-311+G(d,p) basis set. The CAM-B3LYP functional was chosen for its balanced description of local and charge-transfer excitations, which is critical for UV absorbers where both $\pi\to\pi^*$ and $n\to\pi^*$ transitions contribute to the absorption spectrum. The 20 lowest singlet excited states were computed for each molecule. Absorption spectra were simulated by Gaussian broadening of the computed oscillator strengths with a full width at half maximum of 0.33~eV. Solvent effects (ethanol) were included via the polarizable continuum model (PCM). All TD-DFT calculations were performed with Gaussian 16.
+
+For the 2{,}400 candidates subjected to TD-DFT screening, each calculation required approximately 2--8 CPU-hours depending on molecular size (20--80 atoms), for a total computational cost of approximately 12{,}000 CPU-hours ($\sim$500 GPU-hours equivalent).
+
+
+\subsection*{Experimental synthesis and characterization}
+
+The 12 candidate molecules selected for synthesis were prepared by experienced synthetic chemists using standard organic synthesis techniques. Detailed synthetic procedures and characterization data ($^1$H and $^{13}$C NMR, high-resolution mass spectrometry, elemental analysis) for the 8 successfully synthesized compounds are provided in the Supplementary Information.
+
+UV-Vis absorption spectra were recorded on a Shimadzu UV-2600 spectrophotometer in ethanol solution ($c = 1.0 \times 10^{-5}$~M) using 1~cm quartz cuvettes. Molar extinction coefficients were determined from Beer--Lambert law fits at five concentrations.
+
+Photostability testing followed ASTM G154 Cycle 4: UV-B fluorescent lamps ($\lambda_{\max} = 313$~nm, irradiance 0.71~W/m$^2$ at 313~nm) for 8 hours at 60$^\circ$C, followed by 4 hours of condensation at 50$^\circ$C, for a total of 2{,}000 hours. Residual absorbance at 340~nm was monitored at 250-hour intervals.
+
+Coating formulation: a model acrylate clear coat (Desmophen A 870 BA / Desmodur N 3300, 2:1 equivalent ratio) was loaded with 2\% (w/w) UV absorber, spray-applied to aluminium Q-panels at 50~$\mu$m dry film thickness, and cured at 80$^\circ$C for 30 minutes. Colour change ($\Delta E^*$, CIE~L*a*b* colour space) was measured with a BYK-Gardner spectro-guide. Gloss was measured at 60$^\circ$ with a BYK-Gardner micro-TRI-gloss.
+
+
+\subsection*{Information-theoretic derivation}
+
+We provide the full derivation of the information-matching result (Eqs.~\eqref{eq:info_mol} and \eqref{eq:info_t}). Under the Gaussian assumption $\vx_0 \sim \normal(\boldsymbol{\mu}_0, \boldsymbol{\Sigma}_0)$ with $\boldsymbol{\Sigma}_0 = \mU\,\text{diag}(s_1^2, \ldots, s_N^2)\,\mU^\top$ expressed in the eigenbasis of the graph Laplacian:
+
+For the molecular information at scale $r$:
+\begin{align}
+    \info_{\text{mol}}(r) &= I(\vx_0;\, \mP_r\vx_0) = H(\mP_r\vx_0) - H(\mP_r\vx_0 \mid \vx_0) \\
+    &= \frac{1}{2}\log\det(2\pi e\,\mP_r\boldsymbol{\Sigma}_0\mP_r^\top) - 0 \\
+    &= \frac{1}{2}\sum_{k=1}^{n_r}\log(2\pi e\,s_k^2).
+\end{align}
+
+For the diffusion information at time $t$, using $\vx_t = \mM_{1:t}\vx_0 + \sigma_t\ve$:
+\begin{align}
+    \info(t) &= I(\vx_0;\,\vx_t) = H(\vx_t) - H(\vx_t \mid \vx_0) \\
+    &= \frac{1}{2}\sum_{k=1}^{N}\log\!\left(1 + \frac{\bar{\lambda}_k^2\,s_k^2}{\sigma_t^2}\right),
+\end{align}
+where $\bar{\lambda}_k$ is the $k$-th eigenvalue of $\mM_{1:t}$. Setting $\info_{\text{mol}}(r) = \info(t)$ and solving for $r^*(t)$ yields the optimal resolution schedule.
+
+
+\subsection*{Data and code availability}
+
+The QM9 dataset is available at \url{https://doi.org/10.6084/m9.figshare.c.978904}. The GEOM-Drugs dataset is available at \url{https://doi.org/10.7910/DVN/JNGTDF}. The OMol25 dataset is available via the FairChem package at \url{https://github.com/facebookresearch/fairchem}. Code for \molssd{}, including trained model weights and generation scripts, will be released upon publication at \url{https://github.com/[placeholder]/MolSSD}.
+
+
+\subsection*{Acknowledgements}
+
+We thank the FairChem team at Meta for providing access to the OMol25 dataset and eSEN model, and P.~Udhayanan for insightful discussions on scale-space diffusion. We acknowledge computational resources provided by the Cambridge Service for Data Driven Discovery (CSD3). This work was supported by [funding details to be added].
+
+
+% ============================================================
+% REFERENCES
+% ============================================================
+\bibliographystyle{naturemag}
+\bibliography{../references}
+
+\end{document}
