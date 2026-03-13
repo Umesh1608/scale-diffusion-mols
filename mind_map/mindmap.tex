@@ -24,7 +24,7 @@
 % Title
 \begin{tikzpicture}
 
-\node[font=\Large\bfseries\sffamily, text=coreOrange!90!black] at (0,22)
+\node[font=\Large\bfseries\sffamily, text=coreOrange!90!black] at (0,24)
   {MolSSD Project -- Complete Mind Map};
 
 \begin{scope}[
@@ -41,18 +41,18 @@
     text width=1.8cm,
   },
   level 2/.append style={
-    level distance=3.8cm,
-    sibling angle=30,
+    level distance=5.0cm,
+    sibling angle=35,
     font=\tiny,
-    minimum size=1.2cm,
-    text width=1.1cm,
+    minimum size=1.0cm,
+    text width=0.9cm,
   },
   level 3/.append style={
-    level distance=2.6cm,
-    sibling angle=28,
+    level distance=3.0cm,
+    sibling angle=35,
     font=\tiny,
-    minimum size=0.9cm,
-    text width=0.8cm,
+    minimum size=0.85cm,
+    text width=0.75cm,
   },
 ]
 
@@ -61,38 +61,41 @@
   {MolSSD\\[3pt]{\small Molecular}\\{\small Scale-Space}\\{\small Diffusion}}
 %
 % ===============================================================
-% 9 branches at even 40-degree spacing: 0, 40, 80, 120, 160,
-% 200, 240, 280, 320.  Children stay within +-25 deg of parent.
+% 9 branches at even 40-deg spacing.
+% Level 2 siblings: min 15 deg apart (arc=1.3cm > 1.0cm node).
+% Level 3 siblings: 35 deg default (arc=1.83cm > 0.85cm node).
 % ===============================================================
 %
 % BRANCH 1 - Multi-Scale Hierarchy  (0 deg, right)
+%   4 children, 3x15=45 deg span, from -22 to +22
   child [concept color=brScale, grow=0] {
     node (hierarchy) {Multi-Scale Hierarchy}
-    child [grow=18] {
+    child [grow=22] {
       node {Sc0: Full Atomic}
     }
-    child [grow=6] {
+    child [grow=7] {
       node {Sc1: Func.\ Groups}
     }
-    child [grow=-6] {
+    child [grow=-8] {
       node {Sc2: Fragment}
     }
-    child [grow=-18] {
+    child [grow=-23] {
       node (chromo) {Sc3: Chromo\-phore}
     }
   }
 %
 % BRANCH 2 - Architecture  (40 deg, upper-right)
+%   3 children, 2x18=36 deg span, from 22 to 58
   child [concept color=brArch, grow=40] {
     node (arch) {Architecture Flexi-Net}
-    child [grow=55] {
+    child [grow=58] {
       node {Hierarchical EGNN}
       child { node {Lv0: 2blk 512} }
       child { node {Lv1: 3blk 384} }
       child { node {Lv2: 3blk 256} }
       child { node {LvL: 4blk 128} }
     }
-    child [grow=38] {
+    child [grow=40] {
       node {Dynamic Activation}
     }
     child [grow=22] {
@@ -103,22 +106,23 @@
   }
 %
 % BRANCH 3 - Mathematical Framework  (80 deg, upper)
+%   5 children, 4x15=60 deg span, from 50 to 110
   child [concept color=brMath, grow=80] {
     node (math) {Math Framework}
-    child [grow=98] {
+    child [grow=110] {
       node {Forward Process}
     }
-    child [grow=88] {
+    child [grow=95] {
       node (speccoarse) {Spectral Coarsen.}
     }
-    child [grow=78] {
+    child [grow=80] {
       node (graphlap) {Graph Laplacian}
     }
-    child [grow=68] {
+    child [grow=65] {
       node {Non-Iso Posterior}
       child { node {Lanczos} }
     }
-    child [grow=58] {
+    child [grow=50] {
       node {SE(3) Equiv.}
       child { node {CoM Aggr.} }
       child { node {Local Frames} }
@@ -126,9 +130,10 @@
   }
 %
 % BRANCH 4 - Baselines & Metrics  (120 deg, upper-left)
+%   3 children, 2x20=40 deg span, from 100 to 140
   child [concept color=brBase, grow=120] {
     node (baselines) {Baselines \& Metrics}
-    child [grow=138] {
+    child [grow=140] {
       node {Baselines}
       child { node {EDM GeoLDM} }
       child { node {GCDM EQGAT} }
@@ -140,7 +145,7 @@
       child { node {JS Diverg.} }
       child { node {QED SA} }
     }
-    child [grow=102] {
+    child [grow=100] {
       node (uvmetrics) {UV Metrics}
       child { node {Absorp.\ Acc.} }
       child { node {Photostab.} }
@@ -148,15 +153,16 @@
   }
 %
 % BRANCH 5 - Theoretical Foundations  (160 deg, left)
+%   4 children, 3x16=48 deg span, from 136 to 184
   child [concept color=brTheory, grow=160] {
     node (theory) {Theoretical Foundations}
-    child [grow=178] {
+    child [grow=184] {
       node (sst) {Scale-Space Theory}
       child { node {Lindeberg Witkin} }
       child { node {Gaussian Blur} }
       child { node {Heat Eqn.} }
     }
-    child [grow=165] {
+    child [grow=168] {
       node {Diffusion Models}
       child { node {DDPM} }
       child { node {Score SDE} }
@@ -166,62 +172,65 @@
       child { node {Lap.\ Eigdec.} }
       child { node {Spec.\ Cluster} }
     }
-    child [grow=140] {
+    child [grow=136] {
       node {Info Theory}
       child { node {Mutual Info} }
     }
   }
 %
 % BRANCH 6 - Research Gaps  (200 deg, lower-left)
+%   7 children, 6x14=84 deg span, from 158 to 242
   child [concept color=brGaps, grow=200] {
     node (gaps) {7 Research Gaps}
-    child [grow=225] {
+    child [grow=242] {
+      node {G7: No UV Design}
+    }
+    child [grow=228] {
       node {G1: No Info-Theory}
     }
-    child [grow=215] {
+    child [grow=214] {
       node {G2: Ad-hoc Frag.}
     }
-    child [grow=205] {
+    child [grow=200] {
       node {G3: Non-Iso Post.}
     }
-    child [grow=195] {
+    child [grow=186] {
       node {G4: Full-Res Ineff.}
     }
-    child [grow=185] {
+    child [grow=172] {
       node {G5: No Interp.}
     }
-    child [grow=175] {
+    child [grow=158] {
       node {G6: No CG-Gen}
-    }
-    child [grow=235] {
-      node {G7: No UV Design}
     }
   }
 %
 % BRANCH 7 - Experimental Pipeline  (240 deg, lower-left)
+%   6 children, 5x14=70 deg span, from 205 to 275
   child [concept color=brPipe, grow=240] {
     node (pipe) {Experimental Pipeline}
-    child [grow=265] {
+    child [grow=275] {
       node {Ph1: Validation}
     }
-    child [grow=255] {
+    child [grow=261] {
       node {Ph2: Pre-train}
     }
-    child [grow=245] {
+    child [grow=247] {
       node {Ph3: UV TD-DFT}
     }
-    child [grow=235] {
+    child [grow=233] {
       node {Ph4: Cond.\ Train}
     }
-    child [grow=225] {
+    child [grow=219] {
       node (phase5) {Ph5: Screen}
     }
-    child [grow=215] {
+    child [grow=205] {
       node {Ph6: Wet-Lab}
     }
   }
 %
 % BRANCH 8 - UV-Absorber Application  (280 deg, lower)
+%   3 children, 2x18=36 deg span, from 262 to 298
   child [concept color=brUV, grow=280] {
     node (uvapp) {UV-Absorber Application}
     child [grow=298] {
@@ -242,21 +251,22 @@
   }
 %
 % BRANCH 9 - Data & Infrastructure  (320 deg, lower-right)
+%   4 children, 3x15=45 deg span, from 298 to 343
   child [concept color=brData, grow=320] {
     node (data) {Data \& Infra}
-    child [grow=340] {
+    child [grow=343] {
       node (omol) {OMol25 140M DFT}
       child { node (pretrain) {Pre-train} }
       child { node {eSEN Oracle} }
       child { node {Scale Bench} }
     }
-    child [grow=325] {
+    child [grow=328] {
       node {QM9 130K}
     }
-    child [grow=310] {
+    child [grow=313] {
       node {GEOM-Drugs 317K}
     }
-    child [grow=296] {
+    child [grow=298] {
       node (uvdata) {UV Dataset 50--200K}
     }
   }
