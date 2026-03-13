@@ -1,0 +1,1382 @@
+% ============================================================
+% MolSSD Technical Whitepaper
+% Complete Technical Specification
+% ============================================================
+\documentclass[12pt,a4paper]{article}
+
+% --- Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{bm}
+\usepackage{bbm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{siunitx}
+\usepackage{nicefrac}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{natbib}
+\usepackage{doi}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+
+% --- Theorem environments ---
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
+% --- Notation shortcuts ---
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\KL}{\mathrm{KL}}
+\newcommand{\SNR}{\mathrm{SNR}}
+\newcommand{\Info}{\mathrm{Info}}
+\newcommand{\bx}{\bm{x}}
+\newcommand{\bz}{\bm{z}}
+\newcommand{\bh}{\bm{h}}
+\newcommand{\bep}{\bm{\epsilon}}
+\newcommand{\bmu}{\bm{\mu}}
+\newcommand{\bSigma}{\bm{\Sigma}}
+\newcommand{\cN}{\mathcal{N}}
+\newcommand{\cL}{\mathcal{L}}
+\newcommand{\cG}{\mathcal{G}}
+\newcommand{\cD}{\mathcal{D}}
+\newcommand{\Mt}{\bm{M}_t}
+\newcommand{\Ct}{\bm{C}^{(k)}}
+\newcommand{\Lap}{\bm{L}}
+\newcommand{\adj}{\bm{A}}
+\newcommand{\degree}{\bm{D}}
+
+% --- Title ---
+\title{\textbf{Molecular Scale Space Diffusion:\\Complete Technical Specification}\\[0.5em]
+\large MolSSD Project -- Technical Whitepaper v1.0}
+\author{MolSSD Research Team}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This document provides the complete technical specification for Molecular Scale Space Diffusion (MolSSD), a generative framework that extends Scale Space Diffusion (SSD)~\cite{ssd2026} from images to molecular graphs. MolSSD replaces the Gaussian blurring degradation operator of SSD with spectral graph coarsening operators, constructing a molecular scale space that progresses from full atomic resolution through functional groups and fragments to a single centroid. The forward process combines deterministic coarsening with stochastic noise addition, yielding a non-isotropic posterior distribution at resolution-changing timesteps that we handle via the Lanczos algorithm. The denoising network, Molecular Flexi-Net, is a hierarchical E(n)-equivariant graph neural network with dynamic level activation that achieves computational savings proportional to the coarsening ratio. We detail the mathematical framework, architecture, training protocol, and experimental design for applying MolSSD to the generation of novel UV-absorbing molecules for protective coatings, including pre-training on the OMol25 dataset (140M+ DFT calculations) and property-conditioned generation with classifier-free guidance.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Introduction}\label{sec:intro}
+% ============================================================
+
+\subsection{Problem Statement and Motivation}
+
+Three-dimensional molecular generation is a fundamental challenge at the intersection of machine learning and computational chemistry. The task requires jointly generating discrete atom types and continuous 3D coordinates while respecting the symmetries of Euclidean space---specifically, the group $\mathrm{SE}(3)$ of rotations and translations (or $\mathrm{E}(n)$ when reflections are included). Diffusion models have emerged as the leading paradigm for this task, with methods such as EDM~\cite{hoogeboom2022edm}, GeoDiff~\cite{xu2023geodiff}, GeoLDM~\cite{xu2023geoldm}, MiDi~\cite{vignac2023midi}, GCDM~\cite{morehead2024gcdm}, EQGAT-diff~\cite{le2024eqgat}, and MolDiff~\cite{peng2023moldiff} demonstrating progressively improving generation quality on standard benchmarks.
+
+Despite this progress, existing molecular diffusion models suffer from several fundamental limitations:
+
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Lack of information-theoretic grounding.} Standard DDPM~\cite{ho2020ddpm} applies isotropic Gaussian noise uniformly across all coordinates, destroying structural information at all scales simultaneously. There is no principled connection between the noise schedule and the physically meaningful hierarchy of molecular structure.
+
+    \item \textbf{Computational inefficiency.} Every denoising step operates at full atomic resolution, even when the molecule is heavily corrupted and fine-grained atomic details are unresolvable. This is analogous to rendering a blurry image at full $4096 \times 4096$ resolution.
+
+    \item \textbf{Ad hoc multi-scale approaches.} Hierarchical methods like HierDiff~\cite{qiang2023hierdiff} employ hand-crafted fragmentation rules (BRICS~\cite{degen2008brics}, Murcko scaffolds~\cite{bemis1996murcko}) that lack formal justification and may not capture the natural coarsening structure of diverse molecular graphs.
+
+    \item \textbf{Uninterpretable intermediate states.} In standard diffusion, partially denoised molecules are noisy point clouds with no chemical meaning. A physically grounded scale space would produce interpretable coarse-grained representations at intermediate timesteps.
+
+    \item \textbf{Scalability barriers.} Generating molecules with 100--350 atoms (as found in OMol25~\cite{omol25}) is computationally prohibitive when every step requires $O(N^2)$ message passing on the full atomic graph.
+\end{enumerate}
+
+\subsection{Relationship to Scale Space Diffusion}
+
+Scale Space Diffusion (SSD)~\cite{ssd2026} provides an elegant solution to the analogous problem in image generation. SSD replaces the identity degradation matrix of standard DDPM with a Gaussian blurring operator, creating a scale-space representation~\cite{lindeberg1994scalespace, witkin1987scalespace, koenderink1984structure} where high-frequency details are progressively removed before noise is added. This yields several benefits: (i) an information-theoretic framework linking resolution and noise level, (ii) non-isotropic posterior distributions that accelerate sampling, and (iii) a Flexi-Net architecture with dynamic resolution that reduces computational cost by up to 50\%.
+
+MolSSD adapts the SSD framework from the continuous, regular grid of image pixels to the discrete, irregular topology of molecular graphs. The key insight is that Gaussian blurring on a regular grid generalizes to heat kernel diffusion on a graph, which is governed by the graph Laplacian. Spectral clustering of the Laplacian eigenvectors yields a principled coarsening hierarchy that replaces the pixel downsampling of SSD, while center-of-mass aggregation preserves the $\mathrm{SE}(3)$ equivariance required for 3D molecular generation.
+
+\subsection{Document Organization}
+
+This whitepaper is organized as follows. \Cref{sec:background} reviews the necessary background in diffusion models, scale-space theory, spectral graph theory, molecular coarse-graining, and equivariant neural networks. \Cref{sec:framework} develops the full mathematical framework of MolSSD, deriving the forward process, reverse process posterior, and equivariance proofs. \Cref{sec:architecture} specifies the Molecular Flexi-Net architecture. \Cref{sec:algorithms} provides complete pseudocode for all key algorithms. \Cref{sec:training} details the training protocol. \Cref{sec:omol25} describes the integration with the OMol25 dataset. \Cref{sec:experiments} lays out all experimental protocols, including computational benchmarks, dataset construction, generation campaigns, and wet-lab validation. \Cref{sec:metrics} defines all evaluation metrics. \Cref{sec:risks} provides a risk assessment with mitigations.
+
+% ============================================================
+\section{Background and Preliminaries}\label{sec:background}
+% ============================================================
+
+\subsection{Diffusion Models}\label{sec:bg_diffusion}
+
+\subsubsection{DDPM Forward and Reverse Processes}
+
+Denoising Diffusion Probabilistic Models (DDPM)~\cite{ho2020ddpm} define a forward process that gradually adds Gaussian noise to data $\bx_0 \sim q(\bx_0)$ over $T$ timesteps:
+\begin{equation}\label{eq:ddpm_forward}
+    q(\bx_t \mid \bx_{t-1}) = \cN(\bx_t; \sqrt{1 - \beta_t}\, \bx_{t-1},\; \beta_t \bm{I}),
+\end{equation}
+where $\{\beta_t\}_{t=1}^T$ is a variance schedule satisfying $0 < \beta_1 < \beta_2 < \cdots < \beta_T < 1$. Defining $\alpha_t = 1 - \beta_t$ and $\bar{\alpha}_t = \prod_{s=1}^t \alpha_s$, the marginal distribution at timestep $t$ admits the closed form:
+\begin{equation}\label{eq:ddpm_marginal}
+    q(\bx_t \mid \bx_0) = \cN(\bx_t; \sqrt{\bar{\alpha}_t}\, \bx_0,\; (1 - \bar{\alpha}_t)\bm{I}).
+\end{equation}
+The reverse process is parameterized as:
+\begin{equation}\label{eq:ddpm_reverse}
+    p_\theta(\bx_{t-1} \mid \bx_t) = \cN(\bx_{t-1}; \bmu_\theta(\bx_t, t),\; \sigma_t^2 \bm{I}),
+\end{equation}
+and the model is trained by minimizing the variational lower bound, which reduces to a simple denoising objective:
+\begin{equation}\label{eq:ddpm_loss}
+    \cL_{\text{simple}} = \E_{t, \bx_0, \bep}\left[\|\bep - \bep_\theta(\bx_t, t)\|^2\right].
+\end{equation}
+
+\subsubsection{Score Matching and SDEs}
+
+Song et al.~\cite{song2021scorebased} unify DDPM with score matching by interpreting diffusion as a stochastic differential equation (SDE):
+\begin{equation}\label{eq:forward_sde}
+    d\bx = \bm{f}(\bx, t)\, dt + g(t)\, d\bm{w},
+\end{equation}
+where $\bm{f}$ is the drift coefficient, $g$ is the diffusion coefficient, and $\bm{w}$ is a standard Wiener process. The reverse-time SDE is:
+\begin{equation}\label{eq:reverse_sde}
+    d\bx = \left[\bm{f}(\bx, t) - g(t)^2 \nabla_\bx \log q_t(\bx)\right] dt + g(t)\, d\bar{\bm{w}},
+\end{equation}
+where $\nabla_\bx \log q_t(\bx)$ is the score function, approximated by a neural network $\bm{s}_\theta(\bx, t) \approx \nabla_\bx \log q_t(\bx)$.
+
+\subsubsection{Noise Schedules}
+
+The choice of noise schedule $\{\beta_t\}$ significantly affects generation quality. Common choices include:
+\begin{itemize}
+    \item \textbf{Linear:} $\beta_t = \beta_{\min} + \frac{t-1}{T-1}(\beta_{\max} - \beta_{\min})$, as in the original DDPM~\cite{ho2020ddpm}.
+    \item \textbf{Cosine:} $\bar{\alpha}_t = \frac{f(t)}{f(0)}$ with $f(t) = \cos\!\left(\frac{t/T + s}{1 + s} \cdot \frac{\pi}{2}\right)^2$, as proposed by Nichol and Dhariwal~\cite{nichol2021improved}.
+    \item \textbf{Variance-preserving (VP) and variance-exploding (VE)} formulations from the SDE framework~\cite{song2021scorebased}.
+\end{itemize}
+Kingma et al.~\cite{kingma2021variational} further analyze noise schedules through the lens of signal-to-noise ratio, $\SNR(t) = \bar{\alpha}_t / (1 - \bar{\alpha}_t)$, showing that the variational lower bound decomposes into terms weighted by $\SNR$ changes.
+
+\subsection{Scale-Space Theory}\label{sec:bg_scalespace}
+
+Scale-space theory~\cite{lindeberg1994scalespace, witkin1987scalespace, koenderink1984structure} provides a mathematical framework for representing signals at multiple levels of resolution. Given a signal $f: \R^d \to \R$, the scale-space representation $L: \R^d \times \R_{\geq 0} \to \R$ is defined by convolution with a Gaussian kernel:
+\begin{equation}\label{eq:scalespace}
+    L(\bx; \sigma) = (G_\sigma * f)(\bx) = \int_{\R^d} G_\sigma(\bx - \bm{y})\, f(\bm{y})\, d\bm{y},
+\end{equation}
+where $G_\sigma(\bx) = (2\pi\sigma^2)^{-d/2} \exp(-\|\bx\|^2 / 2\sigma^2)$ is the Gaussian kernel at scale $\sigma$.
+
+\subsubsection{The Heat Equation}
+
+The scale-space representation satisfies the heat (diffusion) equation:
+\begin{equation}\label{eq:heat}
+    \frac{\partial L}{\partial \sigma^2} = \frac{1}{2} \nabla^2 L,
+\end{equation}
+with initial condition $L(\bx; 0) = f(\bx)$. This connection between Gaussian blurring and heat diffusion is the key bridge to graph-based generalizations.
+
+\subsubsection{Lindeberg Axioms}
+
+Lindeberg~\cite{lindeberg1994scalespace} established that the Gaussian kernel is the unique kernel satisfying the following axioms for a scale-space representation:
+\begin{enumerate}
+    \item \textbf{Linearity:} The scale-space operator is linear.
+    \item \textbf{Shift invariance:} Translation of the input translates the output.
+    \item \textbf{Semi-group property:} $G_{\sigma_1} * G_{\sigma_2} = G_{\sqrt{\sigma_1^2 + \sigma_2^2}}$.
+    \item \textbf{Non-enhancement of local extrema:} No new local extrema are created as scale increases.
+    \item \textbf{Rotational symmetry:} The kernel is isotropic.
+\end{enumerate}
+On graphs, shift invariance and rotational symmetry must be replaced by graph-appropriate analogs (see \Cref{sec:bg_spectral}), but the remaining axioms---particularly non-enhancement of local extrema---continue to guide the construction of molecular scale spaces.
+
+\subsection{Spectral Graph Theory}\label{sec:bg_spectral}
+
+\subsubsection{Graph Laplacian}
+
+Given a molecular graph $\cG = (V, E)$ with $N = |V|$ nodes (atoms) and adjacency matrix $\adj \in \{0,1\}^{N \times N}$, the combinatorial graph Laplacian is:
+\begin{equation}\label{eq:laplacian}
+    \Lap = \degree - \adj,
+\end{equation}
+where $\degree = \mathrm{diag}(d_1, \ldots, d_N)$ is the degree matrix with $d_i = \sum_j A_{ij}$. The normalized Laplacian is:
+\begin{equation}\label{eq:norm_laplacian}
+    \Lap_{\mathrm{norm}} = \degree^{-1/2} \Lap\, \degree^{-1/2} = \bm{I} - \degree^{-1/2} \adj\, \degree^{-1/2}.
+\end{equation}
+
+\subsubsection{Eigendecomposition}
+
+Since $\Lap$ is real symmetric positive semi-definite, it admits an eigendecomposition:
+\begin{equation}\label{eq:eigen}
+    \Lap = \bm{U} \bm{\Lambda} \bm{U}^\top,
+\end{equation}
+where $\bm{U} = [\bm{u}_1, \ldots, \bm{u}_N] \in \R^{N \times N}$ is the matrix of orthonormal eigenvectors and $\bm{\Lambda} = \mathrm{diag}(\lambda_1, \ldots, \lambda_N)$ contains the eigenvalues $0 = \lambda_1 \leq \lambda_2 \leq \cdots \leq \lambda_N$. The smallest eigenvalue $\lambda_1 = 0$ corresponds to the constant eigenvector $\bm{u}_1 = N^{-1/2}\mathbf{1}$, and the multiplicity of zero eigenvalues equals the number of connected components.
+
+\subsubsection{Spectral Clustering}
+
+The Fiedler vector $\bm{u}_2$ (eigenvector corresponding to $\lambda_2$) partitions the graph into two clusters that minimize the normalized cut~\cite{vonluxburg2007spectral}. More generally, $k$-way spectral clustering uses the first $k$ eigenvectors $\bm{U}_k = [\bm{u}_1, \ldots, \bm{u}_k]$ to embed nodes into $\R^k$, followed by $k$-means clustering:
+\begin{equation}\label{eq:spectral_clustering}
+    \text{Cluster assignment: } c_i = \arg\min_{j \in \{1,\ldots,k\}} \|\bm{U}_k[i,:] - \bm{\mu}_j\|^2,
+\end{equation}
+where $\bm{\mu}_j$ are the cluster centroids. This provides a principled graph coarsening: each cluster of atoms becomes a single super-node in the coarsened graph.
+
+\subsubsection{Heat Kernel on Graphs}
+
+The graph analog of Gaussian blurring is the heat kernel:
+\begin{equation}\label{eq:heat_kernel}
+    \bm{H}_t = \exp(-t\Lap) = \bm{U} \exp(-t\bm{\Lambda}) \bm{U}^\top = \sum_{i=1}^N e^{-t\lambda_i} \bm{u}_i \bm{u}_i^\top.
+\end{equation}
+At $t = 0$, $\bm{H}_0 = \bm{I}$ (full resolution); as $t \to \infty$, $\bm{H}_t \to \bm{u}_1 \bm{u}_1^\top$ (complete smoothing to a constant). This provides a continuous interpolation between full atomic resolution and a single centroid, analogous to Gaussian blurring on images.
+
+\subsection{Molecular Coarse-Graining}\label{sec:bg_coarsegraining}
+
+\subsubsection{Physical Coarse-Graining Methods}
+
+In molecular simulation, coarse-graining maps atomistic coordinates $\bm{r} \in \R^{3n}$ to reduced coordinates $\bm{R} \in \R^{3N}$ ($N < n$) via a linear mapping~\cite{noid2008cg, kmiecik2016cg}:
+\begin{equation}\label{eq:cg_map}
+    \bm{R}_I = \frac{\sum_{i \in S_I} m_i \bm{r}_i}{\sum_{i \in S_I} m_i},
+\end{equation}
+where $S_I$ is the set of atoms assigned to CG bead $I$ and $m_i$ are atomic masses. This center-of-mass mapping is linear and preserves translational and rotational equivariance.
+
+\subsubsection{Chemical Fragmentation: BRICS and Murcko}
+
+BRICS (Breaking of Retrosynthetically Interesting Chemical Substructures)~\cite{degen2008brics} fragments molecules at bonds matching retrosynthetically plausible cleavage patterns. This produces chemically meaningful fragments but relies on a fixed set of 16 cleavage rules that may not capture the optimal coarsening for all molecular topologies.
+
+Murcko scaffolds~\cite{bemis1996murcko} decompose molecules into ring systems plus linkers, removing side chains. While interpretable, this provides only a two-level hierarchy (scaffold vs.\ full molecule) and ignores 3D structural information.
+
+Both approaches are heuristic and lack the spectral-theoretic grounding that MolSSD provides.
+
+\subsection{E(n)-Equivariant Neural Networks}\label{sec:bg_egnn}
+
+\subsubsection{EGNN Architecture}
+
+E(n)-Equivariant Graph Neural Networks (EGNN)~\cite{satorras2021egnn} are message-passing networks that operate on sets of node features $\bh_i \in \R^d$ and positions $\bx_i \in \R^3$, maintaining equivariance to rotations, translations, and reflections. Each EGNN layer computes:
+\begin{align}
+    m_{ij} &= \phi_e(\bh_i, \bh_j, \|\bx_i - \bx_j\|^2, a_{ij}), \label{eq:egnn_message} \\
+    \bx_i' &= \bx_i + \frac{1}{|\cN(i)|}\sum_{j \in \cN(i)} (\bx_i - \bx_j)\, \phi_x(m_{ij}), \label{eq:egnn_pos} \\
+    m_i &= \sum_{j \in \cN(i)} m_{ij}, \label{eq:egnn_agg} \\
+    \bh_i' &= \phi_h(\bh_i, m_i), \label{eq:egnn_feat}
+\end{align}
+where $\phi_e, \phi_x, \phi_h$ are learnable MLPs, $\cN(i)$ is the neighborhood of node $i$, and $a_{ij}$ are optional edge attributes.
+
+\subsubsection{Equivariance Constraints}
+
+The EGNN architecture achieves $\mathrm{E}(n)$-equivariance by construction: position updates (\cref{eq:egnn_pos}) are sums of difference vectors $\bx_i - \bx_j$ weighted by scalar functions, guaranteeing that any rotation $\bm{R}$ or translation $\bm{t}$ applied to all inputs produces correspondingly transformed outputs:
+\begin{align}
+    f_{\bx}(\bm{R}\bm{X} + \bm{t}\mathbf{1}^\top, \bm{H}) &= \bm{R}\, f_{\bx}(\bm{X}, \bm{H}) + \bm{t}\mathbf{1}^\top, \label{eq:equi_pos} \\
+    f_{\bh}(\bm{R}\bm{X} + \bm{t}\mathbf{1}^\top, \bm{H}) &= f_{\bh}(\bm{X}, \bm{H}). \label{eq:equi_feat}
+\end{align}
+More expressive alternatives include PaiNN~\cite{schutt2021equivariant} and Tensor Field Networks~\cite{thomas2018tensor}, which use vector or higher-order tensor features for richer equivariant representations.
+
+% ============================================================
+\section{Mathematical Framework: From SSD to MolSSD}\label{sec:framework}
+% ============================================================
+
+\subsection{SSD Review}\label{sec:ssd_review}
+
+Scale Space Diffusion~\cite{ssd2026} generalizes DDPM by replacing the identity degradation with a blurring operator. The SSD forward process is:
+\begin{equation}\label{eq:ssd_forward}
+    \bx_t = \Mt[1:t]\, \bx_0 + \sigma_t\, \bep, \quad \bep \sim \cN(\bm{0}, \bm{I}),
+\end{equation}
+where $\Mt[1:t] = \Mt \cdot \Mt[t-1] \cdots \Mt[1]$ is the composed degradation operator and $\sigma_t$ controls the noise level. The per-step degradation operator in SSD is:
+\begin{equation}\label{eq:ssd_Mt}
+    \Mt = a_t \cdot \bm{B}_{r(t), r(t-1)},
+\end{equation}
+where $a_t$ is a scalar scaling factor, $r(t) \in \{0, 1, \ldots, R\}$ maps timestep $t$ to a resolution level, and $\bm{B}_{r, r'}$ is a block-averaging (downsampling) matrix from resolution $r'$ to resolution $r$.
+
+The key insight of SSD is the definition of an information content function:
+\begin{equation}\label{eq:ssd_info}
+    \Info(t) = \frac{\text{number of resolvable pixels at } t}{\text{total pixels}} = \frac{N_{r(t)}}{N_0},
+\end{equation}
+which monotonically decreases from $\Info(0) = 1$ to $\Info(T) \approx 0$. The resolution schedule $r(t)$ is chosen so that $\Info(t)$ follows a prescribed decay profile.
+
+The SSD posterior at a resolution-changing step is \emph{non-isotropic}:
+\begin{align}
+    q(\bx_{t-1} \mid \bx_t, \bx_0) &= \cN(\bx_{t-1};\; \bmu_{t \to t-1},\; \bSigma_{t \to t-1}), \label{eq:ssd_posterior} \\
+    \bSigma_{t \to t-1} &= \sigma_{t-1}^2 \bm{I} - \frac{\sigma_{t-1}^4}{\sigma_t^2}\, \Mt^\top \Mt, \label{eq:ssd_sigma} \\
+    \bmu_{t \to t-1} &= \Mt[1:t-1]\, \bx_0 + \frac{\sigma_{t-1}^2}{\sigma_t^2}\, \Mt^\top (\bx_t - \Mt \Mt[1:t-1]\, \bx_0). \label{eq:ssd_mu}
+\end{align}
+When $r(t) = r(t-1)$ (no resolution change), $\Mt = a_t \bm{I}$, and the posterior reduces to the standard isotropic DDPM posterior.
+
+\subsection{Molecular Scale Space Construction}\label{sec:mol_scalespace}
+
+\subsubsection{Graph Laplacian Construction}
+
+Given a molecular graph $\cG^{(0)} = (V^{(0)}, E^{(0)})$ with $N$ atoms, we construct the graph Laplacian as in \cref{eq:laplacian}. For molecular graphs, the adjacency matrix encodes covalent bonds. We use the combinatorial Laplacian rather than the normalized variant, as the former preserves center-of-mass properties under coarsening.
+
+We compute the eigendecomposition $\Lap = \bm{U} \bm{\Lambda} \bm{U}^\top$ (\cref{eq:eigen}). The eigenvectors provide a spectral embedding of atoms into a space where Euclidean distance correlates with graph-theoretic distance, enabling principled clustering.
+
+\subsubsection{Coarsening Matrix Construction}
+
+For each target number of super-nodes $N_k < N$, we perform spectral clustering using the first $N_k$ eigenvectors of $\Lap$. This yields a cluster assignment $c: V^{(0)} \to \{1, \ldots, N_k\}$, from which we construct the coarsening matrix $\Ct \in \R^{N_k \times N}$:
+\begin{equation}\label{eq:coarsening_matrix}
+    C^{(k)}_{Ij} = \begin{cases}
+        \dfrac{m_j}{\sum_{i \in S_I} m_i} & \text{if } j \in S_I, \\[6pt]
+        0 & \text{otherwise},
+    \end{cases}
+\end{equation}
+where $S_I = \{j : c(j) = I\}$ is the set of atoms in cluster $I$ and $m_j$ is the atomic mass of atom $j$. This is a mass-weighted center-of-mass mapping. Note that $\Ct$ is a left-stochastic matrix (columns sum to~1 when weighted by mass).
+
+\subsubsection{Multi-Level Hierarchy}
+
+We construct a hierarchy of $L+1$ resolution levels:
+\begin{equation}\label{eq:hierarchy}
+    \cG^{(0)} \xrightarrow{\bm{C}^{(1)}} \cG^{(1)} \xrightarrow{\bm{C}^{(2)}} \cG^{(2)} \xrightarrow{\bm{C}^{(3)}} \cdots \xrightarrow{\bm{C}^{(L)}} \cG^{(L)},
+\end{equation}
+where:
+\begin{itemize}
+    \item $\cG^{(0)}$: full atomic graph with $N$ nodes.
+    \item $\cG^{(1)}$: functional-group level with $N_1 \approx N/3$ super-nodes.
+    \item $\cG^{(2)}$: fragment level with $N_2 \approx N/6$ super-nodes.
+    \item $\cG^{(L-1)}$: chromophore skeleton with $N_{L-1} \approx 3$--$5$ super-nodes.
+    \item $\cG^{(L)}$: single centroid with $N_L = 1$.
+\end{itemize}
+The number of levels $L$ depends on the molecular size; we use $L = \lceil \log_3 N \rceil$ as a default, giving approximately 3-fold coarsening at each level.
+
+The coarsened graph $\cG^{(k)}$ has nodes corresponding to super-nodes, with positions given by:
+\begin{equation}\label{eq:coarse_positions}
+    \bm{X}^{(k)} = \bm{C}^{(k)} \bm{X}^{(k-1)} \in \R^{N_k \times 3},
+\end{equation}
+and edges connecting super-nodes whose constituent atom clusters share at least one bond in $\cG^{(0)}$.
+
+\subsection{Linear Degradation Operator $\Mt$}\label{sec:degradation}
+
+Following SSD, we define the per-step degradation operator:
+\begin{equation}\label{eq:mol_Mt}
+    \Mt = a_t \cdot \bm{C}^{(r(t))} \left(\bm{C}^{(r(t-1))}\right)^+,
+\end{equation}
+where $a_t$ is a scalar scaling factor, $r(t)$ maps timestep $t$ to a resolution level, and $(\cdot)^+$ denotes the Moore--Penrose pseudoinverse. The pseudoinverse $(\bm{C}^{(k)})^+$ maps from the coarsened space $\R^{N_k}$ back to the finer space $\R^{N_{k-1}}$ by assigning each atom the position of its parent super-node.
+
+\begin{remark}
+When $r(t) = r(t-1)$ (no resolution change at timestep $t$), we have $\bm{C}^{(r(t))} (\bm{C}^{(r(t-1))})^+ = \bm{I}_{N_{r(t)}}$, so $\Mt = a_t \bm{I}$, recovering standard DDPM scaling. This ensures that MolSSD reduces to standard diffusion between resolution-changing steps.
+\end{remark}
+
+\subsubsection{Composed Operator}
+
+The composed degradation operator is:
+\begin{equation}\label{eq:composed_M}
+    \Mt[1:t] = \Mt \cdot \Mt[t-1] \cdots \Mt[1] = \left(\prod_{s=1}^t a_s\right) \bm{C}^{(r(t))} \left(\bm{C}^{(0)}\right)^+,
+\end{equation}
+where we have used the telescoping property of the pseudoinverse composition. Noting that $\bm{C}^{(0)} = \bm{I}_N$, this simplifies to:
+\begin{equation}\label{eq:composed_M_simple}
+    \Mt[1:t] = \bar{a}_t\, \bm{C}^{(r(t))}, \quad \bar{a}_t = \prod_{s=1}^t a_s.
+\end{equation}
+
+\subsection{Forward Process}\label{sec:forward}
+
+The MolSSD forward process generates the noisy, coarsened representation at timestep $t$:
+\begin{equation}\label{eq:molssd_forward}
+    \bx_t = \Mt[1:t]\, \bx_0 + \sigma_t\, \bep = \bar{a}_t\, \bm{C}^{(r(t))}\, \bx_0 + \sigma_t\, \bep,
+\end{equation}
+where $\bx_0 \in \R^{N \times 3}$ contains the atomic positions, $\bx_t \in \R^{N_{r(t)} \times 3}$ contains the (possibly coarsened) positions, and $\bep \sim \cN(\bm{0}, \bm{I}_{N_{r(t)} \times 3})$.
+
+The noise schedule is parameterized via the signal-to-noise ratio:
+\begin{equation}\label{eq:snr_schedule}
+    \SNR(t) = \frac{\bar{a}_t^2}{\sigma_t^2}.
+\end{equation}
+We use the cosine schedule of Nichol and Dhariwal~\cite{nichol2021improved} for the noise level, with $\sigma_t^2 = 1 - \bar{a}_t^2$ ensuring variance-preserving dynamics when $\bm{C}^{(r(t))} = \bm{I}$.
+
+\begin{definition}[Molecular Information Content]\label{def:info_mol}
+The molecular information content at timestep $t$ is:
+\begin{equation}\label{eq:info_mol}
+    \Info_{\mathrm{mol}}(t) = \frac{N_{r(t)}}{N} \cdot \frac{\SNR(t)}{\SNR(0)},
+\end{equation}
+where the first factor measures resolution loss due to coarsening and the second measures information loss due to noise. This satisfies $\Info_{\mathrm{mol}}(0) = 1$ and $\Info_{\mathrm{mol}}(T) \approx 0$.
+\end{definition}
+
+\subsection{Reverse Process Posterior}\label{sec:posterior}
+
+\subsubsection{Derivation of the Non-Isotropic Posterior}
+
+At a resolution-changing step (where $r(t) \neq r(t-1)$), the posterior $q(\bx_{t-1} \mid \bx_t, \bx_0)$ is Gaussian with non-isotropic covariance. Following the SSD derivation, we have:
+
+\begin{theorem}[MolSSD Posterior]\label{thm:posterior}
+The posterior distribution $q(\bx_{t-1} \mid \bx_t, \bx_0)$ at a resolution-changing step is:
+\begin{equation}\label{eq:posterior}
+    q(\bx_{t-1} \mid \bx_t, \bx_0) = \cN(\bx_{t-1};\; \bmu_{t \to t-1},\; \bSigma_{t \to t-1}),
+\end{equation}
+where:
+\begin{align}
+    \bSigma_{t \to t-1} &= \sigma_{t-1}^2\, \bm{I}_{N_{r(t-1)}} - \frac{\sigma_{t-1}^4}{\sigma_t^2}\, \Mt^\top \Mt, \label{eq:posterior_sigma} \\
+    \bmu_{t \to t-1} &= \Mt[1:t-1]\, \bx_0 + \frac{\sigma_{t-1}^2}{\sigma_t^2}\, \Mt^\top \left(\bx_t - \Mt\, \Mt[1:t-1]\, \bx_0\right). \label{eq:posterior_mu}
+\end{align}
+\end{theorem}
+
+\begin{proof}
+The joint distribution $q(\bx_{t-1}, \bx_t \mid \bx_0)$ is Gaussian with:
+\begin{align}
+    \E[\bx_{t-1} \mid \bx_0] &= \Mt[1:t-1]\, \bx_0, \\
+    \E[\bx_t \mid \bx_0] &= \Mt[1:t]\, \bx_0 = \Mt\, \Mt[1:t-1]\, \bx_0, \\
+    \Var[\bx_{t-1} \mid \bx_0] &= \sigma_{t-1}^2\, \bm{I}, \\
+    \Var[\bx_t \mid \bx_0] &= \sigma_t^2\, \bm{I}, \\
+    \mathrm{Cov}[\bx_{t-1}, \bx_t \mid \bx_0] &= \sigma_{t-1}^2\, \Mt^\top.
+\end{align}
+The last equation follows from the forward process structure: $\bx_t = \Mt\, \bx_{t-1} + \sqrt{\sigma_t^2 - a_t^2 \sigma_{t-1}^2}\, \bep'$, so $\mathrm{Cov}[\bx_{t-1}, \bx_t] = \mathrm{Cov}[\bx_{t-1}, \Mt\, \bx_{t-1}] = \sigma_{t-1}^2\, \Mt^\top$. Applying the standard Gaussian conditioning formula yields \cref{eq:posterior_sigma,eq:posterior_mu}.
+\end{proof}
+
+\subsubsection{Posterior Mean in Terms of Predicted $\hat{\bx}_0$}
+
+During sampling, $\bx_0$ is unknown and replaced by the model prediction $\hat{\bx}_0 = f_\theta(\bx_t, t)$. The posterior mean becomes:
+\begin{equation}\label{eq:posterior_mu_pred}
+    \bmu_{t \to t-1} = \Mt[1:t-1]\, \hat{\bx}_0 + \frac{\sigma_{t-1}^2}{\sigma_t^2}\, \Mt^\top \left(\bx_t - \Mt\, \Mt[1:t-1]\, \hat{\bx}_0\right).
+\end{equation}
+When parameterized in terms of noise prediction $\hat{\bep} = \bep_\theta(\bx_t, t)$, we have $\hat{\bx}_0 = (\bx_t - \sigma_t \hat{\bep}) / \bar{a}_t \cdot (\bm{C}^{(r(t))})^+$.
+
+\subsubsection{Lanczos Algorithm for Posterior Covariance}
+
+The posterior covariance $\bSigma_{t \to t-1}$ (\cref{eq:posterior_sigma}) is a dense $N_{r(t-1)} \times N_{r(t-1)}$ matrix, making direct Cholesky factorization expensive ($O(N_{r(t-1)}^3)$). Following SSD, we use the Lanczos algorithm~\cite{lanczos1950iteration} to compute a low-rank approximation of the eigendecomposition.
+
+The key observation is that $\Mt^\top \Mt$ has rank at most $N_{r(t)}$ (the number of super-nodes at the coarser level), which is much smaller than $N_{r(t-1)}$. Thus $\bSigma_{t \to t-1}$ differs from $\sigma_{t-1}^2 \bm{I}$ only in at most $N_{r(t)}$ directions. The Lanczos algorithm computes these $N_{r(t)}$ eigenvalue--eigenvector pairs in $O(N_{r(t)} \cdot N_{r(t-1)})$ time.
+
+Given the eigendecomposition $\bSigma_{t \to t-1} = \bm{V} \bm{D} \bm{V}^\top$ with $\bm{D} = \mathrm{diag}(d_1, \ldots, d_{N_{r(t-1)}})$, sampling from the posterior is:
+\begin{equation}\label{eq:posterior_sample}
+    \bx_{t-1} = \bmu_{t \to t-1} + \bm{V} \bm{D}^{1/2} \bm{V}^\top \bz, \quad \bz \sim \cN(\bm{0}, \bm{I}).
+\end{equation}
+In practice, only the $N_{r(t)}$ non-trivial eigenvalues differ from $\sigma_{t-1}^2$, so we decompose:
+\begin{equation}\label{eq:posterior_sample_efficient}
+    \bx_{t-1} = \bmu_{t \to t-1} + \sigma_{t-1}\, \bz + \bm{V}_k (\bm{D}_k^{1/2} - \sigma_{t-1}\, \bm{I}_k)\, \bm{V}_k^\top \bz,
+\end{equation}
+where $\bm{V}_k$ and $\bm{D}_k$ are the $k = N_{r(t)}$ non-trivial eigenpairs.
+
+\subsection{$\Mt$ Transpose via Vector-Jacobian Product}\label{sec:vjp}
+
+Computing $\Mt^\top \bm{v}$ explicitly requires materializing $\Mt$, which may be memory-intensive for large molecules. Instead, we observe that $\Mt$ is a composition of differentiable operations (clustering assignment, mass-weighted averaging, pseudoinverse), so $\Mt^\top \bm{v}$ can be computed as a vector-Jacobian product (VJP) using automatic differentiation:
+
+\begin{equation}\label{eq:vjp}
+    \Mt^\top \bm{v} = \frac{\partial}{\partial \bx}\left[\bm{v}^\top \Mt\, \bx\right]\bigg|_{\bx = \bx_0} = \texttt{torch.autograd.grad}(\Mt(\bx), \bx, \text{grad\_outputs}=\bm{v})[0].
+\end{equation}
+
+This avoids materializing $\Mt \in \R^{N_{r(t)} \times N_{r(t-1)}}$ and instead requires only a forward pass through the coarsening operator plus a backward pass, with memory cost $O(N_{r(t-1)})$.
+
+\begin{remark}
+For the VJP to be valid, the coarsening operator must be implemented as a differentiable function. Since $\bm{C}^{(k)}$ is a fixed linear map (determined by pre-computed cluster assignments and atomic masses), this is straightforward: $\Mt(\bx) = a_t \cdot \bm{C}^{(r(t))} (\bm{C}^{(r(t-1))})^+ \bx$ is a matrix-vector product that PyTorch can differentiate automatically.
+\end{remark}
+
+\subsection{SE(3) Equivariance Preservation}\label{sec:equivariance}
+
+A critical requirement for 3D molecular generation is that the generative process respects $\mathrm{SE}(3)$ symmetry. We now prove that MolSSD preserves equivariance at each component.
+
+\subsubsection{Center-of-Mass Position Averaging}
+
+\begin{proposition}\label{prop:com_equivariance}
+The center-of-mass coarsening operator $\bm{C}^{(k)}$ is $\mathrm{SE}(3)$-equivariant.
+\end{proposition}
+\begin{proof}
+Let $\bm{R} \in \mathrm{SO}(3)$ and $\bm{t} \in \R^3$. For a cluster $S_I$ with coarsened position $\bm{X}^{(k)}_I = \sum_{j \in S_I} w_j \bm{X}^{(0)}_j$ (where $w_j = m_j / \sum_{i \in S_I} m_i$), applying the transformation gives:
+\begin{equation}
+    \sum_{j \in S_I} w_j (\bm{R}\, \bm{X}^{(0)}_j + \bm{t}) = \bm{R} \sum_{j \in S_I} w_j \bm{X}^{(0)}_j + \bm{t} \sum_{j \in S_I} w_j = \bm{R}\, \bm{X}^{(k)}_I + \bm{t},
+\end{equation}
+using $\sum_{j \in S_I} w_j = 1$. Thus the coarsened positions transform identically under $\mathrm{SE}(3)$.
+\end{proof}
+
+\subsubsection{Invariant Scalar Feature Aggregation}
+
+Scalar features (atom types, charges, bond orders) are $\mathrm{SE}(3)$-invariant. Aggregation by summation, averaging, or any permutation-invariant function preserves this invariance.
+
+\subsubsection{Learned Offsets via Local Equivariant Frames}
+
+When reconstructing fine-grained positions from coarse ones (the pseudoinverse operation), we need to ``unpool'' a super-node position to multiple atomic positions. We use learned offsets predicted in a local equivariant frame:
+\begin{equation}\label{eq:local_frame}
+    \bm{X}^{(k-1)}_j = \bm{X}^{(k)}_I + \bm{F}_I\, \bm{\delta}_j(\bh_I, \bh_j),
+\end{equation}
+where $\bm{F}_I \in \R^{3 \times 3}$ is a local frame constructed from the coarsened graph geometry (e.g., from principal axes of neighboring super-nodes) and $\bm{\delta}_j \in \R^3$ is a learned offset predicted by an invariant network from scalar features. Since $\bm{F}_I$ transforms as $\bm{R}\bm{F}_I$ under rotations, the reconstructed positions are equivariant.
+
+\subsubsection{Non-Isotropic Noise and Equivariance}
+
+\begin{proposition}\label{prop:noise_equivariance}
+The non-isotropic posterior sampling (\cref{eq:posterior_sample}) preserves $\mathrm{SE}(3)$-equivariance when noise is applied independently to each spatial coordinate.
+\end{proposition}
+\begin{proof}[Proof sketch]
+The posterior covariance $\bSigma_{t \to t-1}$ acts on the node index dimension, not the spatial dimension. That is, $\bSigma_{t \to t-1} \in \R^{N_{r(t-1)} \times N_{r(t-1)}}$ and the noise is sampled as $\bz \in \R^{N_{r(t-1)} \times 3}$ with each column independently drawn from $\cN(\bm{0}, \bSigma_{t \to t-1})$. Since the covariance structure is over nodes (not spatial coordinates), and since the posterior mean $\bmu_{t \to t-1}$ is equivariant (being a composition of equivariant operations), the overall sampling operation is equivariant. Under rotation $\bm{R}$, $\bmu \mapsto \bmu \bm{R}^\top$ and $\bSigma \bz \mapsto \bSigma \bz \bm{R}^\top$ (since rotation acts on the spatial dimension, which is independent of the node-dimensional covariance).
+\end{proof}
+
+\subsection{Information-Theoretic Analysis}\label{sec:info_theory}
+
+\subsubsection{Molecular Information Content}
+
+\begin{definition}[Molecular Resolution Information]\label{def:info_resolution}
+For a molecular graph at resolution level $k$, the resolution information content is:
+\begin{equation}\label{eq:info_resolution}
+    \Info_{\mathrm{mol}}^{\mathrm{res}}(k) = \frac{N_k}{N} = \frac{|V^{(k)}|}{|V^{(0)}|}.
+\end{equation}
+\end{definition}
+
+This measures the fraction of structural degrees of freedom retained. At full resolution, $\Info_{\mathrm{mol}}^{\mathrm{res}}(0) = 1$; at the centroid, $\Info_{\mathrm{mol}}^{\mathrm{res}}(L) = 1/N$.
+
+\subsubsection{Information--Noise Correspondence}
+
+In standard DDPM, the mutual information between $\bx_t$ and $\bx_0$ is:
+\begin{equation}\label{eq:mutual_info_ddpm}
+    I(\bx_0; \bx_t) = \frac{d}{2} \log\left(1 + \SNR(t)\right),
+\end{equation}
+where $d$ is the data dimensionality. In MolSSD, the effective dimensionality at timestep $t$ is $3 N_{r(t)}$ (three spatial coordinates per super-node), giving:
+\begin{equation}\label{eq:mutual_info_molssd}
+    I(\bx_0; \bx_t) = \frac{3 N_{r(t)}}{2} \log\left(1 + \SNR(t)\right).
+\end{equation}
+
+\begin{theorem}[Information Bound]\label{thm:info_bound}
+The total information content $\Info_{\mathrm{mol}}(t)$ (\cref{eq:info_mol}) provides an upper bound on the normalized mutual information:
+\begin{equation}\label{eq:info_bound}
+    \frac{I(\bx_0; \bx_t)}{I(\bx_0; \bx_0)} \leq \Info_{\mathrm{mol}}(t).
+\end{equation}
+\end{theorem}
+\begin{proof}
+Since coarsening is a lossy operation, $I(\bx_0; \bm{C}^{(k)} \bx_0) \leq I(\bx_0; \bx_0)$. Adding noise further reduces mutual information by the data processing inequality~\cite{cover2006information}. The product form of $\Info_{\mathrm{mol}}(t)$ captures both effects multiplicatively, providing the stated bound.
+\end{proof}
+
+\subsubsection{Optimal Resolution Schedule}
+
+The resolution schedule $r(t)$ should be chosen so that $\Info_{\mathrm{mol}}(t)$ decreases smoothly from~1 to~0. Following SSD, we parameterize this via decay profiles:
+\begin{itemize}
+    \item \textbf{Equal:} Information decreases linearly, $\Info_{\mathrm{mol}}(t) = 1 - t/T$.
+    \item \textbf{ConvexDecay($\gamma$):} $\Info_{\mathrm{mol}}(t) = (1 - t/T)^\gamma$, with $\gamma = 0.5$ (the best-performing schedule in SSD) spending more time at low resolution.
+    \item \textbf{SigmoidLikeDecay($k$):} $\Info_{\mathrm{mol}}(t) = \sigma(-k(2t/T - 1))$ where $\sigma$ is the sigmoid function, producing an S-shaped decay.
+\end{itemize}
+
+% ============================================================
+\section{Architecture: Molecular Flexi-Net}\label{sec:architecture}
+% ============================================================
+
+\subsection{Overall Design Philosophy}
+
+Molecular Flexi-Net is a hierarchical E(n)-equivariant graph neural network inspired by the Flexi-Net architecture of SSD~\cite{ssd2026}, adapted for molecular graphs. The key design principles are:
+
+\begin{enumerate}
+    \item \textbf{Hierarchical processing:} Multiple resolution levels with dedicated EGNN blocks at each level.
+    \item \textbf{Dynamic activation:} Only levels relevant to the current resolution are active, saving computation.
+    \item \textbf{Equivariance by construction:} All operations (message passing, pooling, unpooling) preserve $\mathrm{E}(n)$-equivariance.
+    \item \textbf{Conditional generation:} UV-absorber properties are injected via cross-attention or adaptive layer normalization (adaLN).
+\end{enumerate}
+
+\subsection{EGNN Block Specification}\label{sec:egnn_block}
+
+Each EGNN block takes as input node features $\bm{H} \in \R^{N \times d}$, positions $\bm{X} \in \R^{N \times 3}$, and edge features $\bm{E} \in \R^{|E| \times d_e}$, and produces updated features and positions.
+
+\paragraph{Message Computation.}
+\begin{equation}\label{eq:arch_message}
+    \bm{m}_{ij} = \phi_e\!\left(\bh_i \| \bh_j \| \|\bx_i - \bx_j\|^2 \| \bm{e}_{ij} \| t_{\mathrm{emb}}\right),
+\end{equation}
+where $\phi_e: \R^{2d + d_e + 1 + d_t} \to \R^{d_m}$ is a 2-layer MLP with SiLU activations, $\|$ denotes concatenation, and $t_{\mathrm{emb}} \in \R^{d_t}$ is the sinusoidal timestep embedding.
+
+\paragraph{Position Update.}
+\begin{equation}\label{eq:arch_pos_update}
+    \bx_i' = \bx_i + \frac{1}{|\cN(i)|} \sum_{j \in \cN(i)} (\bx_i - \bx_j)\, \phi_x(\bm{m}_{ij}),
+\end{equation}
+where $\phi_x: \R^{d_m} \to \R^1$ is a linear layer with a tanh gate to prevent exploding position updates.
+
+\paragraph{Feature Update.}
+\begin{equation}\label{eq:arch_feat_update}
+    \bh_i' = \bh_i + \phi_h\!\left(\bh_i \| \sum_{j \in \cN(i)} \bm{m}_{ij}\right),
+\end{equation}
+where $\phi_h: \R^{d + d_m} \to \R^d$ is a 2-layer MLP with SiLU activations and a residual connection.
+
+\subsection{Level Specifications}\label{sec:levels}
+
+\begin{table}[H]
+\centering
+\caption{Molecular Flexi-Net level specifications. $N_k$ denotes the number of nodes at level $k$.}
+\label{tab:levels}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Level} & \textbf{EGNN Blocks} & \textbf{Hidden Dim} & \textbf{Nodes} & \textbf{Description} \\
+\midrule
+$L$ (shallowest) & 4 & 128 & $N$ & Full atomic resolution \\
+$L-1$ & 3 & 256 & $\approx N/3$ & Functional groups \\
+$L-2$ & 3 & 384 & $\approx N/6$ & Fragments \\
+$\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
+1 & 2 & 448 & $\approx 3$--$5$ & Chromophore skeleton \\
+0 (deepest) & 2 & 512 & $N_{\min}$ & Coarsest representation \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The design follows a U-Net-like principle: deeper (coarser) levels have wider channels to compensate for fewer nodes, maintaining a roughly constant total feature dimension $N_k \times d_k \approx \text{const}$ across levels.
+
+\subsection{Dynamic Level Activation}\label{sec:dynamic_activation}
+
+At timestep $t$ with resolution level $r(t) = k$, only levels $0, 1, \ldots, k$ are active. This means:
+\begin{itemize}
+    \item The input $\bx_t \in \R^{N_k \times 3}$ enters at level $k$.
+    \item Processing flows through levels $k \to k-1 \to \cdots \to 0$ (encoding path).
+    \item Then from $0 \to 1 \to \cdots \to k$ (decoding path).
+    \item The output $\hat{\bep} \in \R^{N_k \times 3}$ (or $\hat{\bx}_0 \in \R^{N_k \times 3}$) exits at level $k$.
+\end{itemize}
+
+\paragraph{Computational Savings.} When processing at resolution $k$ with $N_k$ nodes, the cost is:
+\begin{equation}\label{eq:comp_savings}
+    \text{Cost}(k) = \sum_{\ell=0}^{k} B_\ell \cdot N_\ell^2 \cdot d_\ell,
+\end{equation}
+where $B_\ell$ is the number of EGNN blocks at level $\ell$. Since $N_\ell \ll N$ for $\ell < L$, the savings are substantial. For a molecule with $N = 100$ atoms and 3-fold coarsening:
+\begin{equation}
+    \frac{\text{Cost}(k=1)}{\text{Cost}(k=L)} \approx \frac{2 \cdot 11^2 \cdot 512 + 3 \cdot 33^2 \cdot 384}{2 \cdot 11^2 \cdot 512 + 3 \cdot 33^2 \cdot 384 + 3 \cdot 100^2 \cdot 256 + 4 \cdot 100^2 \cdot 128} \approx 0.15.
+\end{equation}
+Thus, at resolution level 1, only $\sim$15\% of the full-resolution cost is incurred.
+
+\subsection{Inter-Level Bridges}\label{sec:bridges}
+
+\subsubsection{1$\times$1 Linear Layers}
+
+When transitioning between levels, features must be projected between channel dimensions. We use $1 \times 1$ linear layers (applied per node):
+\begin{align}
+    \bh_I^{(\ell-1)} &= \bm{W}_{\ell \to \ell-1}\, \bh_I^{(\ell)} + \bm{b}_{\ell \to \ell-1}, \quad &\text{(downward bridge)} \label{eq:bridge_down} \\
+    \bh_i^{(\ell)} &= \bm{W}_{\ell-1 \to \ell}\, \bh_i^{(\ell-1)} + \bm{b}_{\ell-1 \to \ell}, \quad &\text{(upward bridge)} \label{eq:bridge_up}
+\end{align}
+where $\bm{W}_{\ell \to \ell-1} \in \R^{d_{\ell-1} \times d_\ell}$ and $\bm{W}_{\ell-1 \to \ell} \in \R^{d_\ell \times d_{\ell-1}}$.
+
+\subsubsection{Zero Skip Connections}
+
+At resolution-changing timesteps, features from the previous resolution may not be available (since the graph topology changes). We use zero skip connections: on the first timestep at a new resolution, skip connections are initialized to zero and gradually learned. This prevents discontinuities in the denoising trajectory:
+\begin{equation}\label{eq:zero_skip}
+    \bh_i^{\text{skip}} = \gamma \cdot \bm{W}_{\text{skip}}\, \bh_i^{\text{encoder}} + (1 - \gamma) \cdot \bm{0},
+\end{equation}
+where $\gamma \in [0, 1]$ is a learnable gate initialized to~0.
+
+\subsection{UV-Absorber Conditioning}\label{sec:conditioning}
+
+\subsubsection{Absorption Spectrum Embedding}
+
+The UV-Vis absorption spectrum is a continuous function $A(\lambda)$ for $\lambda \in [200, 800]\;\si{nm}$. We discretize it into $B = 60$ bins of $\SI{10}{nm}$ width and embed it via a small 1D CNN:
+\begin{equation}\label{eq:spectrum_embed}
+    \bm{c}_{\text{spec}} = \text{MLP}(\text{Conv1D}(A[\lambda_1], \ldots, A[\lambda_B])) \in \R^{d_c}.
+\end{equation}
+
+\subsubsection{Property Embedding}
+
+Scalar properties---photostability $\tau_{\text{photo}}$, thermal decomposition temperature $T_d$, and $\log P$---are embedded via sinusoidal encodings followed by an MLP:
+\begin{equation}\label{eq:prop_embed}
+    \bm{c}_{\text{prop}} = \text{MLP}(\text{SinEmb}(\tau_{\text{photo}}) \| \text{SinEmb}(T_d) \| \text{SinEmb}(\log P)) \in \R^{d_c}.
+\end{equation}
+
+\subsubsection{Cross-Attention Mechanism}
+
+The combined conditioning vector $\bm{c} = \bm{c}_{\text{spec}} + \bm{c}_{\text{prop}}$ is injected into each EGNN block via cross-attention:
+\begin{equation}\label{eq:cross_attn}
+    \bh_i^{\text{cond}} = \bh_i + \text{softmax}\!\left(\frac{\bm{q}_i \bm{k}_c^\top}{\sqrt{d_k}}\right) \bm{v}_c,
+\end{equation}
+where $\bm{q}_i = \bm{W}_Q \bh_i$, $\bm{k}_c = \bm{W}_K \bm{c}$, $\bm{v}_c = \bm{W}_V \bm{c}$.
+
+\subsubsection{adaLN Alternative}
+
+As an alternative to cross-attention, we provide an adaptive Layer Normalization (adaLN) mechanism inspired by DiT~\cite{peebles2023dit}:
+\begin{equation}\label{eq:adaln}
+    \text{adaLN}(\bh, \bm{c}) = \gamma(\bm{c}) \odot \frac{\bh - \mu(\bh)}{\sigma(\bh)} + \beta(\bm{c}),
+\end{equation}
+where $\gamma(\bm{c}), \beta(\bm{c}) \in \R^d$ are predicted from the conditioning vector by a linear layer.
+
+\subsubsection{Classifier-Free Guidance}
+
+For conditional generation, we employ classifier-free guidance~\cite{ho2022classifierfree}. During training, the conditioning signal is dropped with probability $p_{\text{uncond}} = 0.1$, replacing $\bm{c}$ with a learned null embedding $\bm{c}_\varnothing$. During sampling, the guided prediction is:
+\begin{equation}\label{eq:cfg}
+    \hat{\bep}_{\text{guided}} = (1 + w)\, \bep_\theta(\bx_t, t, \bm{c}) - w\, \bep_\theta(\bx_t, t, \bm{c}_\varnothing),
+\end{equation}
+where $w > 0$ is the guidance weight. Typical values are $w \in [1.0, 5.0]$.
+
+% ============================================================
+\section{Algorithm Pseudocode}\label{sec:algorithms}
+% ============================================================
+
+\begin{algorithm}[H]
+\caption{Spectral Graph Coarsening}\label{alg:coarsening}
+\begin{algorithmic}[1]
+\Require Molecular graph $\cG = (V, E)$ with $N$ atoms; target hierarchy sizes $(N_1, N_2, \ldots, N_L)$
+\Ensure Coarsening matrices $\{\bm{C}^{(k)}\}_{k=1}^L$; cluster assignments $\{c^{(k)}\}_{k=1}^L$
+\State Construct adjacency $\adj$ and degree $\degree$ matrices from $\cG$
+\State Compute Laplacian $\Lap \gets \degree - \adj$
+\State Compute eigendecomposition $\Lap = \bm{U} \bm{\Lambda} \bm{U}^\top$
+\For{$k = 1, 2, \ldots, L$}
+    \State Extract first $N_k$ eigenvectors: $\bm{U}_{N_k} \gets \bm{U}[:, 1:N_k]$
+    \State Row-normalize: $\tilde{\bm{U}}_{N_k}[i,:] \gets \bm{U}_{N_k}[i,:] / \|\bm{U}_{N_k}[i,:]\|$
+    \State Run $k$-means on $\tilde{\bm{U}}_{N_k}$ to obtain cluster assignment $c^{(k)}: V \to \{1,\ldots,N_k\}$
+    \State Construct mass-weighted coarsening matrix $\bm{C}^{(k)}$ via \cref{eq:coarsening_matrix}
+    \State Construct coarsened adjacency: $\adj^{(k)}_{IJ} \gets \mathbbm{1}\!\left[\exists\, (i,j) \in E : c^{(k)}(i) = I, c^{(k)}(j) = J, I \neq J\right]$
+\EndFor
+\State \Return $\{\bm{C}^{(k)}, c^{(k)}, \adj^{(k)}\}_{k=1}^L$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{MolSSD Forward Process}\label{alg:forward}
+\begin{algorithmic}[1]
+\Require Clean molecule $\bx_0 \in \R^{N \times 3}$, atom types $\bm{a}_0 \in \{1,\ldots,K\}^N$; timestep $t$; resolution schedule $r(\cdot)$; noise schedule $(\bar{a}_t, \sigma_t)$; coarsening matrices $\{\bm{C}^{(k)}\}$
+\Ensure Noisy coarsened sample $\bx_t \in \R^{N_{r(t)} \times 3}$, coarsened types $\bm{a}_t$
+\State $k \gets r(t)$ \Comment{Current resolution level}
+\State $\bm{X}_{\text{coarse}} \gets \bm{C}^{(k)}\, \bx_0$ \Comment{Coarsen positions via center-of-mass}
+\State $\bep \sim \cN(\bm{0}, \bm{I}_{N_k \times 3})$ \Comment{Sample noise at coarsened resolution}
+\State $\bx_t \gets \bar{a}_t \cdot \bm{X}_{\text{coarse}} + \sigma_t \cdot \bep$ \Comment{Scale + noise}
+\State $\bm{a}_t \gets \text{MajorityVote}(\bm{a}_0, c^{(k)})$ \Comment{Coarsen atom types by majority element}
+\State \Return $\bx_t, \bm{a}_t$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{MolSSD Training Step}\label{alg:training}
+\begin{algorithmic}[1]
+\Require Batch of molecules $\{(\bx_0^{(i)}, \bm{a}_0^{(i)}, \bm{c}^{(i)})\}_{i=1}^B$; model $\theta$; resolution schedule $r(\cdot)$
+\State Sample $t \sim \text{Uniform}(\{1, \ldots, T\})$
+\State $k \gets r(t)$
+\For{each molecule $i$ in batch}
+    \State Pre-compute coarsening $\bm{C}^{(k)}_i$ via \Cref{alg:coarsening} (cached)
+    \State $\bx_t^{(i)}, \bm{a}_t^{(i)} \gets \text{Forward}(\bx_0^{(i)}, \bm{a}_0^{(i)}, t)$ \Comment{\Cref{alg:forward}}
+\EndFor
+\State $\hat{\bep} \gets \bep_\theta(\{\bx_t^{(i)}, \bm{a}_t^{(i)}, t, \bm{c}^{(i)}\})$ \Comment{With $p_{\text{uncond}} = 0.1$ conditioning dropout}
+\State \Comment{Compute weighted loss}
+\State $w_t \gets \min\!\left(\SNR(t), 5\right) / \SNR(t)$ \Comment{Min-SNR-5 weighting}
+\State $\cL_{\text{pos}} \gets w_t \cdot \frac{1}{B} \sum_i \|\bep^{(i)} - \hat{\bep}^{(i)}_{\text{pos}}\|^2$ \Comment{Position loss}
+\State $\cL_{\text{type}} \gets \frac{1}{B} \sum_i \text{CE}(\bm{a}_0^{(i)}, \hat{\bm{a}}^{(i)})$ \Comment{Type cross-entropy}
+\State $\cL_{\text{prop}} \gets \frac{1}{B} \sum_i \|\bm{p}^{(i)} - \hat{\bm{p}}^{(i)}\|^2$ \Comment{Property auxiliary loss}
+\State $\cL \gets \cL_{\text{pos}} + \lambda_{\text{type}}\, \cL_{\text{type}} + \lambda_{\text{prop}}\, \cL_{\text{prop}}$
+\State Update $\theta$ via AdamW on $\nabla_\theta \cL$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{MolSSD Sampling (Reverse Process)}\label{alg:sampling}
+\begin{algorithmic}[1]
+\Require Trained model $\theta$; conditioning $\bm{c}$; guidance weight $w$; resolution schedule $r(\cdot)$; $T$ timesteps
+\Ensure Generated molecule $\bx_0 \in \R^{N \times 3}$, atom types $\bm{a}_0$
+\State $\bx_T \sim \cN(\bm{0}, \sigma_T^2\, \bm{I}_{N_{r(T)} \times 3})$ \Comment{Sample from prior at coarsest resolution}
+\For{$t = T, T-1, \ldots, 1$}
+    \State $\hat{\bep}_{\text{cond}} \gets \bep_\theta(\bx_t, t, \bm{c})$ \Comment{Conditional prediction}
+    \State $\hat{\bep}_{\text{uncond}} \gets \bep_\theta(\bx_t, t, \bm{c}_\varnothing)$ \Comment{Unconditional prediction}
+    \State $\hat{\bep} \gets (1 + w)\, \hat{\bep}_{\text{cond}} - w\, \hat{\bep}_{\text{uncond}}$ \Comment{Classifier-free guidance}
+    \State $\hat{\bx}_0 \gets (\bx_t - \sigma_t\, \hat{\bep}) / \bar{a}_t \cdot (\bm{C}^{(r(t))})^+$ \Comment{Predict clean data}
+    \If{$r(t) \neq r(t-1)$} \Comment{Resolution-changing step}
+        \State \Comment{Non-isotropic sampling via \Cref{alg:lanczos}}
+        \State $\bmu, \bSigma \gets \text{PosteriorParams}(\bx_t, \hat{\bx}_0, t)$ \Comment{\Cref{eq:posterior_mu,eq:posterior_sigma}}
+        \State $\bx_{t-1} \gets \text{LanczosSample}(\bmu, \bSigma)$ \Comment{\Cref{alg:lanczos}}
+    \Else \Comment{Standard DDPM step at fixed resolution}
+        \State $\bmu_{t-1} \gets \frac{\sqrt{\bar{\alpha}_{t-1}} \beta_t}{1 - \bar{\alpha}_t}\, \hat{\bx}_0 + \frac{\sqrt{\alpha_t}(1 - \bar{\alpha}_{t-1})}{1 - \bar{\alpha}_t}\, \bx_t$
+        \State $\bz \sim \cN(\bm{0}, \bm{I})$ if $t > 1$, else $\bz = \bm{0}$
+        \State $\bx_{t-1} \gets \bmu_{t-1} + \tilde{\sigma}_t\, \bz$
+    \EndIf
+\EndFor
+\State \Return $\bx_0, \hat{\bm{a}}_0$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Non-Isotropic Noise Sampling via Lanczos}\label{alg:lanczos}
+\begin{algorithmic}[1]
+\Require Posterior mean $\bmu \in \R^{N_{r(t-1)} \times 3}$; covariance $\bSigma = \sigma_{t-1}^2 \bm{I} - \frac{\sigma_{t-1}^4}{\sigma_t^2} \Mt^\top \Mt$; rank bound $k = N_{r(t)}$
+\Ensure Sample $\bx_{t-1} \sim \cN(\bmu, \bSigma)$
+\State \Comment{Step 1: Lanczos tridiagonalization of $\Mt^\top \Mt$}
+\State Initialize $\bm{q}_1 \gets \text{random unit vector} \in \R^{N_{r(t-1)}}$
+\For{$j = 1, \ldots, k$}
+    \State $\bm{v} \gets \Mt^\top (\Mt\, \bm{q}_j)$ \Comment{Matrix-vector product via VJP (\cref{eq:vjp})}
+    \State $\alpha_j \gets \bm{q}_j^\top \bm{v}$
+    \State $\bm{v} \gets \bm{v} - \alpha_j \bm{q}_j - \beta_{j-1} \bm{q}_{j-1}$ \Comment{$\beta_0 = 0$, $\bm{q}_0 = \bm{0}$}
+    \State $\beta_j \gets \|\bm{v}\|$
+    \State $\bm{q}_{j+1} \gets \bm{v} / \beta_j$
+\EndFor
+\State Form tridiagonal matrix $\bm{T}_k$ with $\alpha_j$ on diagonal and $\beta_j$ on sub/super-diagonals
+\State Eigendecompose: $\bm{T}_k = \bm{S} \bm{\Lambda}_k \bm{S}^\top$
+\State Ritz vectors: $\bm{V}_k \gets \bm{Q}_k \bm{S}$ where $\bm{Q}_k = [\bm{q}_1, \ldots, \bm{q}_k]$
+\State \Comment{Step 2: Compute eigenvalues of $\bSigma$}
+\State $d_j \gets \sigma_{t-1}^2 - \frac{\sigma_{t-1}^4}{\sigma_t^2}\, (\bm{\Lambda}_k)_{jj}$ for $j = 1, \ldots, k$
+\State Clamp: $d_j \gets \max(d_j, \epsilon)$ for numerical stability ($\epsilon = 10^{-6}$)
+\State \Comment{Step 3: Sample}
+\State $\bz \sim \cN(\bm{0}, \bm{I}_{N_{r(t-1)} \times 3})$
+\State $\bx_{t-1} \gets \bmu + \sigma_{t-1}\, \bz + \bm{V}_k\, \mathrm{diag}(\sqrt{d_j} - \sigma_{t-1})\, \bm{V}_k^\top\, \bz$ \Comment{\Cref{eq:posterior_sample_efficient}}
+\State \Return $\bx_{t-1}$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{eSEN-Powered Screening Pipeline}\label{alg:screening}
+\begin{algorithmic}[1]
+\Require Generated candidates $\{\bm{m}_i\}_{i=1}^{N_{\text{gen}}}$; eSEN model; TD-DFT oracle; target properties $\bm{p}^*$
+\Ensure Ranked, validated candidates $\{\bm{m}_i^*\}$
+\State \Comment{Stage 1: Validity and novelty filter}
+\For{each candidate $\bm{m}_i$}
+    \State Convert 3D coordinates to molecular graph (bond inference via distance cutoff)
+    \State Check valency constraints, ring strain, steric clashes
+    \State Discard if invalid or duplicate (Tanimoto similarity $> 0.9$ to training set)
+\EndFor
+\State \Comment{Stage 2: eSEN geometry optimization}
+\For{each valid candidate $\bm{m}_i$}
+    \State Compute energy $E_i \gets \text{eSEN-md-direct}(\bm{m}_i)$ \Comment{50.7M params, 1.35 kcal/mol MAE}
+    \State Optimize geometry: $\bm{m}_i^{\text{opt}} \gets \arg\min_{\bm{r}} E_{\text{eSEN}}(\bm{r})$ via L-BFGS
+    \State Compute strain energy: $\Delta E_i \gets E_{\text{eSEN}}(\bm{m}_i) - E_{\text{eSEN}}(\bm{m}_i^{\text{opt}})$
+    \State Discard if $\Delta E_i > \SI{50}{\kilo\cal\per\mol}$ (highly strained)
+\EndFor
+\State \Comment{Stage 3: Rapid property estimation}
+\For{each optimized candidate $\bm{m}_i^{\text{opt}}$}
+    \State Estimate SA score~\cite{ertl2009sa}, QED~\cite{bickerton2012qed}, $\log P$
+    \State Filter: SA $< 5$, QED $> 0.3$
+    \State Estimate $\lambda_{\max}$ via ML surrogate (trained on TD-DFT data)
+    \State Filter: $\lambda_{\max} \in [\SI{280}{nm}, \SI{400}{nm}]$ (UV-A/B range)
+\EndFor
+\State \Comment{Stage 4: TD-DFT validation (top candidates)}
+\State Select top $K$ candidates by estimated $\lambda_{\max}$ match
+\For{each top candidate $\bm{m}_i$}
+    \State Run TD-DFT: CAM-B3LYP / def2-TZVP~\cite{yanai2004camb3lyp, casida1995tddft}
+    \State Compute full UV-Vis spectrum, oscillator strengths, photostability indicators
+\EndFor
+\State \Comment{Stage 5: Final ranking}
+\State Rank by multi-objective score: $\text{Score}_i = w_1 \cdot \text{SpecMatch}_i + w_2 \cdot \text{Stability}_i + w_3 / \text{SA}_i$
+\State \Return top candidates with scores
+\end{algorithmic}
+\end{algorithm}
+
+% ============================================================
+\section{Training Protocol}\label{sec:training}
+% ============================================================
+
+\subsection{Loss Function}\label{sec:loss}
+
+The training objective combines three terms:
+
+\subsubsection{Position Loss with Min-SNR-5 Weighting}
+
+Following Hang et al.~\cite{hang2023minsnr}, we weight the denoising loss by the truncated signal-to-noise ratio:
+\begin{equation}\label{eq:loss_pos}
+    \cL_{\text{pos}} = \E_{t, \bx_0, \bep}\left[\frac{\min(\SNR(t), 5)}{\SNR(t)} \cdot \|\bep - \hat{\bep}_\theta(\bx_t, t)\|^2\right].
+\end{equation}
+This reduces the weight of high-noise (low-SNR) timesteps where the signal is nearly destroyed, improving training stability. The threshold of~5 was shown to be optimal in ablation studies~\cite{hang2023minsnr}.
+
+\subsubsection{Atom Type Cross-Entropy}
+
+\begin{equation}\label{eq:loss_type}
+    \cL_{\text{type}} = -\E_{t, \bx_0}\left[\sum_{i=1}^{N_{r(t)}} \sum_{k=1}^{K} a_{0,ik} \log \hat{a}_{ik}(\bx_t, t)\right],
+\end{equation}
+where $K$ is the number of atom types and $\hat{a}_{ik}$ is the predicted probability of atom $i$ having type $k$. At coarsened resolutions, the target type is determined by majority vote among constituent atoms.
+
+\subsubsection{Property Prediction Auxiliary Loss}
+
+An auxiliary head predicts molecular properties from the global representation:
+\begin{equation}\label{eq:loss_prop}
+    \cL_{\text{prop}} = \E_{t, \bx_0}\left[\|\bm{p} - \hat{\bm{p}}_\theta(\bx_t, t)\|^2\right],
+\end{equation}
+where $\bm{p} = (\lambda_{\max}, \log \varepsilon, T_d, \log P)$ are scalar properties.
+
+\subsubsection{Combined Loss}
+
+\begin{equation}\label{eq:loss_total}
+    \cL = \cL_{\text{pos}} + \lambda_{\text{type}}\, \cL_{\text{type}} + \lambda_{\text{prop}}\, \cL_{\text{prop}},
+\end{equation}
+with $\lambda_{\text{type}} = 0.1$ and $\lambda_{\text{prop}} = 0.01$ chosen to balance gradient magnitudes.
+
+\subsection{Resolution Schedule}\label{sec:resolution_schedule}
+
+The resolution schedule $r(t)$ maps each diffusion timestep $t \in \{0, 1, \ldots, T\}$ to a resolution level $r(t) \in \{0, 1, \ldots, L\}$. Following SSD~\cite{ssd2026}, we parameterize this via information decay profiles:
+
+\paragraph{ConvexDecay($\gamma = 0.5$).} The default schedule, which spends more timesteps at lower (coarser) resolution:
+\begin{equation}\label{eq:convex_decay}
+    \Info_{\mathrm{mol}}(t) = \left(1 - \frac{t}{T}\right)^{0.5}.
+\end{equation}
+The resolution level at timestep $t$ is then:
+\begin{equation}\label{eq:r_from_info}
+    r(t) = \arg\min_k \left|\frac{N_k}{N} - \Info_{\mathrm{mol}}(t)\right|.
+\end{equation}
+
+\paragraph{Comparison schedules.} We also evaluate:
+\begin{itemize}
+    \item \textbf{Equal:} $\Info_{\mathrm{mol}}(t) = 1 - t/T$ (linear decay).
+    \item \textbf{ConvexDecay(2.0):} $\Info_{\mathrm{mol}}(t) = (1 - t/T)^{2.0}$ (more time at high resolution).
+    \item \textbf{SigmoidLikeDecay(3):} $\Info_{\mathrm{mol}}(t) = \sigma(-3(2t/T - 1))$ (S-shaped, rapid transition in the middle).
+\end{itemize}
+
+In SSD experiments on images, ConvexDecay(0.5) achieved the best FID scores, and we hypothesize the same holds for molecular generation.
+
+\subsection{Batch Construction}\label{sec:batch}
+
+Efficient batching requires grouping molecules at the same resolution level within a batch, since different resolutions produce tensors of different sizes.
+
+\begin{itemize}
+    \item \textbf{Same-resolution batching:} All molecules in a batch share the same timestep $t$ (and hence the same resolution $r(t)$). This allows standard batched tensor operations.
+    \item \textbf{Resolution-change fill:} When a resolution-changing timestep is sampled, the remaining batch slots are filled with non-resolution-changing timesteps at the same resolution, ensuring efficient GPU utilization.
+    \item \textbf{Dynamic batching by molecule size:} Within a resolution level, molecules are grouped by similar size ($N_{r(t)}$ within $\pm 20\%$) to minimize padding waste.
+\end{itemize}
+
+\subsection{Two-Stage Training}\label{sec:two_stage}
+
+\subsubsection{Stage 1: Pre-training on OMol25}
+
+The model is pre-trained on the organic subset of OMol25~\cite{omol25}, comprising approximately 40M molecular structures with DFT-computed energies and forces. This stage trains the model as an unconditional molecular generator:
+\begin{itemize}
+    \item Duration: 500K iterations (approximately 2 weeks on 8$\times$ A100 GPUs).
+    \item Batch size: 256 molecules.
+    \item Learning rate: $3 \times 10^{-4}$ with cosine annealing to $1 \times 10^{-5}$.
+    \item No conditioning ($\bm{c} = \bm{c}_\varnothing$ always).
+    \item All resolution levels active (full hierarchy training).
+\end{itemize}
+
+\subsubsection{Stage 2: Fine-tuning on UV Absorber Dataset}
+
+The pre-trained model is fine-tuned on the curated UV absorber dataset with conditioning:
+\begin{itemize}
+    \item Duration: 100K iterations (approximately 3 days on 8$\times$ A100 GPUs).
+    \item Batch size: 128 molecules.
+    \item Learning rate: $5 \times 10^{-5}$ with cosine annealing to $1 \times 10^{-6}$.
+    \item Conditioning dropout: $p_{\text{uncond}} = 0.1$.
+    \item Conditioning on absorption spectrum + properties.
+\end{itemize}
+
+\subsection{Hyperparameters}\label{sec:hyperparams}
+
+\begin{table}[H]
+\centering
+\caption{Complete hyperparameter specification for MolSSD training.}
+\label{tab:hyperparams}
+\begin{tabular}{llc}
+\toprule
+\textbf{Category} & \textbf{Hyperparameter} & \textbf{Value} \\
+\midrule
+\multirow{4}{*}{Diffusion} & Timesteps $T$ & 1000 \\
+ & Noise schedule & Cosine \\
+ & Resolution schedule & ConvexDecay(0.5) \\
+ & SNR clipping & Min-SNR-5 \\
+\midrule
+\multirow{6}{*}{Architecture} & EGNN blocks (Level 0) & 2 \\
+ & EGNN blocks (Level 1) & 3 \\
+ & EGNN blocks (Level $L-1$) & 3 \\
+ & EGNN blocks (Level $L$) & 4 \\
+ & Hidden dims & 512 / 384 / 256 / 128 \\
+ & Attention heads & 8 \\
+\midrule
+\multirow{5}{*}{Training} & Optimizer & AdamW \\
+ & Learning rate (Stage 1) & $3 \times 10^{-4}$ \\
+ & Learning rate (Stage 2) & $5 \times 10^{-5}$ \\
+ & Weight decay & $1 \times 10^{-2}$ \\
+ & EMA decay & 0.9999 \\
+\midrule
+\multirow{4}{*}{Loss weights} & $\lambda_{\text{type}}$ & 0.1 \\
+ & $\lambda_{\text{prop}}$ & 0.01 \\
+ & Position loss & Min-SNR-5 weighted L2 \\
+ & Type loss & Cross-entropy \\
+\midrule
+\multirow{3}{*}{Conditioning} & Spectrum bins & 60 \\
+ & Conditioning dim $d_c$ & 256 \\
+ & Uncond.\ dropout $p_{\text{uncond}}$ & 0.1 \\
+\midrule
+\multirow{2}{*}{Guidance} & Guidance weight $w$ (sampling) & 2.0--5.0 \\
+ & Guidance weight (screening) & 3.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{OMol25 Integration}\label{sec:omol25}
+% ============================================================
+
+\subsection{Dataset Description}
+
+The Open Molecules 2025 (OMol25) dataset~\cite{omol25} is a large-scale computational chemistry resource containing:
+\begin{itemize}
+    \item Over 140 million DFT single-point calculations.
+    \item 83 million unique molecular systems.
+    \item Molecular sizes ranging from 2 to 350 atoms.
+    \item Energies, forces, and charge distributions computed at the $\omega$B97X-V/def2-TZVPP level of theory.
+    \item Diverse chemical space spanning organic molecules, biomolecules, and organometallic complexes.
+\end{itemize}
+
+\subsection{Filtering Pipeline}
+
+For MolSSD pre-training, we filter OMol25 to an organic/main-group subset:
+
+\begin{enumerate}
+    \item \textbf{Element filter:} Retain molecules containing only H, C, N, O, F, Si, P, S, Cl, Br, I (main-group organic elements relevant to UV absorbers).
+    \item \textbf{Size filter:} Retain molecules with 5--200 atoms (excluding very small diatomics and very large aggregates).
+    \item \textbf{Charge filter:} Retain neutral molecules only (total charge = 0).
+    \item \textbf{Convergence filter:} Retain only converged DFT calculations (SCF convergence flag = True).
+    \item \textbf{Deduplication:} Remove duplicate structures (RMSD $< \SI{0.1}{\angstrom}$ after alignment).
+\end{enumerate}
+
+After filtering, the organic subset contains approximately 40M structures, spanning a wide range of molecular sizes and functional group diversity.
+
+\subsection{Role 1: Pre-training Backbone}
+
+OMol25 serves as the pre-training dataset for the MolSSD backbone. The large scale and chemical diversity of the filtered subset provide:
+\begin{itemize}
+    \item \textbf{Robust molecular priors:} The model learns general principles of molecular geometry, bonding, and 3D structure across diverse chemical space.
+    \item \textbf{Spectral coarsening statistics:} Pre-training exposes the model to molecules of varying sizes and topologies, enabling it to generalize the coarsening hierarchy.
+    \item \textbf{Transfer learning foundation:} The pre-trained weights provide an excellent initialization for fine-tuning on the smaller UV absorber dataset.
+\end{itemize}
+
+\subsection{Role 2: eSEN Energy Oracle}\label{sec:esen}
+
+The eSEN (equivariant Scalable Energy Network) model, trained on OMol25, serves as a rapid energy oracle for post-generation screening:
+
+\paragraph{Model specification.} We use the eSEN-md-direct checkpoint:
+\begin{itemize}
+    \item 50.7M parameters.
+    \item Energy MAE: \SI{1.35}{\kilo\cal\per\mol} on the OMol25 test set.
+    \item Force MAE: \SI{5.2}{\milli\hartree\per\bohr} on the OMol25 test set.
+    \item Inference speed: $\sim$1000 molecules/second on a single A100 GPU.
+\end{itemize}
+
+\paragraph{Geometry optimization protocol.}
+\begin{enumerate}
+    \item Initialize with generated 3D coordinates.
+    \item Run L-BFGS optimization using eSEN energies and forces.
+    \item Convergence criterion: force norm $< \SI{0.05}{\electronvolt\per\angstrom}$.
+    \item Maximum 500 optimization steps.
+    \item Record optimized geometry and final energy.
+\end{enumerate}
+
+\paragraph{Conformer ranking and strain energy.} The strain energy $\Delta E = E_{\text{gen}} - E_{\text{opt}}$ quantifies how far the generated geometry is from a local minimum. High strain ($\Delta E > \SI{50}{\kilo\cal\per\mol}$) indicates chemically unreasonable geometries.
+
+\subsection{Role 3: Scalability Benchmark}\label{sec:scalability}
+
+OMol25's broad size distribution enables systematic evaluation of MolSSD's scalability:
+
+\begin{table}[H]
+\centering
+\caption{OMol25 molecule size ranges for scalability benchmarking.}
+\label{tab:size_ranges}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Category} & \textbf{Atom Range} & \textbf{Approx.\ Count} & \textbf{Coarsening Levels} \\
+\midrule
+Small & 2--20 & 12M & $L = 2$ \\
+Medium & 20--50 & 18M & $L = 3$ \\
+Large & 50--150 & 8M & $L = 4$ \\
+Very Large & 150--350 & 2M & $L = 5$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+We evaluate generation quality and computational cost across these size ranges, comparing MolSSD against baselines that use fixed (full) resolution at all timesteps.
+
+% ============================================================
+\section{Experimental Protocols}\label{sec:experiments}
+% ============================================================
+
+\subsection{Computational Experiments}\label{sec:comp_experiments}
+
+\subsubsection{QM9 Benchmarks}
+
+QM9~\cite{ramakrishnan2014qm9} contains 133,885 small organic molecules with up to 9 heavy atoms (29 atoms total including hydrogens). We follow the standard evaluation protocol of EDM~\cite{hoogeboom2022edm}:
+
+\textbf{Metrics:}
+\begin{itemize}
+    \item \textbf{Atom stability (\%):} Fraction of atoms with correct valency.
+    \item \textbf{Molecule stability (\%):} Fraction of molecules where all atoms are stable.
+    \item \textbf{Validity (\%):} Fraction of molecules that can be parsed as valid by RDKit.
+    \item \textbf{Uniqueness (\%):} Fraction of valid molecules that are unique (by canonical SMILES).
+    \item \textbf{Novelty (\%):} Fraction of unique molecules not in the training set.
+    \item \textbf{JS divergences:} Jensen--Shannon divergence between generated and reference distributions for bond lengths, bond angles, dihedral angles, and atom-type frequencies.
+\end{itemize}
+
+\textbf{Protocol:} Generate 10,000 molecules, apply bond inference (distance-based), compute all metrics. Report mean $\pm$ std over 3 random seeds.
+
+\subsubsection{GEOM-Drugs Benchmarks}
+
+GEOM-Drugs~\cite{axelrod2022geom} contains 304,466 drug-like molecules with 20--180 atoms and multiple conformers per molecule. This tests MolSSD's ability to handle larger, more complex molecular structures.
+
+\textbf{Additional metrics:}
+\begin{itemize}
+    \item Coverage and precision of conformer ensembles.
+    \item RMSD to nearest ground-truth conformer.
+\end{itemize}
+
+\subsubsection{OMol25 Scalability Study}
+
+Using the size ranges from \Cref{tab:size_ranges}, we evaluate:
+\begin{itemize}
+    \item Generation quality (validity, stability) as a function of molecule size.
+    \item Wall-clock time per molecule as a function of size.
+    \item Speedup of MolSSD over fixed-resolution baselines.
+    \item Quality--efficiency Pareto frontier.
+\end{itemize}
+
+\subsubsection{Ablation Studies}
+
+We conduct seven ablation studies to validate design choices:
+
+\begin{enumerate}
+    \item \textbf{Coarsening method:} Spectral clustering (ours) vs.\ BRICS~\cite{degen2008brics} vs.\ Murcko~\cite{bemis1996murcko} vs.\ random partitioning. Metrics: validity, stability, JS divergences on QM9.
+
+    \item \textbf{Resolution schedule:} ConvexDecay(0.5) vs.\ Equal vs.\ ConvexDecay(2.0) vs.\ SigmoidLikeDecay(3) vs.\ no coarsening (DDPM baseline). Metrics: all QM9 metrics + wall-clock time.
+
+    \item \textbf{Posterior type:} Non-isotropic (Lanczos) vs.\ isotropic approximation (diagonal $\bSigma$) vs.\ deterministic (zero noise at resolution changes). Metrics: sample quality and diversity.
+
+    \item \textbf{Loss weighting:} Min-SNR-5 vs.\ uniform vs.\ Min-SNR-1 vs.\ Min-SNR-10. Metrics: convergence speed and final sample quality.
+
+    \item \textbf{Number of coarsening levels:} $L = 2, 3, 4, 5$ on GEOM-Drugs. Metrics: quality--efficiency trade-off.
+
+    \item \textbf{Pre-training:} With OMol25 pre-training vs.\ from scratch. Metrics: convergence speed and final quality on UV absorber dataset.
+
+    \item \textbf{Conditioning mechanism:} Cross-attention vs.\ adaLN vs.\ concatenation. Metrics: conditional generation quality (spectrum match).
+\end{enumerate}
+
+\subsection{UV-Absorber Dataset Construction}\label{sec:uv_dataset}
+
+\subsubsection{Data Sources}
+
+We curate a UV absorber dataset from three public databases:
+\begin{itemize}
+    \item \textbf{ChEMBL:} Bioactive molecules with reported UV-Vis data; extracted via ChEMBL API filtering for ``UV absorption'' and ``photostability'' assays.
+    \item \textbf{PubChem:} Compounds with experimental UV-Vis spectra in the PubChem BioAssay database; filtered for organic molecules with $\lambda_{\max} \in [200, 800]$\,nm.
+    \item \textbf{ZINC:} Commercially available compounds; filtered using UV absorber substructure queries (benzotriazole, benzophenone, triazine, cinnamate, oxanilide scaffolds).
+\end{itemize}
+
+\subsubsection{UV Absorber Classes}
+
+The dataset includes the following UV absorber classes, selected for relevance to polymer coating applications~\cite{gugumus1995stabilization, schaller2009uv, bojinov2012photostabilizers}:
+\begin{itemize}
+    \item Hydroxyphenyl benzotriazoles (BTZ): e.g., Tinuvin series.
+    \item Hydroxyphenyl benzophenones (BP): e.g., Chimassorb 81.
+    \item Hydroxyphenyl triazines (HPT): e.g., Tinuvin 1577.
+    \item Cinnamates: e.g., octyl methoxycinnamate.
+    \item Oxanilides: e.g., Sanduvor VSU.
+    \item Cyanoacrylates: e.g., Uvinul 3039.
+    \item Novel scaffolds from generative exploration.
+\end{itemize}
+
+\subsubsection{TD-DFT Protocol}
+
+For each molecule in the dataset, we compute UV-Vis absorption spectra using TD-DFT~\cite{casida1995tddft}:
+\begin{itemize}
+    \item \textbf{Functional:} CAM-B3LYP~\cite{yanai2004camb3lyp} (long-range corrected hybrid, accurate for charge-transfer excitations common in UV absorbers).
+    \item \textbf{Basis set:} def2-TZVP (triple-zeta valence with polarization).
+    \item \textbf{States:} First 20 singlet excited states.
+    \item \textbf{Solvent model:} PCM (polarizable continuum model) with chloroform ($\varepsilon = 4.81$).
+    \item \textbf{Software:} ORCA 5.0 or Gaussian 16.
+    \item \textbf{Spectrum generation:} Gaussian broadening of oscillator strengths with $\sigma = \SI{0.3}{\electronvolt}$.
+\end{itemize}
+
+\subsubsection{3D Conformer Generation}
+
+For molecules lacking experimental 3D coordinates:
+\begin{enumerate}
+    \item Generate initial conformers via RDKit ETKDG (50 conformers per molecule).
+    \item Optimize with MMFF94 force field.
+    \item Re-optimize top 5 conformers with eSEN (see \Cref{sec:esen}).
+    \item Select lowest-energy conformer as the reference geometry.
+    \item Verify with single-point DFT (B3LYP/def2-SVP).
+\end{enumerate}
+
+\subsection{Generation Campaigns}\label{sec:campaigns}
+
+We design four targeted generation campaigns:
+
+\begin{table}[H]
+\centering
+\caption{Generation campaign specifications.}
+\label{tab:campaigns}
+\begin{tabular}{p{3cm}p{4cm}p{3cm}p{3cm}}
+\toprule
+\textbf{Campaign} & \textbf{Target Properties} & \textbf{Molecules} & \textbf{Purpose} \\
+\midrule
+UV-B Absorbers & $\lambda_{\max} \in [280, 320]$\,nm; $\log\varepsilon > 4.0$; SA $< 4$ & 10,000 & Sunscreen ingredients \\
+\midrule
+UV-A Absorbers & $\lambda_{\max} \in [320, 400]$\,nm; photostable ($\tau > \SI{10}{\hour}$) & 10,000 & Coating stabilizers \\
+\midrule
+Broadband & $A(\lambda) > 0.5$ for $\lambda \in [290, 380]$\,nm & 10,000 & Multi-spectral protection \\
+\midrule
+High-$T_d$ & $\lambda_{\max} \in [300, 380]$\,nm; $T_d > \SI{300}{\celsius}$ & 10,000 & High-temperature coatings \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each campaign follows the screening pipeline (\Cref{alg:screening}) with campaign-specific property filters.
+
+\subsection{Wet-Lab Protocols}\label{sec:wetlab}
+
+\subsubsection{Synthesis Strategy}
+
+Top candidates from the screening pipeline are assessed for synthetic accessibility:
+\begin{enumerate}
+    \item \textbf{Retrosynthetic analysis:} ASKCOS / IBM RXN for retrosynthesis~\cite{coley2017retrosynthesis}.
+    \item \textbf{Route scoring:} Number of steps, reagent availability, expected yield.
+    \item \textbf{Prioritization:} Select 10--20 molecules with $\leq 4$ synthetic steps and $> 80\%$ predicted step yields.
+    \item \textbf{Synthesis:} Contract research organization (CRO) or in-house synthesis.
+\end{enumerate}
+
+\subsubsection{Characterization Methods}
+
+Synthesized molecules are characterized by:
+\begin{itemize}
+    \item \textbf{$^1$H and $^{13}$C NMR:} Structure confirmation (Bruker 400/500 MHz).
+    \item \textbf{High-resolution mass spectrometry (HRMS):} Molecular formula confirmation (ESI-TOF, $< \SI{5}{ppm}$ error).
+    \item \textbf{IR spectroscopy:} Functional group identification (ATR-FTIR).
+    \item \textbf{UV-Vis spectroscopy:} Absorption spectrum ($\lambda = 200$--$\SI{800}{nm}$, chloroform/ethanol).
+    \item \textbf{TGA:} Thermal decomposition temperature $T_d$ (heating rate: $\SI{10}{\celsius\per\min}$, $\mathrm{N}_2$ atmosphere).
+    \item \textbf{DSC:} Glass transition temperature $T_g$ and melting point $T_m$ (heating rate: $\SI{10}{\celsius\per\min}$).
+\end{itemize}
+
+\subsubsection{Coating Formulation and Testing}
+
+Selected UV absorbers are incorporated into test coatings:
+\begin{itemize}
+    \item \textbf{Coating matrix:} Acrylic polyol + HDI trimer crosslinker (2K polyurethane clear coat).
+    \item \textbf{UV absorber loading:} 1--3 wt\% (typical industrial range).
+    \item \textbf{Application:} Drawdown bar on aluminum panels (DFT: $\SI{50}{\micro\meter}$).
+    \item \textbf{Curing:} $\SI{60}{\celsius}$, $\SI{30}{\min}$ flash + $\SI{80}{\celsius}$, $\SI{30}{\min}$ bake.
+\end{itemize}
+
+Testing protocols:
+\begin{itemize}
+    \item \textbf{QUV accelerated weathering:} ASTM G154, Cycle 1 (UVA-340 lamps, $\SI{0.89}{W/m^2}$ at $\SI{340}{nm}$, $\SI{60}{\celsius}$). Duration: 500, 1000, 2000 hours.
+    \item \textbf{Gloss retention:} ASTM D523, $60^\circ$ gloss. Target: $> 80\%$ retention at 1000\,h.
+    \item \textbf{Color change:} ASTM D2244, $\Delta E^*_{ab}$. Target: $\Delta E < 3$ at 1000\,h.
+    \item \textbf{Adhesion:} ASTM D3359, cross-hatch tape test. Target: 5B (no removal).
+    \item \textbf{Pencil hardness:} ASTM D3363. Report initial and after weathering.
+\end{itemize}
+
+\subsection{Baseline Comparisons}\label{sec:baselines}
+
+MolSSD is compared against six state-of-the-art molecular diffusion models:
+
+\begin{table}[H]
+\centering
+\caption{Baseline methods for comparison.}
+\label{tab:baselines}
+\begin{tabular}{lp{7cm}c}
+\toprule
+\textbf{Method} & \textbf{Key Features} & \textbf{Reference} \\
+\midrule
+EDM & E(n)-equivariant diffusion on positions + types & \cite{hoogeboom2022edm} \\
+GeoLDM & Geometric latent diffusion (VAE + diffusion) & \cite{xu2023geoldm} \\
+GCDM & Geometry-complete diffusion (full geometry representation) & \cite{morehead2024gcdm} \\
+EQGAT-diff & SE(3)-equivariant graph attention diffusion & \cite{le2024eqgat} \\
+MolDiff & Atom-bond consistent diffusion & \cite{peng2023moldiff} \\
+HierDiff & Hierarchical diffusion (BRICS-based coarse-to-fine) & \cite{qiang2023hierdiff} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All baselines are run with their published hyperparameters and codebases. For fair comparison, we also evaluate ``MolSSD-flat'' (our architecture without coarsening, equivalent to standard DDPM with the Molecular Flexi-Net backbone).
+
+% ============================================================
+\section{Metrics}\label{sec:metrics}
+% ============================================================
+
+\subsection{Generation Quality Metrics}
+
+\begin{table}[H]
+\centering
+\caption{Generation quality metrics with formal definitions.}
+\label{tab:metrics_quality}
+\begin{tabular}{p{3.5cm}p{9cm}}
+\toprule
+\textbf{Metric} & \textbf{Definition} \\
+\midrule
+Atom Stability (\%) & $\frac{1}{N_{\text{gen}}} \sum_i \frac{1}{|m_i|} \sum_{a \in m_i} \mathbbm{1}[\text{valency}(a) = \text{target\_valency}(a)]$ \\
+\midrule
+Molecule Stability (\%) & $\frac{1}{N_{\text{gen}}} \sum_i \mathbbm{1}[\text{all atoms in } m_i \text{ are stable}]$ \\
+\midrule
+Validity (\%) & $\frac{|\{m : \text{RDKit.MolFromSmiles}(\text{SMILES}(m)) \neq \text{None}\}|}{N_{\text{gen}}}$ \\
+\midrule
+Uniqueness (\%) & $\frac{|\text{unique canonical SMILES}|}{|\text{valid molecules}|}$ \\
+\midrule
+Novelty (\%) & $\frac{|\text{unique SMILES} \setminus \text{training SMILES}|}{|\text{unique SMILES}|}$ \\
+\midrule
+Bond Length JS & $\text{JS}(P_{\text{gen}}(d) \| P_{\text{ref}}(d))$ where $d$ is bond length distribution \\
+\midrule
+Bond Angle JS & $\text{JS}(P_{\text{gen}}(\theta) \| P_{\text{ref}}(\theta))$ where $\theta$ is bond angle distribution \\
+\midrule
+Dihedral JS & $\text{JS}(P_{\text{gen}}(\phi) \| P_{\text{ref}}(\phi))$ where $\phi$ is dihedral angle distribution \\
+\midrule
+Atom Type JS & $\text{JS}(P_{\text{gen}}(a) \| P_{\text{ref}}(a))$ where $a$ is atom type distribution \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{UV-Absorber Specific Metrics}
+
+\begin{table}[H]
+\centering
+\caption{UV-absorber-specific evaluation metrics.}
+\label{tab:metrics_uv}
+\begin{tabular}{p{3.5cm}p{9cm}}
+\toprule
+\textbf{Metric} & \textbf{Definition} \\
+\midrule
+$\lambda_{\max}$ MAE & $\frac{1}{N} \sum_i |\lambda_{\max}^{\text{target}} - \lambda_{\max}^{\text{gen}}|$ (nm) \\
+\midrule
+Spectrum RMSE & $\sqrt{\frac{1}{B} \sum_b (A_b^{\text{target}} - A_b^{\text{gen}})^2}$ \\
+\midrule
+UV Absorber Hit Rate & Fraction of generated molecules with $\lambda_{\max} \in$ target range and $\log\varepsilon > 3.5$ \\
+\midrule
+Photostability Score & Estimated photodegradation half-life $\tau_{1/2}$ \\
+\midrule
+Coating Compatibility & Binary: $T_d > \SI{200}{\celsius}$ and $\log P \in [2, 8]$ and SA $< 5$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Efficiency Metrics}
+
+\begin{table}[H]
+\centering
+\caption{Computational efficiency metrics.}
+\label{tab:metrics_efficiency}
+\begin{tabular}{p{3.5cm}p{9cm}}
+\toprule
+\textbf{Metric} & \textbf{Definition} \\
+\midrule
+Wall-clock time & Seconds per molecule (generation only, excluding screening) \\
+\midrule
+GPU memory & Peak GPU memory (GB) during generation \\
+\midrule
+FLOPs & Floating-point operations per generated molecule \\
+\midrule
+Speedup ratio & $\text{Time}_{\text{baseline}} / \text{Time}_{\text{MolSSD}}$ \\
+\midrule
+Quality-efficiency & Validity $\times$ Stability $\times$ Speedup ratio \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{Risk Assessment and Mitigations}\label{sec:risks}
+% ============================================================
+
+\begin{longtable}{p{3.5cm}p{1.5cm}p{4cm}p{4cm}}
+\caption{Risk assessment and mitigation strategies.}\label{tab:risks} \\
+\toprule
+\textbf{Risk} & \textbf{Severity} & \textbf{Description} & \textbf{Mitigation} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Risk} & \textbf{Severity} & \textbf{Description} & \textbf{Mitigation} \\
+\midrule
+\endhead
+Spectral clustering fails for disconnected graphs & High & Molecules with multiple disconnected fragments (salts, complexes) break the Laplacian eigenstructure. & Filter to single connected components; handle salts by coarsening each component independently. \\
+\midrule
+Non-isotropic posterior becomes ill-conditioned & High & $\bSigma_{t \to t-1}$ may have near-zero or negative eigenvalues due to numerical errors. & Eigenvalue clamping ($d_j \geq \epsilon = 10^{-6}$); double-precision arithmetic for Lanczos; fallback to isotropic sampling. \\
+\midrule
+Equivariance broken by implementation & High & Floating-point errors in center-of-mass computation or frame construction may break exact equivariance. & Equivariance unit tests with tolerance $< 10^{-5}$; center-of-mass subtraction at every layer. \\
+\midrule
+eSEN inaccurate for UV absorbers & Medium & eSEN is trained on ground-state properties; UV absorbers may have unusual electronic structure. & Validate eSEN geometries against DFT for a held-out set of UV absorbers; use DFT refinement for top candidates. \\
+\midrule
+TD-DFT spectra inaccurate & Medium & CAM-B3LYP may systematically over/underestimate $\lambda_{\max}$ for certain chromophore classes. & Benchmark against experimental spectra; apply linear correction ($\lambda_{\text{corr}} = a \lambda_{\text{DFT}} + b$); consider higher-level methods (ADC(2), CC2) for validation. \\
+\midrule
+Insufficient UV absorber training data & Medium & Curated dataset may be too small ($< 10$K molecules) for robust conditional generation. & Two-stage training (large pre-training + small fine-tuning); data augmentation via conformer ensemble; synthetic data from combinatorial enumeration. \\
+\midrule
+Generated molecules are unsynthesizable & Medium & High SA scores or unknown reaction pathways prevent experimental validation. & SA score filtering in screening pipeline; retrosynthetic feasibility check; focus on analogs of known scaffolds. \\
+\midrule
+Coarsening hierarchy too rigid & Low & Fixed $\sim$3-fold coarsening may not match all molecular topologies. & Adaptive coarsening ratio based on graph structure; allow molecule-specific hierarchy construction. \\
+\midrule
+Computational cost of Lanczos & Low & Lanczos iterations add overhead at resolution-changing steps. & Only $L-1$ resolution changes per trajectory; warm-start Lanczos with previous eigenvectors; limit to 50 iterations. \\
+\midrule
+Mode collapse in conditional generation & Medium & Model generates only a few molecular scaffolds for a given conditioning target. & Diversity-promoting sampling (temperature scaling, nucleus sampling on types); classifier-free guidance with moderate $w$; track intra-batch diversity during training. \\
+\bottomrule
+\end{longtable}
+
+% ============================================================
+\section{Conclusion}\label{sec:conclusion}
+% ============================================================
+
+This whitepaper has provided the complete technical specification for MolSSD, a molecular generative model that brings the information-theoretic rigor of Scale Space Diffusion to the domain of 3D molecular generation. The key contributions are:
+
+\begin{enumerate}
+    \item A principled molecular scale space constructed via spectral graph coarsening, replacing ad hoc fragmentation methods with eigenvector-based clustering of the graph Laplacian.
+
+    \item A mathematically rigorous forward process that combines deterministic coarsening with stochastic noise, yielding a non-isotropic posterior distribution at resolution-changing steps that is efficiently sampled via the Lanczos algorithm.
+
+    \item The Molecular Flexi-Net architecture, a hierarchical E(n)-equivariant GNN with dynamic level activation that achieves significant computational savings while maintaining generation quality.
+
+    \item A complete training and evaluation pipeline, including OMol25 pre-training, UV-absorber conditioning via classifier-free guidance, and an eSEN-powered screening pipeline for rapid candidate evaluation.
+
+    \item Formal proofs of SE(3) equivariance preservation through all components of the framework, including the non-isotropic noise sampling procedure.
+\end{enumerate}
+
+The experimental program, spanning computational benchmarks on QM9, GEOM-Drugs, and OMol25, seven comprehensive ablation studies, four targeted generation campaigns for UV absorbers, and wet-lab validation of top candidates, is designed to rigorously evaluate every component of the MolSSD framework and demonstrate its practical utility for molecular materials discovery.
+
+% ============================================================
+% References
+% ============================================================
+\bibliographystyle{unsrtnat}
+\bibliography{../references}
+
+\end{document}
