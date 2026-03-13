@@ -130,51 +130,53 @@
   }
 %
 % BRANCH 4 - Baselines & Metrics  (120 deg, upper-left)
-%   3 children, 2x20=40 deg span, from 100 to 140
+%   3 children at 95, 120, 145 (25 deg spacing).
+%   Explicit level 3 grows to fan away from neighbors.
   child [concept color=brBase, grow=120] {
     node (baselines) {Baselines \& Metrics}
-    child [grow=140] {
+    child [grow=145] {
       node {Baselines}
-      child { node {EDM GeoLDM} }
-      child { node {GCDM EQGAT} }
-      child { node {HierDiff} }
+      child [grow=170] { node {EDM GeoLDM} }
+      child [grow=145] { node {GCDM EQGAT} }
+      child [grow=120] { node {HierDiff} }
     }
     child [grow=120] {
       node {Mol.\ Metrics}
-      child { node {Valid Uniq Nov} }
-      child { node {JS Diverg.} }
-      child { node {QED SA} }
+      child [grow=145] { node {Valid Uniq Nov} }
+      child [grow=120] { node {JS Diverg.} }
+      child [grow=95] { node {QED SA} }
     }
-    child [grow=100] {
+    child [grow=95] {
       node (uvmetrics) {UV Metrics}
-      child { node {Absorp.\ Acc.} }
-      child { node {Photostab.} }
+      child [grow=115] { node {Absorp.\ Acc.} }
+      child [grow=75] { node {Photostab.} }
     }
   }
 %
 % BRANCH 5 - Theoretical Foundations  (160 deg, left)
-%   4 children, 3x16=48 deg span, from 136 to 184
+%   4 children at 134, 152, 170, 188 (18 deg spacing).
+%   Explicit level 3 grows to fan away from neighbors.
   child [concept color=brTheory, grow=160] {
     node (theory) {Theoretical Foundations}
-    child [grow=184] {
+    child [grow=188] {
       node (sst) {Scale-Space Theory}
-      child { node {Lindeberg Witkin} }
-      child { node {Gaussian Blur} }
-      child { node {Heat Eqn.} }
+      child [grow=218] { node {Lindeberg Witkin} }
+      child [grow=190] { node {Gaussian Blur} }
+      child [grow=163] { node {Heat Eqn.} }
     }
-    child [grow=168] {
+    child [grow=170] {
       node {Diffusion Models}
-      child { node {DDPM} }
-      child { node {Score SDE} }
+      child [grow=190] { node {DDPM} }
+      child [grow=150] { node {Score SDE} }
     }
     child [grow=152] {
       node (sgt) {Spectral Graph Th.}
-      child { node {Lap.\ Eigdec.} }
-      child { node {Spec.\ Cluster} }
+      child [grow=170] { node {Lap.\ Eigdec.} }
+      child [grow=132] { node {Spec.\ Cluster} }
     }
-    child [grow=136] {
+    child [grow=134] {
       node {Info Theory}
-      child { node {Mutual Info} }
+      child [grow=134] { node {Mutual Info} }
     }
   }
 %
@@ -230,22 +232,23 @@
   }
 %
 % BRANCH 8 - UV-Absorber Application  (280 deg, lower)
-%   3 children, spread from 255 to 305 (25 deg spacing)
+%   3 children at 250, 275, 310 (35 deg between CU and TP).
+%   Level 3 children use explicit grow to fan AWAY from neighbors.
   child [concept color=brUV, grow=280] {
     node (uvapp) {UV-Absorber Application}
-    child [grow=305] {
+    child [grow=310] {
       node {Commercial UV}
-      child { node {Benzo\-triazoles} }
-      child { node {Benzo\-phenones} }
-      child { node {Triazines} }
+      child [grow=340] { node {Benzo\-triazoles} }
+      child [grow=315] { node {Benzo\-phenones} }
+      child [grow=290] { node {Triazines} }
     }
-    child [grow=280] {
+    child [grow=275] {
       node (uvtarget) {Target Properties}
-      child { node {UV 280--400nm} }
-      child { node {High Absorpt.} }
-      child { node {Photo\-stab.} }
+      child [grow=295] { node {UV 280--400nm} }
+      child [grow=270] { node {High Absorpt.} }
+      child [grow=245] { node {Photo\-stab.} }
     }
-    child [grow=255] {
+    child [grow=250] {
       node {Drones Vehicles Outdoor}
     }
   }
