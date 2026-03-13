@@ -1,0 +1,126 @@
+% Compile with: pdflatex pitch_document.tex
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  urlcolor=blue!60!black,
+}
+
+\definecolor{nsfblue}{HTML}{003366}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{gray}{\small NSF SBIR Project Pitch}}
+\lhead{\textcolor{gray}{\small [Company Name]}}
+\rfoot{\textcolor{gray}{\small \thepage}}
+
+\title{%
+  \vspace{-1cm}
+  \textcolor{nsfblue}{\Large\textbf{NSF SBIR Phase I Project Pitch}}\\[0.3cm]
+  \textbf{AI-Driven Platform for Discovery of\\Novel Multifunctional Coating Formulations}\\[0.3cm]
+  \large [Company Name]
+}
+\author{}
+\date{March 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\noindent\textcolor{nsfblue}{\rule{\textwidth}{1pt}}
+
+\vspace{0.5cm}
+\noindent\textit{This document contains the four sections of an NSF SBIR Project Pitch, formatted for review. The plain-text versions in the accompanying \texttt{.txt} files are ready for direct copy-paste into the NSF web submission form. Character counts are annotated after each section.}
+
+\vspace{0.3cm}
+\noindent\textit{Placeholders marked with [brackets] must be replaced with actual company and team information before submission.}
+
+%% =======================================================================
+\section{The Technology Innovation}
+%% =======================================================================
+
+We propose an integrated AI platform that unifies generative molecular design, graph neural network (GNN) property prediction, and multi-objective Bayesian optimization (MOBO) to discover novel multifunctional coating formulations that simultaneously achieve anti-corrosion protection, UV shielding, self-healing, and antimicrobial activity. No existing system connects these three capabilities in a closed loop for coatings.
+
+Developing a multifunctional coating today requires navigating a combinatorial explosion of polymer binders, nanoparticle fillers, solvent systems, and processing parameters. Argonne National Laboratory's Polybot platform documented nearly one million possible fabrication combinations for a single polymer film. Traditional trial-and-error R\&D tests fewer than 1\% of this space, often missing Pareto-optimal formulations that balance competing properties. Current AI tools for coatings operate at a single scale: Citrine Informatics and Uncountable optimize formulations but do not generate novel molecules, while molecular generative models (VAEs, diffusion models) have been demonstrated primarily on drug-like small molecules, not coating polymers.
+
+Our innovation bridges this gap through three technical advances. First, we will develop a coating-specific generative model using the Junction Tree VAE architecture with a fragment vocabulary tailored to UV-absorbing chromophores, cross-linking groups, and hydrophobic tails. Fragment-based generation achieves 100\% chemical validity versus approximately 43\% for character-level approaches. Second, we will train multitask GNN property predictors that simultaneously forecast glass transition temperature, electrochemical impedance, UV absorption wavelength, and adhesion energy from molecular graphs, leveraging transfer learning from the MACE-MP foundation model to reach target accuracy from fewer than 500 coating-specific training samples. Third, we will implement constraint-aware MOBO using BoTorch's qNEHVI acquisition function to navigate the Pareto front across competing objectives while enforcing VOC and REACH regulatory constraints.
+
+Preliminary work supports feasibility. Graph convolutional networks demonstrate $R^2 > 0.85$ for polymer $T_g$ prediction on benchmark datasets. Active-learning Bayesian optimization achieved order-of-magnitude improvements in self-healing epoxy impedance in only 30 experiments. E(3)-equivariant diffusion models achieve 98\% atom stability on the QM9 benchmark. The core R\&D challenge is integrating these components into a single closed-loop pipeline that produces validated multifunctional coating formulations, and proving that coating-specific generative models can propose molecules beyond the training distribution that maintain target multifunctionality.
+
+% Character count: 2804/3500
+
+%% =======================================================================
+\section{Technical Objectives and Challenges}
+%% =======================================================================
+
+Phase~I will pursue four technical objectives to demonstrate feasibility of our integrated AI coating design platform.
+
+\textbf{Objective 1: Build a coating-specific molecular generative model.} We will train a Junction Tree VAE with a curated fragment vocabulary of 200+ coating-relevant substructures (benzotriazole and hydroxybenzophenone UV chromophores, epoxide and isocyanate cross-linkers, fluoroalkyl and siloxane hydrophobic groups). The model will be trained on 5,000+ coating molecules extracted from literature and patent databases using SELFIES encoding for guaranteed validity. Success criterion: generate 1,000 novel molecules with 100\% chemical validity and $>$85\% synthetic accessibility (SA score below 4.0). Challenge: existing generative models target drug-like molecules (20--50 atoms), while coating monomers can exceed 100 atoms. Strategy: fragment-based generation reduces graph complexity 5--10$\times$, augmented with GEOM-Drugs conformer data.
+
+\textbf{Objective 2: Develop multitask GNN property predictors for coating performance.} We will train PolymerGNN-based models predicting four properties simultaneously: glass transition temperature ($T_g$), electrochemical impedance modulus at 0.01\,Hz, peak UV absorption wavelength, and adhesion energy. Target: $R^2 > 0.80$ for each property on held-out test data. Challenge: coating property data is scarce ($<$500 labeled samples for some properties). Strategy: transfer learning from MACE-MP (150,000 pre-training structures) with frozen early layers, plus multitask learning to share knowledge from data-rich tasks ($T_g$, 1,200+ samples) to data-scarce tasks (adhesion, $<$200 samples).
+
+\textbf{Objective 3: Implement constraint-aware multi-objective Bayesian optimization.} Build a MOBO pipeline using BoTorch qNEHVI optimizing three objectives (corrosion resistance, UV absorption, mechanical flexibility) subject to VOC $< 250$\,g/L and REACH constraints. Target: identify a Pareto front of 10+ non-dominated formulations within 50 iterations. Challenge: mixed continuous-categorical design spaces. Strategy: mixed-variable Gaussian processes with Gower distance kernels, benchmarked against random forest surrogates.
+
+\textbf{Objective 4: End-to-end pipeline integration.} Connect generative model, property predictor, and MOBO optimizer in a single workflow to screen 10,000+ generated candidates and select the top 50 for formulation optimization. Go/no-go: if prediction $R^2$ falls below 0.70 for any property after transfer learning, we pivot to ensemble random forest models. A successful Phase~I delivers a validated software prototype that proposes and ranks novel multifunctional coating formulations ready for Phase~II experimental validation.
+
+% Character count: 2733/3500
+
+%% =======================================================================
+\section{Market Opportunity}
+%% =======================================================================
+
+The global protective coatings market reached \$17 billion in 2025, projected to hit \$32.4 billion by 2034 (7.3\% CAGR, Precedence Research). Multifunctional coatings combining corrosion resistance, UV protection, and self-healing command premium pricing due to reduced lifecycle costs. Our serviceable market is the \$2.8 billion high-performance industrial and aerospace coatings segment where formulation complexity justifies AI-driven optimization.
+
+Three customer segments: (1)~coating manufacturers (PPG, Sherwin-Williams, AkzoNobel) seeking to compress 3--5 year R\&D cycles; (2)~aerospace and defense contractors requiring MIL-spec multifunctional coatings; (3)~automotive OEMs pursuing PFAS-free alternatives under tightening EPA and EU regulations.
+
+Competitors include Citrine Informatics (general materials AI, \$92M raised), Uncountable (formulation management), and Schr\"odinger (physics-based simulation). None integrates generative molecular design with coating-specific property prediction and regulatory-aware multi-objective optimization. Our differentiator is this end-to-end pipeline purpose-built for coatings that generates novel molecules rather than merely optimizing known formulations.
+
+Business model: SaaS licensing at \$150K--300K per seat annually, with premium tiers for custom model training. Phase~II will include validation partnerships with 2--3 coating manufacturers.
+
+% Character count: 1394/1750
+
+%% =======================================================================
+\section{Company and Team}
+%% =======================================================================
+
+[Company Name] accelerates discovery of high-performance multifunctional coatings through AI-driven molecular design and formulation optimization.
+
+[PI Name], Principal Investigator, brings [X] years of experience in computational materials science and machine learning for molecular design. [Relevant credentials: PhD in chemistry/materials science/CS, publications in peer-reviewed journals on GNN property prediction or generative molecular design, prior coating materials research experience].
+
+[Co-PI Name] contributes expertise in coatings chemistry and polymer formulation with [X] years of industrial R\&D experience. [Relevant credentials: prior roles at major coating companies, patents in coating formulation, experimental characterization expertise].
+
+The team is supported by advisory board members in computational chemistry from [University] and coating industry veterans from [Industry Partner]. [Company Name] has established a research collaboration with [Partner Institution] providing access to coating characterization facilities including EIS, UV-vis spectroscopy, nanoindentation, and salt spray chambers.
+
+To address the interdisciplinary scope, we will hire a postdoctoral researcher with equivariant neural network expertise for generative model development and engage a subcontractor for Phase~II robotic coating deposition.
+
+[Company Name], founded [Year] in [City, State], is dedicated to replacing Edisonian coating R\&D with data-driven discovery. [If applicable: previously received SBIR/STTR funding from NSF/DOE for related AI-materials work.]
+
+% Character count: 1575/1750
+
+\vspace{1cm}
+\noindent\textcolor{nsfblue}{\rule{\textwidth}{1pt}}
+
+\begin{center}
+\small\textcolor{gray}{
+\begin{tabular}{lcc}
+\textbf{Section} & \textbf{Characters} & \textbf{Limit} \\
+\hline
+Technology Innovation & 2,804 & 3,500 \\
+Technical Objectives \& Challenges & 2,733 & 3,500 \\
+Market Opportunity & 1,394 & 1,750 \\
+Company and Team & 1,575 & 1,750 \\
+\end{tabular}
+}
+\end{center}
+
+\end{document}

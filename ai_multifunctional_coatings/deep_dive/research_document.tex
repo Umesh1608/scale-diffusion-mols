@@ -1,0 +1,534 @@
+% Compile with: pdflatex research_document.tex
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{amsmath,amssymb}
+\usepackage{natbib}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  citecolor=green!50!black,
+  urlcolor=blue!60!black,
+}
+
+\title{\textbf{Deep Dive: Generative Molecular Design, Property Prediction,\\and Formulation Optimization for AI-Driven Coatings}}
+\author{Generated Research Document}
+\date{March 2026}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+%% =======================================================================
+\section{Executive Summary}
+%% =======================================================================
+
+This document provides a deep technical survey of three interconnected pillars of AI-driven multifunctional coating design: \emph{generative molecular design} (how AI proposes novel coating molecules), \emph{property prediction} (how ML models forecast coating performance), and \emph{formulation optimization} (how Bayesian and active-learning methods navigate the high-dimensional formulation space).
+Together, these three capabilities form the computational engine of a modern coating discovery pipeline---generative models propose candidates, property predictors screen them in silico, and optimization algorithms select the next experiments to run.
+We cover nine sub-topics in depth: variational autoencoders, diffusion models, graph-based generation, corrosion prediction, UV/optical prediction, mechanical property prediction, Bayesian optimization, active learning, and multi-objective optimization.
+Each section provides mathematical foundations, benchmark results, software tools, and practical considerations for implementation in coating design workflows.
+
+%% =======================================================================
+\section{VAEs and Autoencoders for Coating Molecules}
+\label{sec:vaes}
+%% =======================================================================
+
+\subsection{SMILES and SELFIES Representations}
+
+Molecular generative models require a machine-readable representation.
+SMILES (Simplified Molecular Input Line Entry System) encodes molecular graphs as character strings, but arbitrary string manipulation can produce invalid molecules.
+SELFIES (Self-Referencing Embedded Strings), introduced by Krenn et al.\ (2020), guarantees that \emph{every} string in its grammar decodes to a valid molecule, achieving 100\% validity by construction.
+This is critical for coating design, where generated candidates must be synthetically accessible.
+
+For polymers, neither SMILES nor SELFIES natively captures repeat units, degree of polymerisation, or branching topology.
+BigSMILES extends SMILES with stochastic objects (\texttt{[\$]..[\$]}) to describe polymer ensembles, while graph-based representations encode monomers as nodes and bonds as edges.
+A recent large-scale SELFIES Transformer VAE (2025) introduces a loss aligning latent-space distances with chemical similarity, yielding a highly structured, chemistry-aware latent space trained on 1.5 million compounds.
+
+\subsection{Latent Space Navigation and Property Optimization}
+
+The VAE encodes molecules into a continuous latent vector $\mathbf{z} \in \mathbb{R}^d$ via an encoder $q_\phi(\mathbf{z}|\mathbf{x})$ and decodes via $p_\theta(\mathbf{x}|\mathbf{z})$, with the training objective:
+\begin{equation}
+\mathcal{L} = -\mathbb{E}_{q_\phi}[\log p_\theta(\mathbf{x}|\mathbf{z})] + \beta \, D_\text{KL}(q_\phi(\mathbf{z}|\mathbf{x}) \| p(\mathbf{z}))
+\end{equation}
+where $\beta$ controls the trade-off between reconstruction fidelity and latent-space regularity.
+
+Property optimization proceeds by training a property predictor $f(\mathbf{z}) \to y$ in latent space (e.g., predicting $T_g$, UV absorption, or corrosion resistance) and then performing gradient ascent:
+$\mathbf{z}_{t+1} = \mathbf{z}_t + \eta \nabla_{\mathbf{z}} f(\mathbf{z}_t)$
+to navigate toward high-performance regions.
+Gómez-Bombarelli et al.\ (2018) demonstrated this on 250\,k drug-like molecules, optimising $\log P$ and QED.
+
+\subsection{Conditional VAEs for Target Properties}
+
+Conditional VAEs (CVAEs) augment the latent space with a target property vector $\mathbf{c}$ (e.g., $T_g = 150\,°$C, $\lambda_\text{max} = 350\,$nm):
+\begin{equation}
+p_\theta(\mathbf{x}|\mathbf{z}, \mathbf{c}), \quad q_\phi(\mathbf{z}|\mathbf{x}, \mathbf{c})
+\end{equation}
+At generation time, one specifies $\mathbf{c}$ and samples $\mathbf{z} \sim p(\mathbf{z})$, producing molecules conditioned on the desired property envelope.
+Property-guided generation of complex polymer topologies using CVAEs (npj Computational Materials, 2024) demonstrated design of linear, cyclic, branch, comb, star, and dendritic polymers from a dataset of 1\,342 structures.
+
+%% =======================================================================
+\section{Diffusion Models for Molecular Generation}
+\label{sec:diffusion}
+%% =======================================================================
+
+\subsection{E(3)-Equivariant Diffusion Models}
+
+The E(3) equivariant diffusion model (EDM) by Hoogeboom et al.\ (ICML 2022) learns a denoising process over 3D molecular coordinates and atom types jointly.
+The forward process adds Gaussian noise to atom positions $\mathbf{x}_t = \sqrt{\bar\alpha_t}\,\mathbf{x}_0 + \sqrt{1-\bar\alpha_t}\,\boldsymbol\epsilon$, where $\boldsymbol\epsilon \sim \mathcal{N}(0, \mathbf{I})$.
+The denoising network $\epsilon_\theta(\mathbf{x}_t, t)$ is constrained to be E(3)-equivariant: for any rotation $R$, translation $\mathbf{t}$, and reflection:
+\begin{equation}
+\epsilon_\theta(R\mathbf{x}_t + \mathbf{t}, t) = R\,\epsilon_\theta(\mathbf{x}_t, t)
+\end{equation}
+This ensures generated molecules respect physical symmetries.
+On QM9 (134\,k molecules, up to 9 heavy atoms), EDM achieves atom stability $> 98\%$ and molecule stability $> 82\%$.
+
+\subsection{Score-Based SDEs and Noise Schedules}
+
+The score-based framework (Song et al., 2021) formulates diffusion as a stochastic differential equation:
+\begin{equation}
+d\mathbf{x} = \mathbf{f}(\mathbf{x}, t)\,dt + g(t)\,d\mathbf{w}
+\end{equation}
+and trains a score network $\mathbf{s}_\theta(\mathbf{x}, t) \approx \nabla_{\mathbf{x}} \log p_t(\mathbf{x})$.
+The EMDS framework (BMC Bioinformatics, 2024) decomposes diffusion into separate processes for atom coordinates, atom types, and bond types, while capturing cross-component dependencies.
+This separation allows different noise schedules for continuous (coordinates) and categorical (types) features---a variance-preserving schedule for coordinates and a uniform-noise schedule for types.
+
+Noise schedule design critically affects sample quality.
+Cosine schedules, linear schedules, and learned schedules have been compared; for molecular generation, cosine schedules with signal-to-noise ratio (SNR) weighting (Min-SNR-5) consistently outperform linear schedules.
+
+\subsection{Multiscale Diffusion for Coatings}
+
+Multiscale graph equivariant diffusion (MD3MD, Science Advances 2025) partitions molecular conformations into multiscale graphs, assigning different interaction weights at each scale.
+For coating design, a coarse-to-fine approach is particularly powerful: first generate a molecular skeleton (chromophore backbone, cross-linking topology), then refine to full atomic detail.
+This mirrors the physical hierarchy of coating function: macroscopic properties (film thickness, roughness) $\to$ mesoscale (domain morphology) $\to$ molecular (monomer structure).
+
+%% =======================================================================
+\section{Graph-Based Generation and Inverse Design}
+\label{sec:graphgen}
+%% =======================================================================
+
+\subsection{Junction Tree VAE}
+
+The Junction Tree VAE (JT-VAE, Jin et al., ICML 2018) generates molecules in two phases:
+\begin{enumerate}[nosep]
+  \item \textbf{Tree generation}: produce a tree-structured scaffold over chemically valid substructures (rings, functional groups).
+  \item \textbf{Graph assembly}: combine substructures into a complete molecular graph via message-passing.
+\end{enumerate}
+JT-VAE achieves 100\% chemical validity by construction, versus $\sim$43\% for character-level VAEs and $\sim$81\% for grammar VAEs.
+The fragment vocabulary is extracted from the training set using BRICS decomposition or ring/chain fragmentation.
+For coating polymers, the vocabulary can be customised to include UV-absorbing chromophores (benzotriazole, hydroxybenzophenone), cross-linking groups (epoxide, isocyanate), and hydrophobic tails (fluoroalkyl, siloxane).
+
+\subsection{Fragment Assembly and Scaffold Hopping}
+
+FRATTVAE (Communications Chemistry, 2025) treats molecules as tree structures with fragments as nodes, enabling efficient handling of large and complex compounds.
+Fragment-based methods reduce the generation graph size by 5--10$\times$ compared to atom-level models, shortening training and generation times proportionally.
+
+Scaffold hopping---replacing the core scaffold while preserving peripheral functional groups---is a key operation for coating design.
+Given a known UV absorber, scaffold hopping can propose novel cores with improved photostability or altered absorption wavelength while retaining the same pendant groups for cross-linking compatibility.
+
+\subsection{Inverse Design with Reinforcement Learning}
+
+Inverse design pipelines specify target properties and search for molecules that satisfy them.
+RL-guided generation uses a policy network (often a GNN or RNN) that proposes molecular edits, with a reward function combining property predictions:
+\begin{equation}
+R(\mathbf{x}) = w_1 f_\text{UV}(\mathbf{x}) + w_2 f_\text{corr}(\mathbf{x}) + w_3 f_\text{synth}(\mathbf{x})
+\end{equation}
+where $f_\text{UV}$ is the predicted UV absorption quality, $f_\text{corr}$ is corrosion resistance, and $f_\text{synth}$ is a synthetic accessibility score.
+Ligase-conditioned JT-VAE (LC-JT-VAE) has demonstrated conditional generation of molecules with targeted properties in constrained chemical spaces.
+
+%% =======================================================================
+\section{Corrosion Resistance Prediction}
+\label{sec:corrosion}
+%% =======================================================================
+
+\subsection{EIS Modeling with Machine Learning}
+
+Electrochemical impedance spectroscopy (EIS) measures the complex impedance $Z(\omega) = Z'(\omega) + jZ''(\omega)$ of a coated substrate as a function of frequency.
+The low-frequency impedance modulus $|Z|_{0.01\,\text{Hz}}$ is a widely used proxy for barrier quality.
+ML models map formulation parameters (binder type, filler loading, curing schedule) to $|Z|$ values.
+
+The ZIF-8@Ca self-healing coating study (npj Materials Degradation, 2024) used the orthogonal Latin-square method to design an initial 16-experiment matrix varying:
+\begin{itemize}[nosep]
+  \item Polyetheramine molecular weight (230, 400, 2000 Da)
+  \item Molar ratio of polyetheramine to epoxy
+  \item UPy-D400 hydrogen-bond unit content
+  \item ZIF-8@Ca microfiller mass content
+\end{itemize}
+A random forest model was trained on these 16 points and used for active learning.
+After 30 total experiments, the optimised coating achieved $|Z| > 10^9\,\Omega\cdot\text{cm}^2$---an order of magnitude above the initial best.
+
+\subsection{Salt Spray and Accelerated Weathering Models}
+
+Salt spray testing (ASTM B117) reports hours to first visible corrosion.
+XGBoost and gradient-boosted tree models trained on datasets of 200--500 coating formulations predict hours-to-failure with $R^2 \approx 0.80$--$0.90$.
+Key features include dry film thickness ($\mu$m), pigment volume concentration (\%), binder $T_g$, and inhibitor loading.
+
+\subsection{Degradation Forecasting}
+
+Long-term degradation follows non-linear trajectories influenced by temperature, humidity, UV exposure, and salt concentration.
+Time-series models (LSTM, temporal convolutional networks) trained on accelerated-weathering EIS time traces can forecast impedance decline, though extrapolation beyond the training window remains unreliable.
+Physics-informed neural networks (PINNs) that embed Fick's diffusion law for water uptake show promise for extending prediction horizons.
+
+%% =======================================================================
+\section{UV and Optical Property Prediction}
+\label{sec:uvpred}
+%% =======================================================================
+
+\subsection{TD-DFT Surrogate Models}
+
+Time-dependent density functional theory (TD-DFT) computes excited-state energies and oscillator strengths but is expensive ($\mathcal{O}(N^3)$ to $\mathcal{O}(N^5)$ scaling).
+ML surrogates trained on TD-DFT data (10\,k--100\,k molecules) predict the $S_0 \to S_1$ excitation energy with mean absolute errors of 0.15--0.25\,eV, sufficient to screen candidates into UVA (315--400\,nm), UVB (280--315\,nm), or UVC ($<280$\,nm) windows.
+SchNet and DimeNet++ achieve the best accuracy on the QM9 excited-state subset, while transfer learning from ground-state pre-trained models further reduces data requirements.
+
+\subsection{GNN-Based Absorption Spectra Prediction}
+
+Graph neural networks operating on molecular graphs predict full UV-vis absorption spectra (not just $\lambda_\text{max}$).
+The input graph encodes atoms as nodes (features: element, hybridisation, formal charge) and bonds as edges (features: bond order, conjugation, ring membership).
+Message-passing layers aggregate local chemical environments, and a readout layer produces the spectrum as a vector of absorbance values at discrete wavelengths.
+For coating chromophores, models trained on databases of organic dyes (e.g., the DSSC dye database, $\sim$5\,000 entries) achieve spectral-shape correlation $> 0.90$.
+
+\subsection{Photostability Modeling}
+
+Photostability---resistance to UV-induced degradation---requires understanding of triplet-state dynamics, intersystem crossing rates, and radical formation.
+These are computationally expensive to simulate (multi-reference methods, spin-orbit coupling).
+Transfer-learning approaches first pre-train on abundant singlet-state data, then fine-tune on scarce triplet-state data (typically 500--2\,000 molecules).
+A practical proxy is the singlet-triplet energy gap $\Delta E_{ST}$: molecules with large gaps ($> 1$\,eV) tend to be more photostable because intersystem crossing is kinetically suppressed.
+
+%% =======================================================================
+\section{Mechanical Property Prediction}
+\label{sec:mechpred}
+%% =======================================================================
+
+\subsection{Glass Transition and Melting Temperature}
+
+Graph convolutional networks (GCNs) predict $T_g$ and $T_m$ for polymers with reliable accuracy.
+Tao et al.\ (ACS Polymers Au, 2021) trained GCN models on datasets of 600--1\,200 polymers, achieving $R^2 > 0.85$ for both $T_g$ and $T_m$.
+Polymer representations use repeat-unit graphs with features encoding element identity, hybridisation, and degree.
+The CRIPT (Community Resource for Innovation in Polymer Technology) database consortium is expanding training data availability.
+
+\subsection{Adhesion, Hardness, and Multitask GNNs}
+
+PolymerGNN (npj Computational Materials, 2023) is a multitask architecture that simultaneously predicts multiple properties---$T_g$, density, elastic modulus, and refractive index---from a shared graph representation.
+Multitask learning improves prediction for data-scarce properties (e.g., adhesion energy, with $< 200$ labelled examples) by transferring knowledge from data-rich tasks.
+Feature extraction is 1--2 orders of magnitude faster than handcrafted molecular descriptors (e.g., RDKit fingerprints), enabling rapid virtual screening.
+
+Polymer Informatics at Scale (Chemistry of Materials, 2023) demonstrated polymer GNN models trained on 15\,000+ data points across 8 property tasks, with consistent improvements from multi-task learning versus single-task baselines.
+
+\subsection{Elastic Modulus and MD Validation}
+
+Elastic modulus predictions from GNN models are validated against molecular dynamics (MD) simulations.
+All-atom MD with force fields like OPLS-AA or GAFF computes stress-strain curves, yielding Young's modulus directly.
+For high-throughput screening, coarse-grained MD (MARTINI, SDK) reduces simulation time by 100$\times$ at the cost of some accuracy.
+ML-MD hybrid workflows use GNN predictions to pre-screen candidates, then run full MD on the top 50--100 for validation.
+
+%% =======================================================================
+\section{Bayesian Optimization for Coating Formulations}
+\label{sec:bayesopt}
+%% =======================================================================
+
+\subsection{Gaussian Process Surrogates}
+
+A Gaussian process (GP) defines a distribution over functions:
+\begin{equation}
+f(\mathbf{x}) \sim \mathcal{GP}(m(\mathbf{x}), k(\mathbf{x}, \mathbf{x}'))
+\end{equation}
+where $m(\mathbf{x})$ is the mean function and $k(\mathbf{x}, \mathbf{x}')$ is the kernel.
+For coating formulations with heterogeneous variables (wt\% filler, curing temperature, binder type), anisotropic kernels (e.g., ARD Mat\'ern 5/2) with per-dimension length scales outperform isotropic kernels.
+Benchmarking across 14 materials science tasks showed ARD kernels and random forest surrogates achieve comparable performance, both significantly outperforming isotropic GPs.
+
+Mixed-variable GPs handle categorical inputs (binder chemistry, solvent type) via one-hot encoding or Gower distance kernels, enabling BO over the full coating formulation space.
+
+\subsection{Acquisition Functions}
+
+The acquisition function balances exploration (regions of high uncertainty) and exploitation (regions of high predicted performance):
+\begin{itemize}[nosep]
+  \item \textbf{Expected Improvement (EI)}: $\text{EI}(\mathbf{x}) = \mathbb{E}[\max(0, f(\mathbf{x}) - f^*)]$ where $f^*$ is the current best.
+  \item \textbf{Upper Confidence Bound (UCB)}: $\text{UCB}(\mathbf{x}) = \mu(\mathbf{x}) + \kappa\,\sigma(\mathbf{x})$ with exploration parameter $\kappa$.
+  \item \textbf{Knowledge Gradient (KG)}: measures the expected improvement in the \emph{optimal decision} after observing one more sample; particularly effective for noisy coating measurements.
+\end{itemize}
+For batch experimentation (common in coating labs where 10--20 samples are prepared simultaneously), $q$-EI and $q$-UCB extensions select batches that collectively maximise information gain.
+
+\subsection{Software Ecosystem}
+
+\begin{table}[h]
+\centering
+\caption{Key Bayesian optimization software tools for coatings.}
+\label{tab:software}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Package} & \textbf{Backend} & \textbf{Key Feature} & \textbf{License} \\
+\midrule
+BoTorch & GPyTorch / PyTorch & Batch MOBO, MC acquisition & MIT \\
+BayesianOptimization & scikit-learn & Simple API, 1-D to 20-D & MIT \\
+ProcessOptimizer & scikit-optimize & Experimentalist-friendly & BSD-3 \\
+Ax Platform & BoTorch & Industrial-scale trials & MIT \\
+pymoo & NumPy & NSGA-II/III, ref.\ directions & Apache 2.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+BoTorch (Meta) provides the most flexible framework, supporting custom GP models, multi-output surrogates, and Monte Carlo acquisition functions.
+ProcessOptimizer (JCIM, 2025) specifically targets experimentalist scientists in chemistry and coatings, offering built-in plotting, noise handling, and multi-objective support with minimal configuration.
+
+%% =======================================================================
+\section{Active Learning Strategies}
+\label{sec:activelearn}
+%% =======================================================================
+
+\subsection{Query Strategies for Coating Data}
+
+Active learning iteratively selects the most informative experiment to run next:
+\begin{itemize}[nosep]
+  \item \textbf{Uncertainty sampling}: select the point $\mathbf{x}^* = \arg\max_{\mathbf{x}} \sigma(\mathbf{x})$ where the surrogate model is most uncertain.
+  \item \textbf{Expected improvement}: same as BO's EI, combining uncertainty with proximity to the optimum.
+  \item \textbf{Query-by-committee (QBC)}: train an ensemble of models and select the point with highest disagreement.
+\end{itemize}
+Lookman et al.\ (npj Computational Materials, 2019) compared these strategies on materials discovery tasks, finding that EI and uncertainty sampling achieve near-optimal performance across diverse design spaces, while QBC is more robust when the surrogate model is misspecified.
+
+\subsection{Sample Efficiency Gains}
+
+Active learning typically reduces the number of experiments by 3--5$\times$ versus random or grid-based sampling.
+In the ZIF-8@Ca coating study, 30 actively selected experiments outperformed 16 Latin-square experiments plus 100 random samples.
+For coating formulations with 5--15 design variables, active learning becomes essential: random sampling of a 10-dimensional space at 5 levels requires $5^{10} \approx 10$ million experiments, while active learning converges in 50--200.
+
+Data augmentation strategies---augmenting experimental data with physics-based simulations (MD, DFT) or transfer from related coating systems---further improve sample efficiency.
+Multi-fidelity active learning combines cheap low-fidelity data (e.g., DFT with a small basis set) with expensive high-fidelity data (e.g., experimental EIS) using co-kriging surrogates.
+
+\subsection{Closed-Loop Integration}
+
+In a closed-loop active learning system, the AI proposes an experiment, a robotic platform (e.g., Polybot) executes it, characterisation data flows back into the surrogate model, and the cycle repeats.
+Convergence criteria include:
+\begin{itemize}[nosep]
+  \item \textbf{EI threshold}: stop when $\text{EI}_\text{max} < \epsilon$ (no significant improvement expected).
+  \item \textbf{Uncertainty threshold}: stop when $\max_{\mathbf{x}} \sigma(\mathbf{x}) < \delta$ (the model is confident everywhere).
+  \item \textbf{Budget exhaustion}: stop after $N$ iterations (practical constraint).
+\end{itemize}
+
+%% =======================================================================
+\section{Multi-Objective Optimization}
+\label{sec:moopt}
+%% =======================================================================
+
+\subsection{Pareto Front Discovery}
+
+Real coatings optimise conflicting objectives simultaneously---e.g., maximise UV absorption while minimising $T_g$ (for flexibility) and cost.
+The Pareto front $\mathcal{P}$ is the set of solutions where no objective can be improved without degrading another:
+\begin{equation}
+\mathcal{P} = \{ \mathbf{x} \mid \nexists \mathbf{x}' : f_i(\mathbf{x}') \geq f_i(\mathbf{x}) \;\forall i, \; f_j(\mathbf{x}') > f_j(\mathbf{x}) \;\exists j \}
+\end{equation}
+
+Multi-objective evolutionary algorithms (NSGA-II, NSGA-III) use non-dominated sorting and crowding distance to maintain a diverse Pareto approximation.
+For coating formulations, 2--4 objectives are typical; beyond 4 objectives, many-objective algorithms (RVEA, MOEA/D) with reference-direction decomposition are preferred.
+
+\subsection{Constraint Handling for Regulatory Compliance}
+
+Coating formulations face hard constraints:
+\begin{itemize}[nosep]
+  \item \textbf{VOC limits}: EU Directive 2004/42/EC limits VOC content to 200--500\,g/L depending on category.
+  \item \textbf{REACH restrictions}: SVHC substances (e.g., certain isocyanates, chromium compounds) face authorisation requirements.
+  \item \textbf{PFAS phase-out}: US EPA and EU ECHA are restricting per- and polyfluoroalkyl substances in coatings.
+\end{itemize}
+Constrained MOBO incorporates these as inequality constraints in the acquisition function, either via feasibility-weighted EI or through penalty methods.
+The constraint-aware approach prunes infeasible regions before any experiment is run, saving resources.
+
+\subsection{MOBO Frameworks and Implementation}
+
+BoTorch provides \texttt{qNoisyExpectedHypervolumeImprovement} (qNEHVI) as its primary MOBO acquisition function, measuring the expected improvement in the hypervolume enclosed by the Pareto front.
+pymoo implements NSGA-II, NSGA-III, and MOEA/D with Python bindings, supporting custom evaluation functions that can wrap ML property predictors.
+
+A practical MOBO workflow for coating optimisation:
+\begin{enumerate}[nosep]
+  \item Define 2--4 objectives (corrosion resistance, UV absorption, flexibility, cost).
+  \item Define constraints (VOC $< 250$\,g/L, no SVHC substances).
+  \item Fit a multi-output GP on initial data (20--50 experiments).
+  \item Iterate: propose batch via qNEHVI, execute experiments, update GP.
+  \item After convergence, present the Pareto front to domain experts for trade-off selection.
+\end{enumerate}
+
+%% =======================================================================
+\section{Related Work and State of the Art}
+\label{sec:related}
+%% =======================================================================
+
+\begin{table}[h]
+\centering
+\caption{Comparison of generative, predictive, and optimization approaches for coatings (2022--2026).}
+\label{tab:comparison}
+\small
+\begin{tabular}{@{}p{3.2cm}p{2.5cm}p{3cm}p{4cm}@{}}
+\toprule
+\textbf{Method} & \textbf{Category} & \textbf{Application} & \textbf{Key Metric} \\
+\midrule
+SELFIES Transformer VAE & Generative & Molecule design & 100\% validity, 1.5M training set \\
+E(3)-EDM & Generative & 3D molecular gen. & 98\% atom stability on QM9 \\
+JT-VAE & Generative & Fragment-based gen. & 100\% validity, 5--10$\times$ smaller graphs \\
+PolymerGNN & Predictive & Multi-property & $R^2 > 0.85$ for $T_g$, $T_m$, $\rho$ \\
+RF + Active Learning & Optimisation & Self-healing epoxy & $|Z| > 10^9$ in 30 experiments \\
+BoTorch qNEHVI & Optimisation & Multi-objective & Hypervolume-optimal Pareto fronts \\
+ProcessOptimizer & Optimisation & PU lacquer & Near-optimal in 50 experiments \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Gaps.}
+(1)~No end-to-end pipeline yet combines molecular generation $\to$ property prediction $\to$ BO-driven formulation $\to$ robotic validation in a single closed loop for coatings.
+(2)~Generative models are trained predominantly on small-molecule datasets (QM9, ZINC); polymer-specific generative models remain scarce.
+(3)~Multi-objective BO for coatings rarely handles more than 3 objectives simultaneously, despite real formulations having 5+ performance criteria.
+(4)~Explainability: SHAP and attention-based interpretability methods are underexplored in coating ML models.
+
+%% =======================================================================
+\section{Cross-Cutting Connections}
+\label{sec:crosscut}
+%% =======================================================================
+
+\paragraph{VAEs $\leftrightarrow$ Diffusion Models.}
+Both encode molecules in continuous spaces but with different training objectives (reconstruction + KL vs.\ denoising score matching).
+Hybrid architectures---latent diffusion models that run diffusion in the VAE's latent space rather than in data space---combine the structural guarantees of VAEs with the sample quality of diffusion, and are beginning to be explored for molecular generation.
+
+\paragraph{Graph Generation $\leftrightarrow$ Corrosion Prediction.}
+Every molecule proposed by a graph-based generator must be screened for corrosion resistance before synthesis.
+GNN property predictors can be called as fast oracles ($\sim$1\,ms per molecule) within the generation loop, enabling on-the-fly rejection of candidates with predicted $|Z| < 10^7\,\Omega\cdot\text{cm}^2$.
+
+\paragraph{Bayesian Optimization $\leftrightarrow$ Corrosion / EIS.}
+BO selects the next EIS experiment to maximise information gain about the impedance landscape.
+The GP posterior uncertainty $\sigma(\mathbf{x})$ identifies formulation regions where the coating's corrosion resistance is most uncertain, directing experiments where they matter most.
+
+\paragraph{UV Prediction $\leftrightarrow$ Multi-Objective Optimization.}
+UV absorption is one objective in a multi-objective formulation problem (alongside corrosion resistance, flexibility, and cost).
+The UV property predictor serves as one objective function in the MOBO loop, evaluated at each candidate point.
+
+\paragraph{Active Learning $\leftrightarrow$ Mechanical Prediction.}
+Mechanical properties (adhesion, hardness) have the scarcest experimental data.
+Active learning prioritises experiments that reduce uncertainty in the mechanical-property surrogate model, improving the weakest link in the multi-property prediction chain.
+
+%% =======================================================================
+\section{Key References and Resources}
+\label{sec:references}
+%% =======================================================================
+
+\subsection{Papers}
+\begin{itemize}[nosep]
+  \item Hoogeboom et al., ``Equivariant Diffusion for Molecule Generation in 3D,'' \textit{ICML 2022}. \url{https://arxiv.org/abs/2203.17003}
+  \item Jin et al., ``Junction Tree VAE for Molecular Graph Generation,'' \textit{ICML 2018}. \url{https://arxiv.org/abs/1802.04364}
+  \item Park et al., ``Polymer GNN for Multitask Property Learning,'' \textit{npj Comp.\ Mat.} (2023). \url{https://www.nature.com/articles/s41524-023-01034-3}
+  \item Lookman et al., ``Active Learning in Materials Science,'' \textit{npj Comp.\ Mat.} (2019). \url{https://www.nature.com/articles/s41524-019-0153-8}
+  \item Chen et al., ``ML-Assisted Self-Healing Epoxy Coating,'' \textit{npj Mat.\ Deg.} (2024). \url{https://www.nature.com/articles/s41529-024-00427-z}
+  \item ProcessOptimizer, \textit{JCIM} (2025). \url{https://pubs.acs.org/doi/10.1021/acs.jcim.4c02240}
+  \item Xu et al., ``MD3MD: Multiscale Graph Equivariant Diffusion,'' \textit{Science Advances} (2025). \url{https://www.science.org/doi/10.1126/sciadv.adv0778}
+  \item Krenn et al., ``SELFIES: A Robust Representation of Semantically Constrained Graphs,'' \textit{Mach.\ Learn.: Sci.\ Technol.} (2020).
+  \item FRATTVAE, ``Leveraging Tree-Transformer VAE with Fragment Tokenization,'' \textit{Comm.\ Chem.} (2025). \url{https://www.nature.com/articles/s42004-025-01640-w}
+\end{itemize}
+
+\subsection{Code Repositories}
+\begin{itemize}[nosep]
+  \item E(3) Diffusion: \url{https://github.com/ehoogeboom/e3_diffusion_for_molecules}
+  \item JT-VAE: \url{https://github.com/wengong-jin/icml18-jtnn}
+  \item BoTorch: \url{https://botorch.org}
+  \item pymoo: \url{https://pymoo.org}
+  \item ProcessOptimizer: \url{https://pypi.org/project/ProcessOptimizer/}
+  \item BayesianOptimization: \url{https://github.com/bayesian-optimization/BayesianOptimization}
+  \item Molecular design papers list: \url{https://github.com/AspirinCode/papers-for-molecular-design-using-DL}
+\end{itemize}
+
+\subsection{Datasets}
+\begin{itemize}[nosep]
+  \item QM9: 134\,k molecules, 19 DFT properties. \url{https://moleculenet.org}
+  \item ZINC 250k: drug-like molecules for generative model benchmarking.
+  \item GEOM-Drugs: 450\,k conformers of drug-like molecules.
+  \item CRIPT polymer database: \url{https://criptapp.org}
+  \item Materials Project: 150\,k+ inorganic structures. \url{https://materialsproject.org}
+\end{itemize}
+
+%% =======================================================================
+\section{Implementation Roadmap}
+\label{sec:roadmap}
+%% =======================================================================
+
+\subsection{Phase 1: Data Infrastructure (Months 1--3)}
+\begin{enumerate}[nosep]
+  \item Curate a coating-specific molecular dataset: extract UV-absorber, corrosion-inhibitor, and polymer binder structures from literature and patents (target: 5\,000+ structures with measured properties).
+  \item Standardise data schema using BigSMILES for polymers and SELFIES for small molecules.
+  \item Set up a PostgreSQL + RDKit database with property annotations ($T_g$, $|Z|$, $\lambda_\text{max}$, adhesion).
+\end{enumerate}
+
+\subsection{Phase 2: Property Prediction Models (Months 2--5)}
+\begin{enumerate}[nosep]
+  \item Train GNN models (GCN or MPNN) on curated data for $T_g$, corrosion resistance ($|Z|$), and UV absorption ($\lambda_\text{max}$).
+  \item Benchmark against random forest and XGBoost baselines.
+  \item Fine-tune MACE-MP foundation model for polymer-specific force-field predictions.
+  \item Validate top candidates with MD simulations (OPLS-AA) and TD-DFT (B3LYP/6-31G*).
+\end{enumerate}
+
+\subsection{Phase 3: Generative Model Training (Months 3--7)}
+\begin{enumerate}[nosep]
+  \item Train a JT-VAE with a coating-specific fragment vocabulary (chromophores, cross-linkers, hydrophobic tails).
+  \item Train an E(3)-equivariant diffusion model on GEOM-Drugs + coating augmentation data.
+  \item Implement inverse design loop: CVAE conditioned on target property vector $\to$ GNN screening $\to$ top-$k$ selection.
+  \item Benchmark novelty, validity, and predicted-property distributions.
+\end{enumerate}
+
+\subsection{Phase 4: Optimization Pipeline (Months 5--9)}
+\begin{enumerate}[nosep]
+  \item Implement MOBO loop using BoTorch with qNEHVI acquisition function.
+  \item Define 3 objectives (UV absorption, corrosion resistance, flexibility) + VOC constraint.
+  \item Run initial 30 experiments (formulation + spin-coating + characterisation).
+  \item Deploy active learning (uncertainty sampling) to select subsequent batches of 10.
+  \item Iterate until Pareto front stabilises ($<5\%$ hypervolume change over 3 iterations).
+\end{enumerate}
+
+\subsection{Phase 5: Integration and Validation (Months 8--12)}
+\begin{enumerate}[nosep]
+  \item Connect generative model $\to$ property predictor $\to$ BO formulation optimizer in a single pipeline.
+  \item Validate top 10 Pareto-optimal formulations with full characterisation suite (EIS, UV-vis, nanoindentation, salt spray, QUV accelerated weathering).
+  \item Compare AI-designed coatings against commercial benchmarks (Tinuvin, Irganox).
+  \item Publish results and open-source the pipeline.
+\end{enumerate}
+
+\subsection{Key Dependencies and Milestones}
+
+\begin{table}[h]
+\centering
+\caption{Implementation milestones and dependencies.}
+\label{tab:milestones}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Milestone} & \textbf{Target} & \textbf{Depends On} \\
+\midrule
+Curated dataset ($>$5k structures) & Month 3 & Literature mining \\
+GNN property models ($R^2 > 0.80$) & Month 5 & Dataset \\
+JT-VAE + EDM trained & Month 7 & Dataset \\
+MOBO Pareto front (3 objectives) & Month 9 & Property models \\
+Validated formulations ($n=10$) & Month 12 & Full pipeline \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%% =======================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+%% =======================================================================
+
+The three pillars examined here---generative molecular design, property prediction, and formulation optimization---form the computational core of next-generation coating discovery.
+Generative models (VAEs, diffusion, graph-based) can propose millions of novel coating molecules; GNN-based property predictors screen them in milliseconds; and Bayesian/active-learning optimizers navigate the formulation landscape in tens of experiments rather than thousands.
+
+Key open opportunities at the intersection of these pillars include:
+\begin{enumerate}[nosep]
+  \item \textbf{End-to-end differentiable pipelines}: backpropagating property gradients through the generative model to directly optimise for target coating performance.
+  \item \textbf{Polymer-specific generative models}: extending JT-VAE and diffusion models to handle repeat units, degree of polymerisation, and cross-linking topology natively.
+  \item \textbf{Multi-fidelity active learning}: combining DFT, MD, and experimental data at different fidelity levels in a unified GP surrogate to maximise information per dollar spent.
+  \item \textbf{Explainable property prediction}: using attention maps and SHAP values to identify which molecular substructures drive corrosion resistance, UV absorption, or adhesion---enabling human-AI collaborative design.
+  \item \textbf{Regulatory-aware MOBO}: dynamically incorporating evolving PFAS, VOC, and REACH constraints as the regulatory landscape shifts, ensuring generated formulations remain compliant.
+\end{enumerate}
+
+The convergence of these methods, combined with autonomous experimentation platforms, promises to compress the coating discovery cycle from years to weeks.
+
+\end{document}

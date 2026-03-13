@@ -1,0 +1,352 @@
+% Compile with: pdflatex research_document.tex && bibtex research_document && pdflatex research_document.tex && pdflatex research_document.tex
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{natbib}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  citecolor=green!50!black,
+  urlcolor=blue!60!black,
+}
+
+\title{\textbf{AI for Novel Multifunctional Coatings:\\A Comprehensive Research Survey}}
+\author{Generated Research Document}
+\date{March 2026}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+%% =======================================================================
+\section{Executive Summary}
+%% =======================================================================
+
+The convergence of artificial intelligence and materials science is revolutionising the design, optimisation, and manufacture of multifunctional coatings---thin films and surface treatments that simultaneously provide corrosion protection, UV shielding, self-cleaning, antimicrobial activity, and thermal management.
+The global coatings market, projected at \$286.5 billion by 2026, increasingly demands materials that satisfy multiple performance criteria under a single formulation.
+Traditional Edisonian trial-and-error approaches are ill-suited to the combinatorial explosion of polymer chemistries, nanoparticle loadings, and processing parameters: Argonne's Polybot platform, for instance, faces nearly one million possible fabrication combinations for a single electronic-polymer film.
+This survey maps seven interconnected pillars of the AI-coatings landscape---generative molecular design, property prediction, formulation optimisation, autonomous experimentation, target functionalities, foundation models, and process quality control---synthesising recent advances (2022--2026), identifying cross-cutting connections, and highlighting open opportunities for the field.
+
+%% =======================================================================
+\section{Generative Molecular Design}
+\label{sec:generative}
+%% =======================================================================
+
+Generative models encode material structures into latent spaces and, through exploration of those spaces, propose entirely new candidate molecules and polymers.
+Three families dominate the coatings literature.
+
+\subsection{Variational Autoencoders and SMILES/SELFIES Representations}
+
+Variational autoencoders (VAEs) map discrete molecular representations---SMILES strings or the more robust SELFIES encoding, which guarantees chemical validity---into continuous latent vectors.
+Interpolation and optimisation in latent space enables navigation toward target property regions.
+Gómez-Bombarelli et al.\ demonstrated that a SMILES-based VAE trained on 250\,k drug-like molecules could generate novel compounds with optimised water--octanol partition coefficients ($\log P$), a property directly relevant to coating hydrophobicity.
+For polymers, graph-based representations that capture repeat-unit topology and degree of polymerisation are increasingly preferred, as SMILES cannot natively encode chain architecture.
+
+\subsection{Diffusion Models}
+
+Score-based diffusion models and denoising diffusion probabilistic models (DDPMs) have emerged as state-of-the-art generative approaches for molecular design.
+Equivariant diffusion models (EDMs) operate on 3D molecular graphs while preserving E(3) symmetry---critical for coating monomers whose spatial configuration determines intermolecular packing and film morphology.
+Hoogeboom et al.'s E(3)-equivariant diffusion achieves competitive generation quality on QM9 (134\,k molecules) and GEOM-Drugs (450\,k conformers).
+Scale-space diffusion extends this by introducing resolution-dependent noise schedules, denoising from coarse molecular skeletons to full atomic detail.
+
+\subsection{Graph-Based Generation and Inverse Design}
+
+Junction Tree VAEs (JT-VAE) decompose molecules into tree-structured scaffolds of chemically valid fragments, then assemble novel compounds by recombining fragments.
+This is particularly suited to coating design, where functional groups (UV chromophores, cross-linking sites, hydrophobic tails) can be treated as modular building blocks.
+Fragment-based assembly methods have been shown to achieve 100\% chemical validity versus $\sim$80\% for SMILES-based approaches.
+Inverse design pipelines condition generation on target properties (e.g., absorption wavelength, glass transition temperature), using Bayesian optimisation or reinforcement learning to steer the generative process.
+
+%% =======================================================================
+\section{Property Prediction and Screening}
+\label{sec:property}
+%% =======================================================================
+
+Machine learning models that predict coating performance from molecular or formulation descriptors form the backbone of virtual high-throughput screening.
+
+\subsection{Corrosion Resistance Prediction}
+
+Electrochemical impedance spectroscopy (EIS) is the gold standard for assessing coating barrier properties.
+ML models---random forests (RF), gradient-boosted trees (XGBoost), and Gaussian process regressors---have been trained on EIS data to predict low-frequency impedance modulus ($|Z|_{0.01\text{Hz}}$) from formulation parameters.
+A recent Nature study demonstrated an RF-based active-learning workflow for self-healing epoxy coatings containing ZIF-8@Ca microfillers, achieving impedance values exceeding $10^9\,\Omega\cdot\text{cm}^2$ after only 30 experimental iterations.
+Salt spray chamber results (ASTM B117) have also been modelled, with neural networks predicting hours-to-failure from coating thickness, pigment volume concentration, and binder chemistry.
+
+\subsection{UV and Optical Properties}
+
+Predicting UV absorption spectra requires excited-state electronic structure, typically computed via time-dependent density functional theory (TD-DFT).
+ML surrogates trained on TD-DFT data can screen millions of candidates for target absorption windows (e.g., UVA 315--400\,nm, UVB 280--315\,nm).
+Graph neural networks (GNNs) applied to chromophore datasets achieve mean absolute errors of 0.15--0.25\,eV for $S_0 \to S_1$ excitation energies.
+Photostability prediction---resistance to photodegradation---is more challenging, as it involves triplet-state dynamics and radical formation, but transfer-learning approaches from ground-state models show promise.
+
+\subsection{Mechanical Properties}
+
+Adhesion energy, hardness, scratch resistance, and flexibility are critical for coating durability.
+Graph convolutional networks (GCNs) predict glass transition temperature ($T_g$), melting temperature ($T_m$), density, and elastic modulus for polymers with $R^2 > 0.85$ on benchmark datasets.
+The PolymerGNN architecture handles heterogeneous polyester databases and achieves multitask prediction of thermal and mechanical properties simultaneously, enabling Pareto-optimal formulation selection.
+
+\subsection{High-Throughput Virtual Screening}
+
+Combining property-prediction models with large virtual libraries enables rapid screening.
+Recent frameworks have demonstrated screening of 20\,000+ polyimide candidates, identifying compositions with thermal conductivity $> 0.4\,\text{W/(m}\cdot\text{K)}$, validated by non-equilibrium molecular dynamics.
+For coatings specifically, ML pipelines have filtered 2\,500+ polymer candidates in 5 months---tasks that previously took years.
+
+%% =======================================================================
+\section{Formulation Optimisation}
+\label{sec:formulation}
+%% =======================================================================
+
+Coatings are complex multicomponent systems: binder, solvent, pigments, additives, nanofillers.
+Optimising the formulation is a high-dimensional problem ideally suited to Bayesian and active-learning approaches.
+
+\subsection{Bayesian Optimisation}
+
+Bayesian optimisation (BO) constructs a probabilistic surrogate model (typically a Gaussian process, GP) of the objective function and uses an acquisition function (expected improvement, upper confidence bound, or knowledge gradient) to select the next experiment.
+For coating formulation, BO has been applied to two-component polyurethane systems, where a novel sampling algorithm achieved near-optimal gloss and hardness in under 50 experiments.
+Anisotropic GP kernels outperform isotropic kernels when formulation variables have heterogeneous length scales (e.g., wt\% filler vs.\ curing temperature).
+
+\subsection{Active Learning}
+
+Active learning extends BO by incorporating query strategies that maximise information gain rather than immediate reward.
+In the ZIF-8@Ca self-healing coating study, an RF model was used for active learning in Stage~I (exploration), followed by BO in Stage~II (exploitation), achieving the highest impedance sample in the entire dataset.
+Query-by-committee and uncertainty-sampling strategies reduce the number of required experiments by 3--5$\times$ compared to random sampling.
+
+\subsection{Multi-Objective Optimisation}
+
+Real coatings must simultaneously satisfy multiple, often conflicting objectives (e.g., maximise hardness while maintaining flexibility, minimise cost while maximising durability).
+Multi-objective BO constructs a Pareto front of non-dominated solutions, allowing domain experts to select trade-off points.
+Constraint-handling extensions incorporate hard constraints (e.g., VOC limits, REACH-restricted substances) directly into the acquisition function, pruning infeasible regions before experimentation.
+
+%% =======================================================================
+\section{Autonomous Experimentation}
+\label{sec:autonomous}
+%% =======================================================================
+
+Self-driving laboratories close the loop between AI-driven design and physical validation, dramatically accelerating the discovery cycle.
+
+\subsection{The Polybot Platform}
+
+Polybot, developed at Argonne National Laboratory and the University of Chicago, is a modular robotic platform for autonomous polymer film fabrication and characterisation.
+It comprises five integrated components: (1)~lab automations for formulation, coating, and post-processing; (2)~data extraction tools; (3)~cloud database services; (4)~ML training software; and (5)~an active-learning library.
+Each experimental loop---formulation, spin/blade coating, annealing, and four-point-probe conductivity measurement---completes in approximately 15 minutes per sample, enabling hundreds of experiments per day.
+Polybot has successfully optimised PEDOT:PSS thin films, simultaneously maximising electrical conductivity and minimising coating defects across a design space of nearly one million combinations.
+Results published in \textit{Nature Communications} (2025) demonstrated average conductivities matching the highest reported standards.
+
+\subsection{Closed-Loop Discovery}
+
+The closed-loop paradigm integrates reinforcement learning (RL) or Bayesian optimisation with robotic execution.
+The AI agent proposes an experiment, the robot executes it, characterisation feeds back into the model, and the cycle repeats.
+Convergence criteria---diminishing improvement in the objective, GP uncertainty falling below a threshold, or reaching a budget---determine when to stop.
+Beyond Polybot, platforms at MIT (the Accelerated Molecular Discovery lab), Stanford (the SLAC self-driving diffraction lab), and several pharmaceutical companies operate similar closed-loop workflows for thin-film and coating applications.
+
+\subsection{Robotic Deposition Techniques}
+
+Automated coating methods include spin coating (uniform thin films, 10\,nm--10\,$\mu$m), spray coating (scalable, industrial-relevant), blade coating (slot-die analogue for roll-to-roll), and inkjet printing (patterned coatings).
+Each method introduces processing parameters (spin speed, spray pressure, wet-film thickness, drying temperature) that the AI must co-optimise with formulation variables.
+
+%% =======================================================================
+\section{Multifunctional Target Properties}
+\label{sec:multifunc}
+%% =======================================================================
+
+The value proposition of AI-designed coatings lies in achieving multiple functionalities within a single layer or multilayer architecture.
+
+\subsection{Anti-Corrosion}
+
+Zinc oxide (ZnO) nanoparticles provide cathodic protection by reacting with metal substrates to form a protective layer, while simultaneously acting as UV absorbers.
+Cerium dioxide (CeO$_2$) nanoparticles are pH-sensitive corrosion inhibitors with high chemical stability and polymer compatibility.
+Recent work on synergistic pH- and thermal-responsive coatings embeds CeO$_2$ and benzotriazole in halloysite nanotubes, releasing inhibitors on demand when corrosion-induced pH changes are detected.
+
+\subsection{UV Protection and Self-Cleaning}
+
+TiO$_2$ nanoparticles serve a dual role: photocatalytic degradation of organic contaminants (self-cleaning) and UV absorption.
+Under illumination, TiO$_2$ generates reactive oxygen species (ROS) that decompose surface pollutants.
+Superhydrophobic coatings (water contact angle $> 150°$) combine micro/nanostructured surfaces with low-surface-energy coatings (fluoropolymers, PDMS), enabling Lotus-effect self-cleaning.
+Ag--TiO$_2$/PDMS hydrophobic nanocomposites have demonstrated simultaneous water resistance, self-cleaning, and antibacterial properties.
+
+\subsection{Self-Healing and Antimicrobial Properties}
+
+Self-healing coatings autonomously repair scratches and micro-cracks.
+Two main approaches exist: (1)~extrinsic healing via microcapsules or hollow fibres containing a healing agent (e.g., linseed oil, DCPD with Grubbs catalyst) that rupture upon damage; (2)~intrinsic healing via reversible bonds (Diels--Alder, disulfide, hydrogen bonds) that re-form upon heating or UV exposure.
+Polyurea coatings with UPy hydrogen-bond motifs show intrinsic self-healing at room temperature.
+Antimicrobial activity is achieved through Ag nanoparticle release, Cu$^{2+}$ ions, or photocatalytic ROS generation from ZnO/TiO$_2$.
+
+%% =======================================================================
+\section{Foundation Models and Transfer Learning}
+\label{sec:foundation}
+%% =======================================================================
+
+Large pre-trained models are transforming materials property prediction by providing transferable representations.
+
+\subsection{MACE-MP}
+
+MACE (Multi-ACE) is an equivariant message-passing neural network that incorporates many-body interactions through body-ordered expansion.
+The MACE-MP-0 foundation model, trained on the Materials Project database ($\sim$150\,k structures), provides interatomic potentials with chemical accuracy ($< 1$\,meV/atom) for most of the periodic table.
+Fine-tuning MACE-MP with frozen early layers and trainable final layers (frozen transfer learning) achieves DFT-level accuracy for specialised systems (polymers, organic crystals) with as few as 50--100 training structures.
+
+\subsection{GNoME}
+
+Google DeepMind's Graph Networks for Materials Exploration (GNoME) employs large ensembles of GNNs with uncertainty quantification to predict material stability.
+GNoME has discovered over 2.2 million new candidate crystals (381\,000 on the convex hull), expanding known stable materials by an order of magnitude.
+Active learning cycles iteratively query DFT calculations for the most informative candidates, dramatically improving data efficiency.
+
+\subsection{Fine-Tuning Strategies for Coatings}
+
+Domain adaptation from foundation models to coating-specific tasks involves:
+\begin{enumerate}[nosep]
+  \item \textbf{Frozen transfer}: freeze early layers (encoding general atomic interactions), train only the final prediction head on coating data.
+  \item \textbf{Full fine-tuning}: unfreeze all layers with a reduced learning rate; appropriate when the coating chemistry differs substantially from the pre-training distribution.
+  \item \textbf{Multi-fidelity transfer}: combine inexpensive force-field data with scarce DFT data using co-kriging or deep-kernel GPs.
+\end{enumerate}
+Transfer learning from MACE-MP to polymer systems has shown 3--5$\times$ reduction in required training data to reach a target accuracy of 5\,meV/atom.
+
+%% =======================================================================
+\section{Process and Quality Control}
+\label{sec:process}
+%% =======================================================================
+
+AI-enhanced manufacturing ensures that AI-designed formulations translate into defect-free, specification-compliant coated products.
+
+\subsection{Digital Twins}
+
+A digital twin of the coating line ingests real-time sensor data (temperature, humidity, line speed, wet-film thickness) and maintains a virtual replica of the physical process.
+Deviations from the nominal process window are flagged instantly, enabling corrective action before defective product is produced.
+Drift detection algorithms (CUSUM, EWMA, or neural-network autoencoders) identify slow process shifts that escape traditional SPC charts.
+A digital-twin-based intelligent coating film thickness monitoring system has demonstrated $< 2\%$ thickness deviation in automotive clear-coat applications.
+
+\subsection{Computer Vision Quality Control}
+
+Convolutional neural networks (CNNs) and vision transformers (ViTs) inspect coated surfaces for defects: pinholes, orange peel, cratering, sagging, and contamination.
+AI-powered vision in automotive manufacturing has shifted quality control from reactive (inspect-then-reject) to predictive (detect process drift before defects appear).
+Surface roughness and gloss can be quantified from camera images using texture-analysis neural networks, replacing costly profilometry.
+
+\subsection{Process Simulation}
+
+Computational fluid dynamics (CFD) models simulate coating flow (spray atomisation, film levelling, solvent evaporation) and feed into the digital twin.
+Thickness uniformity prediction across complex 3D geometries (car bodies, turbine blades) is achieved by coupling CFD with ML surrogate models trained on simulation databases, reducing prediction time from hours to seconds.
+
+%% =======================================================================
+\section{Related Work and State of the Art}
+\label{sec:related}
+%% =======================================================================
+
+\begin{table}[h]
+\centering
+\caption{Comparison of key AI-for-coatings platforms and approaches (2022--2026).}
+\label{tab:comparison}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Platform / Method} & \textbf{AI Technique} & \textbf{Coating Type} & \textbf{Key Result} \\
+\midrule
+Polybot (Argonne) & Active learning + BO & PEDOT:PSS films & State-of-art conductivity \\
+ZIF-8@Ca workflow & RF + Bayesian opt & Self-healing epoxy & $|Z| > 10^9\,\Omega\cdot$cm$^2$ \\
+Citrine Informatics & GP + transfer learning & Industrial coatings & 2500 polymers in 5 months \\
+GNoME (DeepMind) & GNN ensembles & Crystals (general) & 2.2M new stable materials \\
+MACE-MP & Equivariant MPNN & Atomistic potentials & $<1$\,meV/atom accuracy \\
+PolymerGNN & Multitask GCN & Polyesters & Multi-property prediction \\
+PU lacquer HT screen & Explainable ML & Polyurethane & 50 expts to optimum \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Key gaps in the current state of the art include:
+\begin{itemize}[nosep]
+  \item \textbf{Multi-scale integration}: most ML models operate at a single scale (molecular or formulation), but coating performance depends on phenomena spanning angstroms to metres.
+  \item \textbf{Long-term durability prediction}: accelerated weathering data are sparse and noisy; ML models struggle to extrapolate from short-term tests to 20-year service life.
+  \item \textbf{Interpretability}: black-box deep-learning models provide limited physical insight; explainable AI (SHAP, attention maps) is underexplored in coatings.
+  \item \textbf{Data standardisation}: no universal schema for coating formulation--performance data exists, hindering cross-lab model transfer.
+\end{itemize}
+
+%% =======================================================================
+\section{Cross-Cutting Connections}
+\label{sec:crosscut}
+%% =======================================================================
+
+The seven pillars of AI-driven coating design do not operate in isolation; their synergies define the frontier.
+
+\paragraph{Generative Design $\leftrightarrow$ Property Prediction.}
+Every molecule proposed by a generative model must be screened for target properties before synthesis.
+GNN-based property predictors serve as fast oracles within the generative loop, evaluating thousands of candidates per second and feeding reward signals to the generator.
+
+\paragraph{Autonomous Experimentation $\leftrightarrow$ Formulation Optimisation.}
+Self-driving labs like Polybot physically implement the experiments proposed by Bayesian optimisation.
+The closed-loop architecture ensures that each new data point maximally reduces uncertainty in the formulation landscape.
+
+\paragraph{Foundation Models $\leftrightarrow$ Property Prediction.}
+Pre-trained models (MACE-MP, GNoME) provide transferable atomic representations that dramatically reduce the data requirements for coating-specific property predictors.
+A fine-tuned foundation model can predict polymer $T_g$ from 50 labelled examples rather than 5\,000.
+
+\paragraph{Multifunctional Properties $\leftrightarrow$ Formulation Optimisation.}
+The target functionalities (anti-corrosion, UV protection, self-healing) define the multi-objective optimisation landscape.
+Trade-offs---e.g., high TiO$_2$ loading improves UV protection but may reduce film flexibility---are navigated via Pareto-optimal formulation search.
+
+\paragraph{Process \& QC $\leftrightarrow$ Autonomous Experimentation.}
+Digital twins provide the feedback signal for robotic platforms, flagging when a deposited film deviates from specification and triggering parameter adjustment.
+Vision-based QC systems can also validate that self-driving lab samples meet quality thresholds before their data enter the training set.
+
+%% =======================================================================
+\section{Key References and Resources}
+\label{sec:references}
+%% =======================================================================
+
+\subsection{Core Papers}
+\begin{itemize}[nosep]
+  \item Szymanski et al., ``Autonomous platform for solution processing of electronic polymers,'' \textit{Nature Communications} (2025). \url{https://www.nature.com/articles/s41467-024-55655-3}
+  \item Chen et al., ``ML-assisted discovery of high-efficiency self-healing epoxy coating,'' \textit{npj Materials Degradation} (2024). \url{https://www.nature.com/articles/s41529-024-00427-z}
+  \item Merchant et al., ``Scaling deep learning for materials discovery (GNoME),'' \textit{Nature} (2023). \url{https://www.nature.com/articles/s41586-023-06735-9}
+  \item Batatia et al., ``Foundation models for atomistic simulation---MACE.'' \url{https://mace-docs.readthedocs.io/en/latest/guide/foundation_models.html}
+  \item Aldeghi and Bhatt, ``A generative approach to materials discovery, design, and optimization,'' \textit{ACS Omega} (2022). \url{https://pubs.acs.org/doi/10.1021/acsomega.2c03264}
+  \item Park et al., ``Polymer graph neural networks for multitask property learning,'' \textit{npj Computational Materials} (2023). \url{https://www.nature.com/articles/s41524-023-01034-3}
+  \item AI-Driven Polymeric Coatings review, \textit{Polymers} 18(1), 5 (2025). \url{https://www.mdpi.com/2073-4360/18/1/5}
+  \item Khatamsaz et al., ``Multi-objective materials Bayesian optimization with active learning of design constraints,'' \textit{Acta Materialia} (2023). \url{https://www.sciencedirect.com/science/article/abs/pii/S1359645422005146}
+\end{itemize}
+
+\subsection{Code Repositories}
+\begin{itemize}[nosep]
+  \item Polybot: \url{https://cnm.anl.gov/pages/polybot}
+  \item MACE: \url{https://github.com/ACEsuit/mace}
+  \item E3 Diffusion for Molecules: \url{https://github.com/ehoogeboom/e3_diffusion_for_molecules}
+  \item FairChem / eSEN: \url{https://github.com/facebookresearch/fairchem}
+  \item Open MatSci ML Toolkit: \url{https://github.com/IntelLabs/matsciml}
+\end{itemize}
+
+\subsection{Datasets}
+\begin{itemize}[nosep]
+  \item Materials Project: $\sim$150\,k inorganic crystal structures. \url{https://materialsproject.org}
+  \item OMol25: 140M DFT calculations on 83M molecules. Available via \texttt{fairchem} package.
+  \item QM9: 134\,k small organic molecules with DFT properties. \url{https://moleculenet.org}
+  \item CRIPT: Community Resource for Innovation in Polymer Technology. \url{https://criptapp.org}
+  \item GNoME dataset: 2.2M predicted stable crystals. Available via Materials Project API.
+\end{itemize}
+
+%% =======================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+%% =======================================================================
+
+Artificial intelligence is poised to transform multifunctional coating design from an empirical art into a data-driven science.
+Generative models can propose novel molecules; property predictors can screen them in silico; Bayesian optimisation can navigate the formulation landscape; and self-driving labs can validate candidates at unprecedented speed.
+Foundation models like MACE-MP and GNoME provide transferable atomic-level representations that lower the data barrier for specialised coating applications.
+Meanwhile, digital twins and computer vision ensure that AI-designed formulations translate into defect-free manufactured products.
+
+Key open opportunities include:
+\begin{enumerate}[nosep]
+  \item \textbf{Multi-scale generative models} that simultaneously design molecular structure, nanoparticle morphology, and film architecture.
+  \item \textbf{Long-horizon durability models} that predict 10--20 year weathering performance from accelerated test data, possibly via physics-informed neural networks.
+  \item \textbf{Standardised coating data ontologies} enabling cross-laboratory and cross-company model transfer.
+  \item \textbf{Integrated autonomous platforms} that combine generative design, BO-driven formulation, robotic deposition, and inline QC in a single closed-loop system.
+  \item \textbf{Regulatory-aware optimisation} that incorporates evolving environmental regulations (VOC limits, PFAS restrictions) as dynamic constraints in the AI pipeline.
+\end{enumerate}
+
+The field is converging toward a future where a materials scientist specifies a performance envelope---``a coating with $>95\%$ UV-A absorption, self-healing efficiency $>80\%$, and antimicrobial $>99.9\%$ kill rate''---and an AI system returns a validated, manufacturable formulation within weeks rather than years.
+
+\end{document}

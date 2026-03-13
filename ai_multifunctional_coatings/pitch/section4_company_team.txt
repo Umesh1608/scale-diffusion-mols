@@ -1,0 +1,11 @@
+[Company Name] accelerates discovery of high-performance multifunctional coatings through AI-driven molecular design and formulation optimization.
+
+[PI Name], Principal Investigator, brings [X] years of experience in computational materials science and machine learning for molecular design. [Relevant credentials: PhD in chemistry/materials science/CS, publications in peer-reviewed journals on GNN property prediction or generative molecular design, prior coating materials research experience].
+
+[Co-PI Name] contributes expertise in coatings chemistry and polymer formulation with [X] years of industrial R&D experience. [Relevant credentials: prior roles at major coating companies, patents in coating formulation, experimental characterization expertise].
+
+The team is supported by advisory board members in computational chemistry from [University] and coating industry veterans from [Industry Partner]. [Company Name] has established a research collaboration with [Partner Institution] providing access to coating characterization facilities including EIS, UV-vis spectroscopy, nanoindentation, and salt spray chambers.
+
+To address the interdisciplinary scope, we will hire a postdoctoral researcher with equivariant neural network expertise for generative model development and engage a subcontractor for Phase II robotic coating deposition.
+
+[Company Name], founded [Year] in [City, State], is dedicated to replacing Edisonian coating R&D with data-driven discovery. [If applicable: previously received SBIR/STTR funding from NSF/DOE for related AI-materials work.]

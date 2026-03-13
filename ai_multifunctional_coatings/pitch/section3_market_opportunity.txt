@@ -1,0 +1,7 @@
+The global protective coatings market reached $17 billion in 2025, projected to hit $32.4 billion by 2034 (7.3% CAGR, Precedence Research). Multifunctional coatings combining corrosion resistance, UV protection, and self-healing command premium pricing due to reduced lifecycle costs. Our serviceable market is the $2.8 billion high-performance industrial and aerospace coatings segment where formulation complexity justifies AI-driven optimization.
+
+Three customer segments: (1) coating manufacturers (PPG, Sherwin-Williams, AkzoNobel) seeking to compress 3-5 year R&D cycles; (2) aerospace and defense contractors requiring MIL-spec multifunctional coatings; (3) automotive OEMs pursuing PFAS-free alternatives under tightening EPA and EU regulations.
+
+Competitors include Citrine Informatics (general materials AI, $92M raised), Uncountable (formulation management), and Schrodinger (physics-based simulation). None integrates generative molecular design with coating-specific property prediction and regulatory-aware multi-objective optimization. Our differentiator is this end-to-end pipeline purpose-built for coatings that generates novel molecules rather than merely optimizing known formulations.
+
+Business model: SaaS licensing at $150K-300K per seat annually, with premium tiers for custom model training. Phase II will include validation partnerships with 2-3 coating manufacturers.
