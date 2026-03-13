@@ -1,371 +1,314 @@
 % MolSSD Project Mind Map
 % Compile with: pdflatex mindmap.tex
-\documentclass[tikz,border=10mm]{standalone}
+\documentclass[border=15mm]{standalone}
 
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
-\usepackage{amsmath,amssymb}
-\usetikzlibrary{mindmap,backgrounds,calc,arrows.meta,decorations.pathmorphing,positioning}
+\usepackage{tikz}
+\usetikzlibrary{mindmap,backgrounds,positioning}
 
-% ── colour palette ──────────────────────────────────────────────────
-\definecolor{coreOrange}{HTML}{E8590C}     % central node
-\definecolor{brTheory}{HTML}{1971C2}       % Branch 1 – Theoretical Foundations
-\definecolor{brMath}{HTML}{2F9E44}         % Branch 2 – Mathematical Framework
-\definecolor{brArch}{HTML}{9C36B5}         % Branch 3 – Architecture
-\definecolor{brScale}{HTML}{E67700}        % Branch 4 – Multi-Scale Hierarchy
-\definecolor{brData}{HTML}{0CA678}         % Branch 5 – Data & Infrastructure
-\definecolor{brUV}{HTML}{D6336C}           % Branch 6 – UV-Absorber Application
-\definecolor{brPipe}{HTML}{4263EB}         % Branch 7 – Experimental Pipeline
-\definecolor{brGaps}{HTML}{F76707}         % Branch 8 – Research Gaps
-\definecolor{brBase}{HTML}{495057}         % Branch 9 – Baselines & Metrics
+% colour palette
+\definecolor{coreOrange}{HTML}{E8590C}
+\definecolor{brTheory}{HTML}{1971C2}
+\definecolor{brMath}{HTML}{2F9E44}
+\definecolor{brArch}{HTML}{9C36B5}
+\definecolor{brScale}{HTML}{E67700}
+\definecolor{brData}{HTML}{0CA678}
+\definecolor{brUV}{HTML}{D6336C}
+\definecolor{brPipe}{HTML}{4263EB}
+\definecolor{brGaps}{HTML}{F76707}
+\definecolor{brBase}{HTML}{495057}
 
 \begin{document}
-\begin{tikzpicture}[
+
+% Title
+\begin{tikzpicture}
+
+\node[font=\Large\bfseries\sffamily, text=coreOrange!90!black] at (0,18)
+  {MolSSD Project -- Complete Mind Map};
+
+\begin{scope}[
   mindmap,
   every node/.style={concept, execute at begin node=\hskip0pt},
   grow cyclic,
   text=white,
+  concept color=coreOrange,
   level 1/.append style={
-    level distance=6.8cm,
+    level distance=7.5cm,
     sibling angle=40,
     font=\small\bfseries,
-    minimum size=2.6cm,
-    text width=2.4cm,
+    minimum size=2.8cm,
+    text width=2.5cm,
   },
   level 2/.append style={
-    level distance=4.2cm,
-    sibling angle=38,
+    level distance=4.5cm,
+    sibling angle=40,
     font=\scriptsize,
-    minimum size=1.6cm,
-    text width=1.5cm,
+    minimum size=1.8cm,
+    text width=1.6cm,
   },
   level 3/.append style={
-    level distance=3.0cm,
-    sibling angle=34,
+    level distance=3.2cm,
+    sibling angle=36,
     font=\tiny,
-    minimum size=1.1cm,
-    text width=1.0cm,
-  },
-  level 4/.append style={
-    level distance=2.4cm,
-    sibling angle=30,
-    font=\tiny,
-    minimum size=0.9cm,
-    text width=0.8cm,
+    minimum size=1.2cm,
+    text width=1.1cm,
   },
 ]
 
-% ════════════════════════════════════════════════════════════════════
 % CENTRAL NODE
-% ════════════════════════════════════════════════════════════════════
-\node [concept, concept color=coreOrange, font=\large\bfseries,
-       minimum size=3.6cm, text width=3.2cm, text=white]
-  {\textbf{MolSSD}\\[2pt]Molecular\\Scale-Space\\Diffusion}
-% ────────────────────────────────────────────────────────────────────
-% BRANCH 1  –  Theoretical Foundations  (≈ 100°)
-% ────────────────────────────────────────────────────────────────────
-  child [concept color=brTheory, grow=148] {
+\node [font=\large\bfseries, minimum size=4cm, text width=3.5cm]
+  {MolSSD\\[4pt]{\normalsize Molecular}\\{\normalsize Scale-Space}\\{\normalsize Diffusion}}
+%
+% BRANCH 1 - Theoretical Foundations
+  child [concept color=brTheory, grow=160] {
     node (theory) {Theoretical Foundations}
-    child [grow=175] {
+    child [grow=195] {
       node (sst) {Scale-Space Theory}
-      child { node {Lindeberg, Witkin, Koenderink} }
+      child { node {Lindeberg Witkin Koenderink} }
       child { node {Gaussian Blurring} }
-      child { node (heateq) {Heat Equation $\partial_t u = \Delta u$} }
+      child { node {Heat Equation} }
     }
-    child [grow=145] {
+    child [grow=160] {
       node {Diffusion Models}
-      child { node {DDPM (Ho 2020)} }
-      child { node {Score SDE (Song 2021)} }
-      child { node {Forward / Reverse Process} }
+      child { node {DDPM} }
+      child { node {Score SDE} }
     }
-    child [grow=120] {
+    child [grow=130] {
       node (sgt) {Spectral Graph Theory}
-      child { node {Laplacian Eigen\-decomposition} }
+      child { node {Laplacian Eigende\-composition} }
       child { node {Spectral Clustering} }
     }
-    child [grow=95] {
+    child [grow=100] {
       node {Information Theory}
-      child { node {Mutual Information $I(t)$} }
-      child { node {$\mathrm{Info}(t) \!\leftrightarrow\! \mathrm{Info}_{\mathrm{mol}}(r)$} }
+      child { node {Mutual Information} }
     }
-    child [grow=200] {
+    child [grow=225] {
       node {Renormali\-zation Group}
       child { node {Kadanoff Blocking} }
       child { node {Wilson RG} }
-      child { node {Coarse-Graining Analogy} }
-    }
-    child [grow=225] {
-      node (ssdpaper) {SSD Paper (2603.08709)}
     }
   }
-% ────────────────────────────────────────────────────────────────────
-% BRANCH 2  –  Mathematical Framework  (≈ 60°)
-% ────────────────────────────────────────────────────────────────────
-  child [concept color=brMath, grow=100] {
+%
+% BRANCH 2 - Mathematical Framework
+  child [concept color=brMath, grow=110] {
     node (math) {Mathematical Framework}
-    child [grow=130] {
-      node {Forward Process $x_t\!=\!M_{1:t}x_0\!+\!\sigma_t\varepsilon$}
+    child [grow=140] {
+      node {Forward Process}
     }
-    child [grow=105] {
-      node (speccoarse) {Spectral Coarsening $M_t$}
+    child [grow=115] {
+      node (speccoarse) {Spectral Coarsening Operator}
     }
-    child [grow=80] {
-      node (graphlap) {Graph Laplacian $L\!=\!D\!-\!A$}
+    child [grow=90] {
+      node (graphlap) {Graph Laplacian}
     }
-    child [grow=55] {
-      node {Non-Isotropic Posterior (Lanczos)}
+    child [grow=65] {
+      node {Non-Isotropic Posterior}
+      child { node {Lanczos Algorithm} }
     }
-    child [grow=35] {
-      node {SE(3) Equivariance}
+    child [grow=40] {
+      node {SE(3) Equi\-variance}
       child { node {CoM Aggregation} }
       child { node {Local Frames} }
     }
-    child [grow=150] {
-      node {Resolution Schedule (ConvexDecay 0.5)}
-    }
   }
-% ────────────────────────────────────────────────────────────────────
-% BRANCH 3  –  Architecture  (≈ 20°)
-% ────────────────────────────────────────────────────────────────────
-  child [concept color=brArch, grow=50] {
-    node (arch) {Architecture: Molecular Flexi-Net}
-    child [grow=85] {
+%
+% BRANCH 3 - Architecture
+  child [concept color=brArch, grow=55] {
+    node (arch) {Architecture Molecular Flexi-Net}
+    child [grow=90] {
       node {Hierarchical EGNN}
-      child { node {Level 0: 2 blk, 512 ch, $N_{\min}$} }
-      child { node {Level 1: 3 blk, 384 ch} }
-      child { node {Level 2: 3 blk, 256 ch} }
-      child { node {Level L: 4 blk, 128 ch, $N$} }
+      child { node {Lv0: 2 blk 512 ch} }
+      child { node {Lv1: 3 blk 384 ch} }
+      child { node {Lv2: 3 blk 256 ch} }
+      child { node {LvL: 4 blk 128 ch} }
     }
-    child [grow=55] {
+    child [grow=50] {
       node {Dynamic Level Activation}
     }
-    child [grow=30] {
-      node {Zero Skip Connections}
-    }
-    child [grow=5] {
+    child [grow=25] {
       node (uvcond) {UV Conditioning}
-      child { node {Cross-Attention} }
+      child { node {Cross Attention} }
       child { node {adaLN} }
-      child { node {Classifier-Free Guidance} }
+      child { node {CFG} }
     }
   }
-% ────────────────────────────────────────────────────────────────────
-% BRANCH 4  –  Multi-Scale Hierarchy  (≈ -20°)
-% ────────────────────────────────────────────────────────────────────
-  child [concept color=brScale, grow=-5] {
-    node (hierarchy) {Multi-Scale Molecular Hierarchy}
-    child [grow=20] {
-      node {Scale 0: Full Atomic (all atoms, bond angles)}
+%
+% BRANCH 4 - Multi-Scale Hierarchy
+  child [concept color=brScale, grow=0] {
+    node (hierarchy) {Multi-Scale Hierarchy}
+    child [grow=30] {
+      node {Scale 0: Full Atomic}
     }
-    child [grow=0] {
-      node {Scale 1: Functional Groups (${\sim}N/3$)}
+    child [grow=10] {
+      node {Scale 1: Functional Groups}
     }
+    child [grow=-10] {
+      node {Scale 2: Fragment Level}
+    }
+    child [grow=-30] {
+      node (chromo) {Scale 3: Chromo\-phore Skeleton}
+    }
+    child [grow=-50] {
+      node {Scale L: Single Centroid}
+    }
+  }
+%
+% BRANCH 5 - Data and Infrastructure
+  child [concept color=brData, grow=-55] {
+    node (data) {Data and Infra\-structure}
     child [grow=-20] {
-      node {Scale 2: Fragment Level (${\sim}N/6$)}
-    }
-    child [grow=-40] {
-      node (chromo) {Scale 3: Chromo\-phore Skeleton (${\sim}N/12$)}
-    }
-    child [grow=-60] {
-      node {Scale $L$: Single Centroid}
-    }
-    child [grow=40] {
-      node {Chromophore $\to$ D/A Sub\-stituents $\to$ Full Molecule}
-    }
-  }
-% ────────────────────────────────────────────────────────────────────
-% BRANCH 5  –  Data & Infrastructure  (≈ -65°)
-% ────────────────────────────────────────────────────────────────────
-  child [concept color=brData, grow=-60] {
-    node (data) {Data \& Infra\-structure}
-    child [grow=-25] {
-      node (omol) {OMol25 (140M DFT, 83M mols, 2--350 atoms)}
+      node (omol) {OMol25 140M DFT 83M Molecules}
       child { node (pretrain) {Pre-training Backbone} }
-      child { node {eSEN Oracle (50.7M params, 1.35\,kcal/mol)} }
+      child { node {eSEN Energy Oracle} }
       child { node {Scalability Benchmark} }
     }
-    child [grow=-60] {
-      node {QM9 (130K, 9 heavy atoms) -- Validation}
+    child [grow=-55] {
+      node {QM9 130K Validation}
     }
-    child [grow=-85] {
-      node {GEOM-Drugs (317K, ${\sim}50$ atoms) -- Scaling}
+    child [grow=-80] {
+      node {GEOM-Drugs 317K Scaling}
     }
-    child [grow=-110] {
-      node (uvdata) {UV Absorber Dataset (50K--200K, ChEMBL/ PubChem/ ZINC)}
+    child [grow=-105] {
+      node (uvdata) {UV Absorber Dataset 50K--200K}
     }
   }
-% ────────────────────────────────────────────────────────────────────
-% BRANCH 6  –  UV-Absorber Application  (≈ -115°)
-% ────────────────────────────────────────────────────────────────────
+%
+% BRANCH 6 - UV-Absorber Application
   child [concept color=brUV, grow=-115] {
     node (uvapp) {UV-Absorber Application}
     child [grow=-75] {
       node {Commercial UV Absorbers}
-      child { node {Benzo\-triazoles (Tinuvin 326/7/8, UVA)} }
-      child { node {Benzo\-phenones (Chimassorb 81)} }
-      child { node {Triazines (Tinuvin 1577)} }
-      child { node {Cyano\-acrylates (Uvinul 3039, UVB)} }
+      child { node {Benzo\-triazoles Tinuvin} }
+      child { node {Benzo\-phenones Chimassorb} }
+      child { node {Triazines} }
+      child { node {Cyano\-acrylates Uvinul} }
     }
     child [grow=-115] {
       node (uvtarget) {Target Properties}
-      child { node {Broad UV 280--400\,nm} }
-      child { node {$\varepsilon > 20{,}000$ L/mol/cm} }
+      child { node {Broad UV 280--400nm} }
+      child { node {High Molar Absorptivity} }
       child { node {Photo\-stability} }
-      child { node {$T_d > 300\,{}^{\circ}$C} }
-      child { node {Coating Compat\-ibility} }
+      child { node {Thermal Stability} }
     }
-    child [grow=-145] {
-      node {Applications: Drones, Vehicles, Outdoor Infra}
+    child [grow=-150] {
+      node {Drones Vehicles Outdoor Infra}
     }
   }
-% ────────────────────────────────────────────────────────────────────
-% BRANCH 7  –  Experimental Pipeline  (≈ -165°)
-% ────────────────────────────────────────────────────────────────────
+%
+% BRANCH 7 - Experimental Pipeline
   child [concept color=brPipe, grow=-165] {
     node (pipe) {Experimental Pipeline}
-    child [grow=-125] {
-      node {Phase 1: Foundation (QM9, GEOM-Drugs)}
+    child [grow=-130] {
+      node {Ph1: Foundation Validation}
     }
-    child [grow=-145] {
-      node {Phase 2: OMol25 Pre-train + Scale}
+    child [grow=-150] {
+      node {Ph2: OMol25 Pre-train}
     }
-    child [grow=-165] {
-      node {Phase 3: UV Dataset + TD-DFT}
+    child [grow=-170] {
+      node {Ph3: UV Dataset TD-DFT}
     }
-    child [grow=-185] {
-      node {Phase 4: Conditional MolSSD Training}
+    child [grow=-190] {
+      node {Ph4: Conditional Training}
     }
-    child [grow=-200] {
-      node (phase5) {Phase 5: Generate 10K+ $\to$ eSEN $\to$ TD-DFT $\to$ Top 50}
+    child [grow=-210] {
+      node (phase5) {Ph5: Generate 10K Screen Top50}
     }
-    child [grow=-220] {
-      node {Phase 6: Wet-Lab Synthesis, UV-Vis, Coating Tests}
+    child [grow=-230] {
+      node {Ph6: Wet-Lab Synthesis}
     }
-    child [grow=-240] {
-      node {Phase 7: Nature Paper}
-    }
-  }
-% ────────────────────────────────────────────────────────────────────
-% BRANCH 8  –  Research Gaps  (≈ 165°)
-% ────────────────────────────────────────────────────────────────────
-  child [concept color=brGaps, grow=195] {
-    node (gaps) {Research Gaps (7 Gaps)}
-    child [grow=240] {
-      node {Gap 1: No Scale-Space in Mol-Gen $\to$ SSD coarsening}
-    }
-    child [grow=220] {
-      node {Gap 2: Flat Diffusion $\to$ Hierarchical MolSSD}
-    }
-    child [grow=200] {
-      node {Gap 3: Atom Limit ${\sim}50$ $\to$ OMol25 scaling}
-    }
-    child [grow=180] {
-      node {Gap 4: No UV Conditioning $\to$ $\lambda$-guided gen}
-    }
-    child [grow=160] {
-      node {Gap 5: No Energy Oracle $\to$ eSEN from OMol25}
-    }
-    child [grow=140] {
-      node {Gap 6: No Spec\-tral Sched\-ule $\to$ Convex\-Decay}
-    }
-    child [grow=260] {
-      node {Gap 7: Theory Gap $\to$ Info-theoretic proof}
+    child [grow=-245] {
+      node {Ph7: Nature Paper}
     }
   }
-% ────────────────────────────────────────────────────────────────────
-% BRANCH 9  –  Baselines & Metrics  (≈ -235°)
-% ────────────────────────────────────────────────────────────────────
+%
+% BRANCH 8 - Research Gaps
+  child [concept color=brGaps, grow=205] {
+    node (gaps) {7 Research Gaps}
+    child [grow=250] {
+      node {G1: No Info-Theoretic Basis}
+    }
+    child [grow=230] {
+      node {G2: Ad-hoc Fragmen\-tation}
+    }
+    child [grow=210] {
+      node {G3: No Non-Isotropic Posteriors}
+    }
+    child [grow=190] {
+      node {G4: Full Resolution Inefficiency}
+    }
+    child [grow=170] {
+      node {G5: No Interpretable Intermediates}
+    }
+    child [grow=150] {
+      node {G6: No CG-Generative Unification}
+    }
+    child [grow=270] {
+      node {G7: No UV Generative Design}
+    }
+  }
+%
+% BRANCH 9 - Baselines and Metrics
   child [concept color=brBase, grow=-250] {
-    node (baselines) {Baselines \& Metrics}
-    child [grow=-220] {
+    node (baselines) {Baselines and Metrics}
+    child [grow=-215] {
       node {Baselines}
-      child { node {EDM, GeoLDM} }
-      child { node {GCDM, EQGAT-diff} }
-      child { node {MolDiff, HierDiff} }
+      child { node {EDM GeoLDM} }
+      child { node {GCDM EQGAT} }
+      child { node {MolDiff HierDiff} }
     }
     child [grow=-250] {
       node {Molecular Metrics}
-      child { node {Validity, Unique\-ness, Novelty} }
-      child { node {JS Diver\-gence} }
-      child { node {QED, SA Score} }
+      child { node {Validity Unique\-ness Novelty} }
+      child { node {JS Divergence} }
+      child { node {QED SA Score} }
     }
     child [grow=-280] {
-      node (uvmetrics) {UV Metrics}
+      node (uvmetrics) {UV-Specific Metrics}
       child { node {Absorption Accuracy} }
-      child { node {Photo\-stability} }
-      child { node {Coating Compat\-ibility} }
+      child { node {Photo\-stability Score} }
     }
   }
 ; % end of mindmap tree
 
-% ════════════════════════════════════════════════════════════════════
-% CROSS-BRANCH CONNECTIONS  (dashed lines linking related concepts)
-% ════════════════════════════════════════════════════════════════════
+\end{scope}
+
+% CROSS-BRANCH CONNECTIONS (dashed lines)
 \begin{pgfonlayer}{background}
 
-  % Spectral Graph Theory ↔ Spectral Coarsening Operator
-  \draw [dashed, brTheory!70, line width=0.8pt, shorten >=4pt, shorten <=4pt]
-    (sgt) -- (speccoarse)
-    node [midway, fill=white, font=\tiny, text=brTheory!90, inner sep=1pt, rounded corners]
-    {spectral link};
+  % Spectral Graph Theory <-> Spectral Coarsening Operator
+  \draw [dashed, brTheory!70, line width=0.9pt, shorten >=6pt, shorten <=6pt]
+    (sgt) -- (speccoarse);
 
-  % Spectral Graph Theory ↔ Graph Laplacian
-  \draw [dashed, brTheory!50, line width=0.6pt, shorten >=4pt, shorten <=4pt]
+  % Spectral Graph Theory <-> Graph Laplacian
+  \draw [dashed, brTheory!50, line width=0.6pt, shorten >=6pt, shorten <=6pt]
     (sgt) -- (graphlap);
 
-  % OMol25 ↔ Pre-training (already parent–child, add emphasis)
-  % Instead: OMol25 ↔ Pipeline Phase 2
-  \draw [dashed, brData!70, line width=0.8pt, shorten >=6pt, shorten <=6pt]
-    (omol) to[bend left=20] (pretrain);
+  % Chromophore skeleton <-> UV Application
+  \draw [dashed, brScale!70, line width=0.9pt, shorten >=8pt, shorten <=8pt]
+    (chromo) to[bend right=15] (uvapp);
 
-  % Chromophore skeleton ↔ UV-Absorber Application
-  \draw [dashed, brScale!70, line width=0.8pt, shorten >=6pt, shorten <=6pt]
-    (chromo) to[bend right=15] (uvapp)
-    node [midway, fill=white, font=\tiny, text=brScale!90, inner sep=1pt, rounded corners]
-    {chromophore $\to$ UV};
+  % UV Conditioning <-> UV Target Properties
+  \draw [dashed, brArch!60, line width=0.7pt, shorten >=8pt, shorten <=8pt]
+    (uvcond) to[bend right=30] (uvtarget);
 
-  % UV Conditioning (architecture) ↔ UV Target Properties
-  \draw [dashed, brArch!60, line width=0.7pt, shorten >=6pt, shorten <=6pt]
-    (uvcond) to[bend right=25] (uvtarget)
-    node [pos=0.45, fill=white, font=\tiny, text=brArch!90, inner sep=1pt, rounded corners]
-    {$\lambda$-conditioning};
-
-  % UV dataset ↔ UV Application
-  \draw [dashed, brData!50, line width=0.6pt, shorten >=5pt, shorten <=5pt]
+  % UV dataset <-> UV Application
+  \draw [dashed, brData!50, line width=0.6pt, shorten >=6pt, shorten <=6pt]
     (uvdata) -- (uvapp);
 
-  % SSD Paper ↔ Mathematical Framework
-  \draw [dashed, brTheory!60, line width=0.7pt, shorten >=5pt, shorten <=5pt]
-    (ssdpaper) to[bend left=15] (math)
-    node [midway, fill=white, font=\tiny, text=brTheory!80, inner sep=1pt, rounded corners]
-    {unifies};
+  % Research Gaps <-> Theory
+  \draw [dashed, brGaps!40, line width=0.5pt, shorten >=10pt, shorten <=10pt]
+    (gaps) to[bend left=15] (theory);
 
-  % Pipeline Phase 5 ↔ UV Metrics
-  \draw [dashed, brPipe!50, line width=0.6pt, shorten >=5pt, shorten <=5pt]
-    (phase5) to[bend right=15] (uvmetrics);
+  % Architecture <-> Multi-Scale Hierarchy
+  \draw [dashed, brArch!40, line width=0.5pt, shorten >=10pt, shorten <=10pt]
+    (arch) to[bend right=10] (hierarchy);
 
-  % Research Gaps ↔ Theory
-  \draw [dashed, brGaps!40, line width=0.5pt, shorten >=8pt, shorten <=8pt]
-    (gaps) to[bend left=12] (theory);
-
-  % Data ↔ Baselines
-  \draw [dashed, brBase!40, line width=0.5pt, shorten >=8pt, shorten <=8pt]
+  % Data <-> Baselines
+  \draw [dashed, brBase!40, line width=0.5pt, shorten >=10pt, shorten <=10pt]
     (data) to[bend right=10] (baselines);
 
-  % Architecture ↔ Multi-Scale Hierarchy
-  \draw [dashed, brArch!40, line width=0.5pt, shorten >=8pt, shorten <=8pt]
-    (arch) to[bend right=8] (hierarchy)
-    node [midway, fill=white, font=\tiny, text=brArch!70, inner sep=1pt, rounded corners]
-    {level $\leftrightarrow$ scale};
-
 \end{pgfonlayer}
-
-% ════════════════════════════════════════════════════════════════════
-% TITLE
-% ════════════════════════════════════════════════════════════════════
-\node [above=0.3cm of current bounding box.north,
-       font=\Large\bfseries\sffamily, text=coreOrange!90!black]
-  {MolSSD Project --- Complete Mind Map};
 
 \end{tikzpicture}
 \end{document}

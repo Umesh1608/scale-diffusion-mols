@@ -11,7 +11,7 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
 \usepackage{bm}
-\usepackage{bbm}
+\usepackage{dsfont}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{booktabs}
@@ -25,11 +25,9 @@
 \usepackage{enumitem}
 \usepackage{float}
 \usepackage{siunitx}
-\usepackage{nicefrac}
 \usepackage{tabularx}
 \usepackage{longtable}
 \usepackage{natbib}
-\usepackage{doi}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,calc}
 
@@ -42,8 +40,10 @@
 \newtheorem{remark}[theorem]{Remark}
 
 % --- Notation shortcuts ---
-\newcommand{\R}{\mathbb{R}}
-\newcommand{\E}{\mathbb{E}}
+\providecommand{\R}{}
+\renewcommand{\R}{\mathbb{R}}
+\providecommand{\E}{}
+\renewcommand{\E}{\mathbb{E}}
 \newcommand{\Var}{\mathrm{Var}}
 \newcommand{\KL}{\mathrm{KL}}
 \newcommand{\SNR}{\mathrm{SNR}}
@@ -62,7 +62,7 @@
 \newcommand{\Ct}{\bm{C}^{(k)}}
 \newcommand{\Lap}{\bm{L}}
 \newcommand{\adj}{\bm{A}}
-\newcommand{\degree}{\bm{D}}
+\newcommand{\degmat}{\bm{D}}
 
 % --- Title ---
 \title{\textbf{Molecular Scale Space Diffusion:\\Complete Technical Specification}\\[0.5em]
@@ -194,11 +194,11 @@ On graphs, shift invariance and rotational symmetry must be replaced by graph-ap
 
 Given a molecular graph $\cG = (V, E)$ with $N = |V|$ nodes (atoms) and adjacency matrix $\adj \in \{0,1\}^{N \times N}$, the combinatorial graph Laplacian is:
 \begin{equation}\label{eq:laplacian}
-    \Lap = \degree - \adj,
+    \Lap = \degmat - \adj,
 \end{equation}
-where $\degree = \mathrm{diag}(d_1, \ldots, d_N)$ is the degree matrix with $d_i = \sum_j A_{ij}$. The normalized Laplacian is:
+where $\degmat = \mathrm{diag}(d_1, \ldots, d_N)$ is the degree matrix with $d_i = \sum_j A_{ij}$. The normalized Laplacian is:
 \begin{equation}\label{eq:norm_laplacian}
-    \Lap_{\mathrm{norm}} = \degree^{-1/2} \Lap\, \degree^{-1/2} = \bm{I} - \degree^{-1/2} \adj\, \degree^{-1/2}.
+    \Lap_{\mathrm{norm}} = \degmat^{-1/2} \Lap\, \degmat^{-1/2} = \bm{I} - \degmat^{-1/2} \adj\, \degmat^{-1/2}.
 \end{equation}
 
 \subsubsection{Eigendecomposition}
@@ -677,15 +677,15 @@ where $w > 0$ is the guidance weight. Typical values are $w \in [1.0, 5.0]$.
 \begin{algorithmic}[1]
 \Require Molecular graph $\cG = (V, E)$ with $N$ atoms; target hierarchy sizes $(N_1, N_2, \ldots, N_L)$
 \Ensure Coarsening matrices $\{\bm{C}^{(k)}\}_{k=1}^L$; cluster assignments $\{c^{(k)}\}_{k=1}^L$
-\State Construct adjacency $\adj$ and degree $\degree$ matrices from $\cG$
-\State Compute Laplacian $\Lap \gets \degree - \adj$
+\State Construct adjacency $\adj$ and degree $\degmat$ matrices from $\cG$
+\State Compute Laplacian $\Lap \gets \degmat - \adj$
 \State Compute eigendecomposition $\Lap = \bm{U} \bm{\Lambda} \bm{U}^\top$
 \For{$k = 1, 2, \ldots, L$}
     \State Extract first $N_k$ eigenvectors: $\bm{U}_{N_k} \gets \bm{U}[:, 1:N_k]$
     \State Row-normalize: $\tilde{\bm{U}}_{N_k}[i,:] \gets \bm{U}_{N_k}[i,:] / \|\bm{U}_{N_k}[i,:]\|$
     \State Run $k$-means on $\tilde{\bm{U}}_{N_k}$ to obtain cluster assignment $c^{(k)}: V \to \{1,\ldots,N_k\}$
     \State Construct mass-weighted coarsening matrix $\bm{C}^{(k)}$ via \cref{eq:coarsening_matrix}
-    \State Construct coarsened adjacency: $\adj^{(k)}_{IJ} \gets \mathbbm{1}\!\left[\exists\, (i,j) \in E : c^{(k)}(i) = I, c^{(k)}(j) = J, I \neq J\right]$
+    \State Construct coarsened adjacency: $\adj^{(k)}_{IJ} \gets \mathds{1}\!\left[\exists\, (i,j) \in E : c^{(k)}(i) = I, c^{(k)}(j) = J, I \neq J\right]$
 \EndFor
 \State \Return $\{\bm{C}^{(k)}, c^{(k)}, \adj^{(k)}\}_{k=1}^L$
 \end{algorithmic}
@@ -1250,9 +1250,9 @@ All baselines are run with their published hyperparameters and codebases. For fa
 \toprule
 \textbf{Metric} & \textbf{Definition} \\
 \midrule
-Atom Stability (\%) & $\frac{1}{N_{\text{gen}}} \sum_i \frac{1}{|m_i|} \sum_{a \in m_i} \mathbbm{1}[\text{valency}(a) = \text{target\_valency}(a)]$ \\
+Atom Stability (\%) & $\frac{1}{N_{\text{gen}}} \sum_i \frac{1}{|m_i|} \sum_{a \in m_i} \mathds{1}[\text{valency}(a) = \text{target\_valency}(a)]$ \\
 \midrule
-Molecule Stability (\%) & $\frac{1}{N_{\text{gen}}} \sum_i \mathbbm{1}[\text{all atoms in } m_i \text{ are stable}]$ \\
+Molecule Stability (\%) & $\frac{1}{N_{\text{gen}}} \sum_i \mathds{1}[\text{all atoms in } m_i \text{ are stable}]$ \\
 \midrule
 Validity (\%) & $\frac{|\{m : \text{RDKit.MolFromSmiles}(\text{SMILES}(m)) \neq \text{None}\}|}{N_{\text{gen}}}$ \\
 \midrule
