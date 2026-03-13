@@ -1,0 +1,810 @@
+\documentclass[11pt,a4paper]{article}
+
+% --- Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{natbib}
+\usepackage{setspace}
+\usepackage{array}
+\usepackage{colortbl}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=green!50!black,
+    urlcolor=blue!60!black
+}
+
+\setstretch{1.15}
+
+% --- Custom commands ---
+\newcommand{\molssd}{\textsc{MolSSD}}
+\newcommand{\xt}{\mathbf{x}_t}
+\newcommand{\xzero}{\mathbf{x}_0}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Loss}{\mathcal{L}}
+
+% --- Title ---
+\title{%
+  \vspace{-1cm}
+  \textbf{Molecular Scale Space Diffusion (MolSSD):} \\[6pt]
+  \large A Principled Multi-Scale Framework for Generative Design \\
+  of UV-Absorbing Molecular Materials
+}
+
+\author{
+  Umesh \\
+  \textit{Research Proposal} \\[4pt]
+  \small Target Venue: \textit{Nature}
+}
+
+\date{March 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+% ============================================================
+% 1. EXECUTIVE SUMMARY
+% ============================================================
+\section{Executive Summary}
+
+The design of novel molecular materials with targeted optical properties remains one of the
+grand challenges at the intersection of computational chemistry and machine learning.
+Current generative diffusion models for molecules operate exclusively at full atomic
+resolution, lacking a principled multi-scale theory that would enable both computational
+efficiency and chemical interpretability. We propose \textbf{Molecular Scale Space Diffusion
+(\molssd{})}, the first framework to rigorously adapt scale-space diffusion
+theory~\citep{ssd2026} --- which unifies Gaussian blurring with diffusion-based generation
+--- to molecular graphs. \molssd{} defines a \emph{molecular scale space} that
+hierarchically coarsens molecules from full atomic detail through functional groups,
+fragments, and chromophore skeletons to a centroid representation, with mathematically
+grounded non-isotropic posteriors at each resolution-changing step. Applied to the urgent
+challenge of discovering novel UV-absorbing materials for protective coatings in autonomous
+systems, \molssd{} will be pre-trained on the OMol25 dataset~\citep{omol25} (140M+ DFT
+calculations, 83M molecules) and conditioned on absorption spectra, photostability, and
+coating compatibility. We expect to generate $>$10,000 candidate UV absorbers, validate the
+top candidates through TD-DFT screening and wet-lab synthesis, and deliver both a
+foundational theoretical contribution and practical novel materials. This work bridges
+scale-space theory from computer vision, coarse-graining from statistical mechanics, and
+generative modeling from machine learning into a unified framework for molecular design.
+
+
+% ============================================================
+% 2. INTRODUCTION AND MOTIVATION
+% ============================================================
+\section{Introduction and Motivation}
+
+\subsection{The Molecular Generation Problem}
+
+Designing molecules with specific, application-driven properties is a central challenge
+across pharmaceutical development, materials science, and chemical engineering. The
+molecular design space is astronomically large --- estimates place the number of
+drug-like molecules alone at $10^{23}$ to $10^{60}$ --- rendering exhaustive enumeration
+impossible~\citep{bilodeau2022generative}. Generative models have emerged as a powerful
+paradigm for navigating this space, learning the underlying distribution of chemically
+valid, synthetically accessible molecules and sampling from it to propose novel candidates
+with desired properties~\citep{gomez2018automatic}.
+
+Among generative approaches, diffusion models have recently achieved state-of-the-art
+results in molecular generation. Equivariant diffusion models (EDM)~\citep{hoogeboom2022edm}
+generate 3D molecular structures respecting the SE(3) symmetry of physical space.
+Extensions including GeoDiff~\citep{xu2023geodiff}, GeoLDM~\citep{xu2023geoldm},
+MiDi~\citep{vignac2023midi}, GCDM~\citep{morehead2024gcdm}, and
+EQGAT-diff~\citep{le2024eqgat} have progressively improved sample quality, training
+stability, and property control. Yet all of these models share a fundamental limitation:
+they operate at a \emph{single, fixed atomic resolution} throughout the entire diffusion
+process.
+
+\subsection{Limitations of Current Diffusion Models}
+
+Working exclusively at full atomic resolution imposes three interrelated costs:
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Computational inefficiency.} Every denoising step operates over all $N$
+    atoms, even in the early stages of generation when the molecular structure is still
+    largely noise. The computational cost scales as $O(N^2)$ or worse per step, making
+    generation of large molecules ($N > 100$ heavy atoms) prohibitively slow.
+
+  \item \textbf{Lack of interpretability.} The intermediate states of a standard diffusion
+    trajectory are noisy point clouds with no chemically meaningful interpretation. There is
+    no ``scaffold first, then decorate'' logic --- a design principle that human chemists
+    routinely exploit. Users of generative models cannot inspect or intervene at intermediate
+    scales.
+
+  \item \textbf{No multi-scale theory.} Despite decades of scale-space
+    theory~\citep{lindeberg1994scalespace,witkin1987scalespace,koenderink1984structure} in
+    computer vision and coarse-graining theory~\citep{noid2008cg,kmiecik2016cg} in molecular
+    simulation, no unified mathematical framework connects these ideas with diffusion-based
+    generation. Existing hierarchical approaches~\citep{qiang2023hierdiff} use ad-hoc
+    fragmentation schemes (BRICS~\citep{degen2008brics}, Murcko
+    scaffolds~\citep{bemis1996murcko}) that lack information-theoretic justification.
+\end{enumerate}
+
+\subsection{The UV-Absorber Materials Challenge}
+
+Ultraviolet radiation causes photodegradation of polymers, coatings, and composite
+materials, leading to mechanical failure, discoloration, and loss of functional
+properties~\citep{yousif2013photodegradation}. UV-absorbing molecules are incorporated
+into protective coatings to mitigate this damage by converting UV photons into harmless
+thermal energy~\citep{gugumus1995stabilization,schaller2009uv}.
+
+Current commercial UV absorbers fall into a small number of chemical families ---
+benzotriazoles, benzophenones, triazines, and hydroxyphenyltriazines --- each with
+well-documented limitations~\citep{bojinov2012photostabilizers,cantrell2012uv}:
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Narrow absorption windows:} most commercial absorbers cover only portions
+    of the UV-A or UV-B range, requiring multi-component blends for broad-spectrum
+    protection;
+  \item \textbf{Photodegradation:} many absorbers themselves degrade under prolonged UV
+    exposure, reducing coating lifetime;
+  \item \textbf{Migration and leaching:} small-molecule absorbers can migrate to coating
+    surfaces and leach into the environment;
+  \item \textbf{Limited tunability:} the structure--property relationships governing
+    absorption wavelength, molar absorptivity, and photostability are poorly understood
+    outside established scaffolds.
+\end{itemize}
+
+These limitations are especially acute for \textbf{autonomous systems} --- self-driving
+vehicles, drones, and outdoor robotics --- whose sensor housings, LiDAR windows, and
+structural composites face continuous UV exposure in uncontrolled
+environments~\citep{akay2024autonomous}. The growing deployment of such systems creates
+an urgent need for next-generation UV absorbers with broad-spectrum coverage
+(280--400\,nm), exceptional photostability ($>$1000 hours), and compatibility with
+modern coating chemistries.
+
+\subsection{Why This Is Timely}
+
+Three recent developments make this project uniquely well-timed:
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Scale Space Diffusion theory} (March 2026): The SSD
+    paper~\citep{ssd2026} provides the first rigorous mathematical framework unifying
+    Gaussian blurring with diffusion models, including the non-isotropic posterior
+    derivation essential for resolution-changing steps. This theoretical foundation is
+    only weeks old.
+
+  \item \textbf{OMol25 dataset} (2025): The Open Molecules 2025 dataset~\citep{omol25}
+    provides 140M+ DFT calculations covering 83M unique molecular systems with
+    unprecedented chemical diversity, including the ground-state energetics needed for
+    pre-training molecular models at scale.
+
+  \item \textbf{Growing demand for UV protection in autonomous systems:} The rapid
+    expansion of autonomous vehicle fleets and drone operations creates immediate
+    commercial demand for superior UV-absorbing materials.
+\end{enumerate}
+
+
+% ============================================================
+% 3. RESEARCH GAPS
+% ============================================================
+\section{Research Gaps}
+
+We identify seven specific gaps in the current literature that \molssd{} directly addresses.
+
+\begin{enumerate}[leftmargin=*,label=\textbf{Gap~\arabic*.}]
+
+  \item \textbf{No information-theoretic basis for multi-scale molecular generation.} \\
+    Existing hierarchical molecular generation methods~\citep{qiang2023hierdiff} lack a
+    formal information-theoretic grounding for how molecular information should be
+    distributed across scales. \molssd{} provides this through the rate-distortion
+    interpretation of the SSD forward process, where each resolution level corresponds to
+    an optimal lossy compression of the molecular representation at a given information
+    budget.
+
+  \item \textbf{Ad-hoc molecular fragmentation.} \\
+    Current coarsening strategies rely on heuristic fragmentation rules (BRICS
+    retrosynthetic cuts~\citep{degen2008brics}, Murcko scaffold
+    decomposition~\citep{bemis1996murcko}) that have no optimality guarantees.
+    \molssd{} replaces these with spectral graph coarsening derived from the molecular
+    graph Laplacian~\citep{chung1997spectral}, providing a principled,
+    chemistry-aware decomposition that preserves the most informative structural
+    features at each scale.
+
+  \item \textbf{No formal non-isotropic posteriors in molecular coarse-graining.} \\
+    When a diffusion model transitions between resolution levels, the reverse-process
+    posterior becomes non-isotropic because different degrees of freedom are affected
+    differently by the coarsening operator. No existing molecular generative model
+    handles this correctly. \molssd{} derives and implements the exact non-isotropic
+    posterior using the Lanczos algorithm~\citep{lanczos1950iteration} for efficient
+    eigendecomposition of the coarsening operator.
+
+  \item \textbf{Computational inefficiency at full atomic resolution.} \\
+    All current 3D molecular diffusion models~\citep{hoogeboom2022edm,morehead2024gcdm}
+    expend equal computational effort at every denoising step, regardless of the
+    signal-to-noise ratio. \molssd{}'s multi-resolution approach allocates computation
+    proportional to the structural detail being resolved: early steps operate on compact
+    coarse representations, with full atomic resolution engaged only in the final
+    refinement stage.
+
+  \item \textbf{Lack of interpretable intermediate states.} \\
+    The intermediate samples $\xt$ in standard molecular diffusion are noisy and
+    chemically meaningless. \molssd{}'s scale-space trajectory produces interpretable
+    intermediates --- a chromophore skeleton at coarse scale, functional group placement at
+    medium scale, full atomic detail at fine scale --- enabling chemist-in-the-loop
+    intervention and design insight.
+
+  \item \textbf{No unified theory connecting coarse-graining and generative modeling.} \\
+    Physical coarse-graining~\citep{noid2008cg} and generative
+    diffusion~\citep{ho2020ddpm,song2021scorebased} have developed as separate fields
+    with no formal bridge. \molssd{} provides this bridge by showing that the SSD forward
+    process on molecular graphs is equivalent to a systematic coarse-graining, with deep
+    connections to the renormalization group~\citep{wilson1983renormalization,kadanoff1966scaling}.
+
+  \item \textbf{No generative design framework for UV-absorbing materials.} \\
+    Despite significant commercial interest, no existing generative model has been
+    specifically designed or applied to the systematic generation of UV-absorbing
+    molecules with targeted spectral properties. \molssd{} fills this gap with
+    UV-specific conditioning on absorption wavelength, molar absorptivity,
+    photostability, and coating compatibility.
+
+\end{enumerate}
+
+
+% ============================================================
+% 4. PROPOSED METHOD
+% ============================================================
+\section{Proposed Method}
+
+\subsection{Core Mathematical Framework}
+
+\molssd{} adapts the Scale Space Diffusion (SSD) framework~\citep{ssd2026} from
+continuous image domains to discrete molecular graphs. We represent a molecule as a
+tuple $\mathcal{M} = (\mathbf{X}, \mathbf{H}, \mathbf{A})$ where
+$\mathbf{X} \in \R^{N \times 3}$ are atomic coordinates,
+$\mathbf{H} \in \R^{N \times d_h}$ are node features (atom type, charge, hybridization),
+and $\mathbf{A} \in \{0,1\}^{N \times N}$ is the adjacency matrix.
+
+\paragraph{Forward process.}
+The forward process combines standard Gaussian noise injection with spectral graph
+coarsening. At timestep $t$, the noised molecular state is:
+\begin{equation}\label{eq:forward}
+  \xt = \mathbf{M}_{1:t}\,\xzero + \sigma_t\,\boldsymbol{\epsilon},
+  \qquad \boldsymbol{\epsilon} \sim \mathcal{N}(\mathbf{0}, \mathbf{I}),
+\end{equation}
+where $\mathbf{M}_{1:t} = \mathbf{M}_t \mathbf{M}_{t-1} \cdots \mathbf{M}_1$ is the
+cumulative coarsening operator and $\sigma_t$ is the noise schedule. In standard DDPM,
+$\mathbf{M}_{1:t} = \sqrt{\bar{\alpha}_t}\,\mathbf{I}$ and the process is purely
+noise-driven. In \molssd{}, $\mathbf{M}_t$ is a \emph{spectral coarsening matrix}
+derived from the graph Laplacian $\mathbf{L} = \mathbf{D} - \mathbf{A}$ at designated
+resolution-changing steps.
+
+\paragraph{Spectral coarsening.}
+Given the normalized graph Laplacian $\mathbf{L}_\text{sym} = \mathbf{I} -
+\mathbf{D}^{-1/2}\mathbf{A}\mathbf{D}^{-1/2}$ with eigendecomposition
+$\mathbf{L}_\text{sym} = \mathbf{U}\boldsymbol{\Lambda}\mathbf{U}^\top$, we define
+the coarsening operator at resolution level $r$ as:
+\begin{equation}\label{eq:coarsen}
+  \mathbf{M}^{(r)} = \mathbf{U}_{:,1:k_r}\,\mathbf{U}_{:,1:k_r}^\top,
+\end{equation}
+where $k_r < N$ retains only the $k_r$ lowest-frequency eigenvectors, corresponding
+to the coarsest structural features of the molecular graph. This is analogous to
+Gaussian blurring in the image domain but operates on the graph spectral domain. The
+retained eigenvectors naturally capture chemically meaningful groupings: the lowest
+frequencies delineate connected components and large-scale topology, intermediate
+frequencies resolve functional groups and ring systems, and high frequencies encode
+individual atom-level detail.
+
+\paragraph{Molecular scale space.}
+We define a hierarchy of five resolution levels that map to chemically interpretable
+representations:
+\begin{center}
+\begin{tabular}{clcl}
+  \toprule
+  \textbf{Level} & \textbf{Representation} & \textbf{Approx.\ $k_r/N$} & \textbf{Chemical meaning} \\
+  \midrule
+  $r=0$ & Full atoms          & 1.0   & Complete molecular graph \\
+  $r=1$ & Functional groups   & 0.5   & Heavy-atom groups (--OH, --NH$_2$, --COOH, \ldots) \\
+  $r=2$ & Fragments           & 0.2   & BRICS-like fragments, ring systems \\
+  $r=3$ & Chromophore skeleton& 0.05  & Conjugated backbone, key stereocenters \\
+  $r=4$ & Centroid            & $1/N$ & Single representative point \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Non-isotropic reverse process.}
+At resolution-changing steps in the reverse (generative) direction, the posterior
+distribution $q(\mathbf{x}_{t-1} | \xt, \xzero)$ becomes non-isotropic because
+the coarsening operator $\mathbf{M}_t$ has non-trivial spectral structure. Following
+the SSD derivation, the posterior covariance takes the form:
+\begin{equation}\label{eq:posterior}
+  \boldsymbol{\Sigma}_{t-1|t} = \left(
+    \frac{\mathbf{M}_t^\top \mathbf{M}_t}{\sigma_t^2 - \sigma_{t-1}^2}
+    + \frac{\mathbf{I}}{\sigma_{t-1}^2}
+  \right)^{-1},
+\end{equation}
+which is no longer a scalar multiple of the identity. We compute this efficiently
+using the Lanczos algorithm~\citep{lanczos1950iteration} to obtain a low-rank
+approximation of $\mathbf{M}_t^\top \mathbf{M}_t$, avoiding explicit inversion of
+the full $N \times N$ matrix. This is a key theoretical contribution: existing
+molecular diffusion models implicitly assume isotropic posteriors, which is only
+correct when no resolution change occurs.
+
+\subsection{Molecular Flexi-Net Architecture}
+
+The denoising network $\boldsymbol{\epsilon}_\theta(\xt, t, c)$ must operate at
+varying resolutions while maintaining SE(3) equivariance. We propose
+\textbf{Molecular Flexi-Net}, a hierarchical E($n$)-equivariant graph neural
+network inspired by the Flexi-Net architecture from SSD~\citep{ssd2026} and
+adapted to molecular graphs:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Resolution-adaptive message passing:} At each resolution level, message
+    passing operates on the appropriately coarsened graph. Equivariant graph neural
+    network (EGNN) layers~\citep{satorras2021egnn} process coordinates and features
+    jointly, preserving SE(3) equivariance through center-of-mass aggregation during
+    coarsening.
+
+  \item \textbf{Cross-resolution skip connections:} Feature maps from coarser resolutions
+    are projected back to finer grids via the transpose of the coarsening operator,
+    providing global context to local refinement steps.
+
+  \item \textbf{Adaptive depth:} Following DiT~\citep{peebles2023dit}, we use adaptive
+    layer normalization (adaLN) to condition the network on both the diffusion timestep
+    $t$ and the current resolution level $r$, allowing the same parameters to handle
+    all scales.
+
+  \item \textbf{SE(3) equivariance throughout:} Coordinate updates use equivariant
+    operations exclusively. Coarsening aggregates coordinates via center-of-mass (which
+    commutes with rotations and translations), and all message-passing layers use
+    radial basis functions on interatomic distances.
+\end{itemize}
+
+\subsection{UV-Absorber Conditioning Strategy}
+
+For conditional generation of UV-absorbing molecules, we augment the denoising
+network with property conditioning using classifier-free
+guidance~\citep{ho2022classifierfree}. The conditioning vector $\mathbf{c}$ encodes:
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Target absorption spectrum:} A discretized UV-Vis absorption profile
+    $A(\lambda)$ over 280--400\,nm, parameterized as $\lambda_\text{max}$, bandwidth,
+    and peak molar absorptivity $\varepsilon_\text{max}$;
+  \item \textbf{Photostability score:} A scalar encoding predicted resistance to
+    photodegradation, derived from TD-DFT excited-state analysis;
+  \item \textbf{Coating compatibility:} Solubility parameters (Hansen solubility
+    parameters), molecular weight constraints, and functional group requirements for
+    covalent incorporation into coating matrices.
+\end{itemize}
+
+During training, we randomly drop the conditioning vector with probability $p = 0.1$
+to enable classifier-free guidance at inference. At generation time, the guided score
+estimate is:
+\begin{equation}\label{eq:cfg}
+  \tilde{\boldsymbol{\epsilon}}_\theta(\xt, t, \mathbf{c})
+  = (1 + w)\,\boldsymbol{\epsilon}_\theta(\xt, t, \mathbf{c})
+  - w\,\boldsymbol{\epsilon}_\theta(\xt, t, \varnothing),
+\end{equation}
+where $w$ is the guidance weight controlling the fidelity--diversity tradeoff.
+
+\subsection{OMol25 Integration}
+
+The Open Molecules 2025 (OMol25) dataset~\citep{omol25} plays three distinct roles in
+the \molssd{} pipeline:
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Pre-training corpus.} OMol25's 83M unique molecular systems spanning
+    diverse chemistries provide an unparalleled pre-training corpus for the Molecular
+    Flexi-Net. We pre-train the encoder on a denoising objective over OMol25 geometries
+    to learn robust, transferable molecular representations before fine-tuning on
+    UV-absorber-specific data.
+
+  \item \textbf{Energy oracle via eSEN.} The eSEN (equivariant Scalable Energy Network)
+    models~\citep{fairchem2024} trained on OMol25 provide rapid ground-state energy and
+    force predictions for generated candidates, enabling energy-based filtering before
+    expensive TD-DFT calculations. This serves as a computationally cheap validity check.
+
+  \item \textbf{Scalability benchmark.} OMol25 contains molecules ranging from small
+    organics to systems with $>$100 heavy atoms, making it the ideal testbed for
+    demonstrating \molssd{}'s computational scaling advantages over fixed-resolution
+    methods on large molecular systems.
+\end{enumerate}
+
+
+% ============================================================
+% 5. EXPERIMENTAL PLAN
+% ============================================================
+\section{Experimental Plan}
+
+\subsection{Phase 1: Foundation and Validation (Months 1--3)}
+
+\paragraph{Objective:} Implement the core \molssd{} framework and validate on standard
+benchmarks before tackling UV absorbers.
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{QM9 benchmark}~\citep{ramakrishnan2014qm9}: 134K small molecules
+    ($\le$9 heavy atoms). Validate molecular validity, uniqueness, and novelty metrics.
+    Compare against EDM~\citep{hoogeboom2022edm}, GeoLDM~\citep{xu2023geoldm}, and
+    GCDM~\citep{morehead2024gcdm}. Target: $\ge$95\% validity, competitive FCD scores.
+
+  \item \textbf{GEOM-Drugs benchmark}~\citep{axelrod2022geom}: 304K drug-like
+    conformations with molecules up to 181 atoms. Validate scaling behavior and
+    conformational accuracy (RMSD to ground truth). Demonstrate wall-clock speedup from
+    multi-resolution generation.
+
+  \item \textbf{OMol25 scalability test}: Pre-train on a representative 1M-molecule
+    subset of OMol25. Measure training throughput and generation quality as a function
+    of molecular size. Quantify the computational savings of multi-resolution generation
+    versus full-resolution baselines.
+
+  \item \textbf{Ablation studies}: Systematically evaluate (i) the number of resolution
+    levels (2, 3, 5), (ii) spectral versus heuristic coarsening, (iii) isotropic
+    versus non-isotropic posteriors, (iv) Min-SNR-5 loss
+    weighting~\citep{hang2023minsnr} versus uniform weighting, and (v) ConvexDecay(0.5)
+    versus linear resolution schedules.
+\end{itemize}
+
+\subsection{Phase 2: UV-Absorber Dataset and Training (Months 3--5)}
+
+\paragraph{Objective:} Curate a UV-absorber dataset and train the conditional \molssd{}
+model.
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Dataset curation:} Assemble a dataset of $\sim$50K known UV-absorbing
+    molecules from ChEMBL, PubChem, patent literature, and commercial catalogs.
+    For each molecule, compute or extract: (i)~UV-Vis absorption spectrum via
+    TD-DFT (CAM-B3LYP/6-31+G(d))~\citep{yanai2004camb3lyp,casida1995tddft},
+    (ii)~photostability indicators from excited-state analysis,
+    (iii)~synthesizability score~\citep{ertl2009sa},
+    (iv)~coating-relevant physicochemical properties.
+
+  \item \textbf{TD-DFT calculations:} Perform TD-DFT calculations on the curated
+    dataset using the CAM-B3LYP functional, which is well-validated for
+    charge-transfer excited states relevant to UV
+    absorption~\citep{yanai2004camb3lyp}. Budget: $\sim$50K single-point
+    calculations ($\sim$25K GPU-hours on modern hardware).
+
+  \item \textbf{Conditional model training:} Fine-tune the OMol25-pre-trained
+    Molecular Flexi-Net with UV-absorber conditioning. Train with classifier-free
+    guidance ($p_\text{drop} = 0.1$). Validate conditional generation quality
+    on a held-out test set (10\% of UV-absorber data).
+\end{itemize}
+
+\subsection{Phase 3: Generation and Screening (Months 5--7)}
+
+\paragraph{Objective:} Generate a large library of candidate UV absorbers and screen
+them computationally.
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Candidate generation:} Generate 10,000+ candidate molecules conditioned
+    on target absorption profiles spanning 280--400\,nm, with guidance weights $w \in
+    \{1, 2, 5, 10\}$ to explore the diversity--fidelity tradeoff.
+
+  \item \textbf{eSEN energy filtering:} Use eSEN models~\citep{fairchem2024} pre-trained
+    on OMol25 to predict ground-state energies and forces for all candidates. Filter out
+    thermodynamically unstable structures (formation energy $> 0.5$\,eV/atom above hull).
+
+  \item \textbf{Synthesizability screening:} Compute SA
+    scores~\citep{ertl2009sa} and retrosynthetic
+    feasibility~\citep{coley2017retrosynthesis} for energy-stable candidates.
+    Retain molecules with SA score $< 4.0$ and at least one viable retrosynthetic route.
+
+  \item \textbf{TD-DFT validation:} Perform full TD-DFT calculations
+    (CAM-B3LYP/6-31+G(d,p))~\citep{casida1995tddft} on the top 500 candidates surviving
+    energy and synthesizability filters. Compare predicted absorption spectra against
+    conditioning targets. Select top 50 candidates for experimental validation.
+
+  \item \textbf{Multi-objective ranking:} Rank final candidates by a composite score
+    balancing absorption coverage (280--400\,nm), peak molar absorptivity
+    ($\varepsilon_\text{max} > 10^4$\,L\,mol$^{-1}$\,cm$^{-1}$), predicted
+    photostability, and synthetic accessibility.
+\end{itemize}
+
+\subsection{Phase 4: Wet-Lab Validation (Months 7--9)}
+
+\paragraph{Objective:} Synthesize and experimentally characterize the most promising
+computationally-designed UV absorbers.
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Synthesis:} Select the top 10--20 candidates based on Phase~3 rankings
+    and synthetic feasibility assessment. Synthesize via established organic chemistry
+    routes, prioritizing molecules with 3--5 step syntheses from commercial starting
+    materials.
+
+  \item \textbf{UV-Vis spectroscopy:} Measure experimental absorption spectra in
+    solution (multiple solvents) and thin film. Compare against TD-DFT predictions
+    and generation targets. Success criterion: $|\lambda_\text{max}^\text{exp} -
+    \lambda_\text{max}^\text{pred}| < 20$\,nm for $>$70\% of synthesized compounds.
+
+  \item \textbf{Photostability testing:} Subject synthesized absorbers to accelerated
+    UV aging (QUV weatherometer, ASTM G154). Monitor absorption spectrum degradation
+    over 500--1000 hours. Target: $<$10\% decrease in peak absorbance after 500 hours.
+
+  \item \textbf{Coating integration tests:} Incorporate top performers into model
+    coating formulations (acrylic-urethane and epoxy-amine systems). Evaluate
+    UV-protective performance via substrate photodegradation assays. Compare
+    against commercial benchmarks (Tinuvin~328, Tinuvin~1130).
+\end{itemize}
+
+\subsection{Phase 5: Analysis and Paper (Months 9--11)}
+
+\paragraph{Objective:} Comprehensive analysis, comparison, and manuscript preparation.
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Theoretical analysis:} Formalize the connection between SSD on molecular
+    graphs and renormalization group theory. Prove or empirically verify information
+    preservation bounds across resolution levels. Analyze the spectral properties of
+    molecular Laplacians and their relationship to chemical coarsening.
+
+  \item \textbf{Benchmarking:} Compile comprehensive comparisons against all baselines
+    on QM9, GEOM-Drugs, and the UV-absorber task. Report wall-clock generation times,
+    sample quality metrics, and property prediction accuracy.
+
+  \item \textbf{Manuscript preparation:} Write and submit a manuscript to \textit{Nature},
+    emphasizing (i)~the theoretical framework, (ii)~the practical discovery of novel UV
+    absorbers, and (iii)~the broader implications for multi-scale molecular design.
+
+  \item \textbf{Code and data release:} Open-source the \molssd{} codebase, trained model
+    weights, UV-absorber dataset, and generated candidate library.
+\end{itemize}
+
+
+% ============================================================
+% 6. TIMELINE
+% ============================================================
+\section{Timeline}
+
+\begin{table}[h!]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\definecolor{phase1}{HTML}{4472C4}
+\definecolor{phase2}{HTML}{ED7D31}
+\definecolor{phase3}{HTML}{A5A5A5}
+\definecolor{phase4}{HTML}{FFC000}
+\definecolor{phase5}{HTML}{5B9BD5}
+\newcommand{\cell}[1]{\cellcolor{#1}\hspace{0pt}}
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Activity} & \rotatebox{90}{\textbf{M1}} & \rotatebox{90}{\textbf{M2}} & \rotatebox{90}{\textbf{M3}} & \rotatebox{90}{\textbf{M4}} & \rotatebox{90}{\textbf{M5}} & \rotatebox{90}{\textbf{M6}} & \rotatebox{90}{\textbf{M7}} & \rotatebox{90}{\textbf{M8}} & \rotatebox{90}{\textbf{M9}} & \rotatebox{90}{\textbf{M10}} & \rotatebox{90}{\textbf{M11}} \\
+\hline
+SSD implementation \& QM9         & \cell{phase1} & \cell{phase1} & & & & & & & & & \\
+\hline
+GEOM-Drugs \& OMol25 scaling      & & \cell{phase1} & \cell{phase1} & & & & & & & & \\
+\hline
+Ablation studies                   & & & \cell{phase1} & & & & & & & & \\
+\hline
+UV-absorber dataset curation       & & & \cell{phase2} & \cell{phase2} & & & & & & & \\
+\hline
+TD-DFT calculations (training)    & & & & \cell{phase2} & \cell{phase2} & & & & & & \\
+\hline
+Conditional model training         & & & & & \cell{phase2} & & & & & & \\
+\hline
+Candidate generation (10K)         & & & & & & \cell{phase3} & & & & & \\
+\hline
+eSEN + SA screening                & & & & & & \cell{phase3} & & & & & \\
+\hline
+TD-DFT validation (top 500)       & & & & & & \cell{phase3} & \cell{phase3} & & & & \\
+\hline
+Synthesis (10--20 compounds)       & & & & & & & \cell{phase4} & \cell{phase4} & & & \\
+\hline
+Spectroscopy \& photostability     & & & & & & & & \cell{phase4} & \cell{phase4} & & \\
+\hline
+Coating integration tests          & & & & & & & & & \cell{phase4} & & \\
+\hline
+Theoretical analysis               & & & & & & & & & \cell{phase5} & \cell{phase5} & \\
+\hline
+Manuscript writing                 & & & & & & & & & & \cell{phase5} & \cell{phase5} \\
+\hline
+Code/data release                  & & & & & & & & & & & \cell{phase5} \\
+\hline
+\end{tabular}
+\caption{Gantt chart for the 11-month \molssd{} project. Colors indicate phases:
+\textcolor{phase1}{$\blacksquare$}~Foundation \& Validation,
+\textcolor{phase2}{$\blacksquare$}~UV-Absorber Dataset \& Training,
+\textcolor{phase3}{$\blacksquare$}~Generation \& Screening,
+\textcolor{phase4}{$\blacksquare$}~Wet-Lab Validation,
+\textcolor{phase5}{$\blacksquare$}~Analysis \& Paper.}
+\label{tab:timeline}
+\end{table}
+
+
+% ============================================================
+% 7. RISK ASSESSMENT
+% ============================================================
+\section{Risk Assessment}
+
+\begin{table}[h!]
+\centering
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{>{\raggedright}p{3.8cm} c >{\raggedright\arraybackslash}p{6.5cm}}
+  \toprule
+  \textbf{Risk} & \textbf{Likelihood} & \textbf{Mitigation} \\
+  \midrule
+  SE(3) equivariance broken by spectral coarsening &
+  Medium &
+  Use center-of-mass aggregation (commutes with rotations/translations);
+  add equivariance unit tests at every resolution level. \\
+
+  Non-isotropic posterior computation too expensive for large molecules &
+  Medium &
+  Lanczos algorithm provides $O(Nk)$ low-rank approximation; fall back to
+  block-diagonal approximation if needed. \\
+
+  OMol25 pre-training does not transfer to UV-absorber domain &
+  Low &
+  OMol25 covers broad chemical diversity including conjugated organics;
+  supplement with domain-specific augmentation if transfer is weak. \\
+
+  TD-DFT predictions inaccurate for novel scaffolds &
+  Medium &
+  Use CAM-B3LYP (validated for charge-transfer states); cross-validate
+  against experimental data for known UV absorbers; escalate to
+  CC2/ADC(2) for outliers. \\
+
+  Generated molecules not synthesizable &
+  Medium &
+  Enforce SA score filtering ($< 4.0$) and retrosynthetic feasibility
+  during screening; involve synthetic chemist in candidate selection. \\
+
+  Insufficient GPU resources for OMol25-scale pre-training &
+  Low &
+  Start with 1M-molecule subset; scale up as resources allow.
+  Pre-training is parallelizable across multiple nodes. \\
+
+  Photostability of novel absorbers insufficient &
+  Medium &
+  Include photostability as explicit conditioning signal; screen for
+  known photodegradation pathways (e.g., Norrish reactions) computationally
+  before synthesis. \\
+  \bottomrule
+\end{tabular}
+\caption{Key project risks and mitigation strategies.}
+\label{tab:risks}
+\end{table}
+
+
+% ============================================================
+% 8. EXPECTED OUTCOMES AND IMPACT
+% ============================================================
+\section{Expected Outcomes and Impact}
+
+\subsection{Scientific Contributions}
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{A unified multi-scale theory for molecular generation.}
+    \molssd{} will establish the first rigorous connection between scale-space
+    theory~\citep{lindeberg1994scalespace}, molecular
+    coarse-graining~\citep{noid2008cg}, and diffusion-based
+    generation~\citep{ho2020ddpm}. This theoretical framework --- including the
+    information-theoretic justification for spectral coarsening, the non-isotropic
+    posterior derivation, and the connection to the renormalization
+    group~\citep{wilson1983renormalization} --- will be broadly applicable beyond
+    UV absorbers to any molecular generation task.
+
+  \item \textbf{Interpretable multi-scale generation.}
+    By producing chemically meaningful intermediate states (chromophore skeleton
+    $\to$ fragments $\to$ functional groups $\to$ full atoms), \molssd{} will enable
+    a new paradigm of interpretable molecular generation where chemists can understand,
+    inspect, and intervene in the design process at multiple levels of abstraction.
+
+  \item \textbf{Computational efficiency gains.}
+    We expect multi-resolution generation to achieve 3--5$\times$ wall-clock speedup
+    over fixed-resolution baselines on molecules with $>$50 heavy atoms, with larger
+    gains for bigger molecules. This will be rigorously benchmarked.
+
+  \item \textbf{Formal bridge between physical and generative coarse-graining.}
+    The mathematical equivalence between the SSD forward process on molecular graphs
+    and systematic coarse-graining will provide new theoretical tools for both the
+    molecular simulation and generative modeling communities.
+\end{enumerate}
+
+\subsection{Practical Deliverables}
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Novel UV-absorbing molecules.}
+    We aim to identify 5--10 novel molecular scaffolds with experimentally validated
+    broad-spectrum UV absorption (280--400\,nm), high molar absorptivity
+    ($\varepsilon_\text{max} > 10^4$\,L\,mol$^{-1}$\,cm$^{-1}$), and photostability
+    exceeding 500 hours of accelerated aging.
+
+  \item \textbf{Computational screening pipeline.}
+    A validated, open-source pipeline from conditional molecular generation through
+    eSEN energy filtering, synthesizability screening, and TD-DFT spectral
+    validation --- reusable for any molecular materials design campaign.
+
+  \item \textbf{UV-absorber dataset.}
+    A curated dataset of $\sim$50K UV-absorbing molecules with computed absorption
+    spectra, photostability indicators, and physicochemical properties --- a community
+    resource for UV-absorber research.
+
+  \item \textbf{Open-source \molssd{} code.}
+    A well-documented, modular implementation of \molssd{} with pre-trained weights,
+    enabling the community to apply multi-scale diffusion to their own molecular
+    design problems.
+\end{enumerate}
+
+\subsection{Broader Impact}
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Accelerating materials discovery.}
+    The \molssd{} framework demonstrates a general paradigm --- principled multi-scale
+    generative modeling --- that can accelerate the discovery of functional molecular
+    materials across domains: organic semiconductors, photovoltaic materials,
+    fluorescent probes, and catalysts.
+
+  \item \textbf{Protecting autonomous systems.}
+    Novel UV absorbers with superior performance and photostability will directly
+    address the UV degradation challenges facing autonomous vehicle fleets, drones,
+    and outdoor robotics, potentially extending component lifetimes by 2--5$\times$.
+
+  \item \textbf{Reducing environmental impact.}
+    By designing UV absorbers with reduced migration and leaching, and by
+    computationally screening for environmental persistence before synthesis, this
+    work contributes to the development of safer, more sustainable protective
+    coatings.
+
+  \item \textbf{Advancing multi-scale AI.}
+    The theoretical insights from adapting scale-space theory to molecular graphs
+    may inspire analogous multi-scale approaches in other structured domains:
+    protein design, crystal structure prediction, and polymer engineering.
+\end{enumerate}
+
+
+% ============================================================
+% 9. BUDGET CONSIDERATIONS
+% ============================================================
+\section{Budget Considerations}
+
+\begin{table}[h!]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lrr}
+  \toprule
+  \textbf{Item} & \textbf{Estimated Cost} & \textbf{Notes} \\
+  \midrule
+  \multicolumn{3}{l}{\textit{Computational Resources}} \\
+  \quad OMol25 pre-training (1M subset)  & \$8,000--12,000  & $\sim$2,000 A100-GPU-hours \\
+  \quad QM9/GEOM-Drugs training \& eval  & \$2,000--4,000   & $\sim$500--1,000 GPU-hours \\
+  \quad UV-absorber conditional training  & \$4,000--6,000   & $\sim$1,000--1,500 GPU-hours \\
+  \quad Generation \& eSEN screening     & \$1,000--2,000   & 10K molecules + inference \\
+  \quad TD-DFT (training set, 50K)       & \$15,000--25,000  & $\sim$25K GPU-hours (GPU-accelerated DFT) \\
+  \quad TD-DFT (validation, 500)         & \$2,000--4,000   & Higher-quality basis set \\
+  \midrule
+  \multicolumn{3}{l}{\textit{Wet-Lab Costs}} \\
+  \quad Chemical synthesis (10--20 compounds) & \$15,000--30,000 & Reagents, solvents, purification \\
+  \quad UV-Vis spectroscopy              & \$2,000--4,000   & Solution and thin-film measurements \\
+  \quad Accelerated weathering tests     & \$5,000--10,000  & QUV chamber time, sample preparation \\
+  \quad Coating formulation \& testing   & \$5,000--10,000  & Formulation, application, characterization \\
+  \midrule
+  \multicolumn{3}{l}{\textit{Other}} \\
+  \quad Software licenses (Gaussian, etc.)& \$2,000--5,000  & Academic licenses \\
+  \quad Publication \& open access fees  & \$5,000--10,000  & Nature OA fee \\
+  \midrule
+  \textbf{Total}                         & \textbf{\$66,000--122,000} & \\
+  \bottomrule
+\end{tabular}
+\caption{Estimated project budget. GPU costs assume cloud pricing at \$3--5/hour for
+A100 instances. Wet-lab costs are order-of-magnitude estimates dependent on molecular
+complexity and available infrastructure.}
+\label{tab:budget}
+\end{table}
+
+\noindent The largest cost drivers are TD-DFT calculations for the training dataset and
+wet-lab synthesis. Both can be reduced by (i)~leveraging existing computed spectra from
+databases where available, (ii)~using GPU-accelerated DFT codes (e.g., TeraChem, GPU4PySCF)
+to reduce per-molecule wall-clock time, and (iii)~prioritizing molecules with short,
+well-precedented synthetic routes. The computational budget assumes cloud GPU rental;
+costs would be substantially lower if institutional HPC resources are available.
+
+
+% ============================================================
+% 10. REFERENCES
+% ============================================================
+\newpage
+\bibliographystyle{unsrtnat}
+\bibliography{../references}
+
+\end{document}

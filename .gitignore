@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.nav
+*.snm
+*.vrb
+
+# Data (large files)
+data/
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.ckpt
+
+# Zone identifiers (WSL)
+*:Zone.Identifier
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Wandb
+wandb/

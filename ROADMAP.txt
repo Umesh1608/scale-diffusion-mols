@@ -1,0 +1,815 @@
+================================================================================
+                        MolSSD PROJECT ROADMAP
+        Scalable Spectral Diffusion for Molecular Generation
+================================================================================
+
+Last updated: 2026-03-13
+
+Legend:
+  [ ] = Not started
+  [~] = In progress
+  [x] = Completed
+
+================================================================================
+PHASE 0: PROJECT SETUP & FOUNDATIONS (Months 1-2)
+================================================================================
+
+0.1  Environment Setup
+    [ ] Create conda environment (Python 3.10+, name: molssd)
+    [ ] Install PyTorch 2.x with CUDA support
+    [ ] Install PyTorch Geometric (PyG) and its dependencies (torch-scatter,
+        torch-sparse, torch-cluster, torch-spline-conv)
+    [ ] Install RDKit (conda-forge channel)
+    [ ] Install fairchem (formerly Open Catalyst) and verify eSEN model loading
+    [ ] Install additional dependencies: wandb, hydra-core, einops,
+        scipy, networkx, matplotlib, seaborn, pandas
+    [ ] Set up project directory structure:
+        molssd/
+          core/         (diffusion, coarsening, noise schedules)
+          models/       (EGNN, Flexi-Net)
+          data/         (loaders, preprocessing)
+          training/     (loops, losses, logging)
+          generation/   (sampling, filtering, screening)
+          evaluation/   (metrics, baselines)
+          configs/      (hydra YAML configs)
+          scripts/      (run scripts, slurm templates)
+          tests/        (unit and integration tests)
+    [ ] Set up version control (git init, .gitignore for data/checkpoints)
+    [ ] Set up experiment tracking (Weights & Biases project)
+    [ ] Set up compute environment (SLURM scripts for GPU cluster)
+    [ ] Verify GPU access and CUDA/cuDNN versions
+
+0.2  Read and Annotate SSD Paper Math
+    [ ] Read SSD paper end-to-end; take detailed notes
+    [ ] Annotate the forward process math: q(z_t | z_0) = N(z_t; M_t z_0, sigma_t^2 I)
+    [ ] Annotate the spectral coarsening operator derivation
+    [ ] Annotate the non-isotropic posterior derivation:
+        q(z_{t-1} | z_t, z_0) with full covariance structure
+    [ ] Annotate the resolution schedule and its effect on SNR
+    [ ] Annotate the Min-SNR-gamma loss weighting derivation
+    [ ] Annotate the Lanczos algorithm usage for efficient covariance computation
+    [ ] Write a 2-3 page math summary document for internal reference
+    [ ] Identify all hyperparameters and their recommended ranges
+
+0.3  Implement Spectral Graph Coarsening Operators
+    [ ] Implement graph Laplacian construction from molecular adjacency matrix
+        (L = D - A, normalized: L_sym = D^{-1/2} L D^{-1/2})
+    [ ] Implement eigendecomposition of graph Laplacian (torch.linalg.eigh)
+    [ ] Implement spectral clustering on Laplacian eigenvectors
+        (k-means on bottom-k eigenvectors)
+    [ ] Implement coarsening matrix C^{(k)} construction from spectral clusters
+        (binary assignment matrix, row-normalized)
+    [ ] Implement multi-level coarsening: C^{(1)}, C^{(2)}, ..., C^{(K)}
+    [ ] Implement signal projection: x^{(k)} = C^{(k)} x^{(k-1)}
+    [ ] Implement signal lifting: x^{(k-1)} = C^{(k)T} x^{(k)}
+    [ ] Verify coarsening preserves graph connectivity
+    [ ] Verify coarsening matrix dimensions at each level
+    [ ] Visualize coarsened molecular graphs for sanity checking
+
+0.4  Implement Linear Degradation Operator M_t
+    [ ] Implement M_t as the product of coarsening and lifting operators
+        at resolution level r(t): M_t = C^{(r(t))T} C^{(r(t))}
+    [ ] Implement resolution schedule r(t): mapping from diffusion time t
+        to resolution level (piecewise constant or smooth)
+    [ ] Implement M_t as a sparse matrix operation for memory efficiency
+    [ ] Implement batched M_t for multiple molecules with different sizes
+    [ ] Verify M_t is positive semi-definite
+    [ ] Verify M_t z converges to a uniform/coarsened signal as t -> T
+
+0.5  Implement M_t Transpose via Vector-Jacobian Product
+    [ ] Implement M_t^T explicitly for small molecules
+    [ ] Implement M_t^T via torch.autograd vector-Jacobian product (VJP)
+        for memory-efficient reverse process
+    [ ] Benchmark explicit vs VJP implementations (speed, memory)
+    [ ] Verify M_t^T M_t = M_t (idempotency when M_t is a projection)
+
+0.6  Implement Lanczos Algorithm for Non-Isotropic Posteriors
+    [ ] Implement basic Lanczos algorithm for tridiagonalization
+    [ ] Implement restarted Lanczos for numerical stability
+    [ ] Use Lanczos to approximate (M_t^T M_t + sigma^2 I)^{-1}
+    [ ] Implement efficient posterior mean computation:
+        mu_posterior = (alpha * M_t^T M_t x_0 + beta * z_t) / (gamma)
+    [ ] Implement efficient posterior covariance sampling using Lanczos
+    [ ] Set number of Lanczos iterations (k=20-50) and validate convergence
+    [ ] Benchmark Lanczos vs direct solve for small molecules
+
+0.7  Unit Tests for Equivariance Preservation
+    [ ] Test: M_t commutes with E(n) transformations (rotation, translation, reflection)
+    [ ] Test: Coarsening operator C^{(k)} preserves SE(3) equivariance
+    [ ] Test: Forward process q(z_t|z_0) is equivariant
+    [ ] Test: Posterior q(z_{t-1}|z_t,z_0) is equivariant
+    [ ] Test: Full pipeline equivariance (random rotation -> forward -> reverse
+        vs forward -> reverse -> rotate gives same result up to rotation)
+    [ ] Test: Lanczos output is equivariant
+    [ ] Test: Batched operations maintain per-molecule equivariance
+
+0.8  Information-Theoretic Validation
+    [ ] Implement mutual information estimator: I(z_t; z_0) as a function of t
+    [ ] Compute Info_mol(r): information content at resolution level r
+        (entropy of signal at each coarsening level)
+    [ ] Plot Info_mol(r) vs resolution level for representative QM9 molecules
+    [ ] Plot I(z_t; z_0) vs t for the SSD forward process
+    [ ] Compare information curves: SSD vs standard Gaussian diffusion
+    [ ] Verify information is destroyed gradually and monotonically
+    [ ] Verify coarser resolutions retain less molecular information
+
+
+================================================================================
+PHASE 1: CORE MODEL (Months 2-3)
+================================================================================
+
+1.1  Implement E(n)-Equivariant GNN (EGNN) Blocks
+    [ ] Implement EGNN message passing layer:
+        m_{ij} = phi_e(h_i, h_j, ||x_i - x_j||^2, a_{ij})
+    [ ] Implement coordinate update:
+        x_i' = x_i + sum_j (x_i - x_j) phi_x(m_{ij})
+    [ ] Implement feature update:
+        h_i' = phi_h(h_i, sum_j m_{ij})
+    [ ] Implement edge feature handling (bond type, distance)
+    [ ] Implement multi-head attention variant of EGNN
+    [ ] Implement skip connections and layer normalization
+    [ ] Stack L EGNN layers (L=4-8)
+    [ ] Verify E(n) equivariance with unit tests on random inputs
+    [ ] Benchmark forward/backward pass time and memory
+
+1.2  Implement Molecular Flexi-Net Architecture
+    [ ] Implement hierarchical EGNN with multi-resolution processing:
+        - Fine level: atom-level graph
+        - Coarse level(s): coarsened graph from spectral clustering
+    [ ] Implement dynamic activation functions (learnable per-layer)
+    [ ] Implement inter-resolution message passing:
+        - Fine-to-coarse: aggregate via C^{(k)}
+        - Coarse-to-fine: distribute via C^{(k)T}
+    [ ] Implement time embedding (sinusoidal + MLP)
+    [ ] Implement resolution-level embedding
+    [ ] Implement atom type embedding (one-hot or learned)
+    [ ] Implement noise level conditioning (inject sigma_t into network)
+    [ ] Implement output heads:
+        - Epsilon prediction (noise) for coordinates
+        - Epsilon prediction for atom features
+    [ ] Model parameter count target: ~10-50M parameters
+    [ ] Verify full model equivariance end-to-end
+
+1.3  Implement Forward Diffusion Process with Spectral Coarsening
+    [ ] Implement forward process: q(z_t | z_0) = N(z_t; M_t z_0, sigma_t^2 I)
+    [ ] Implement resolution schedule r(t) with configurable breakpoints
+    [ ] Implement coordinate diffusion (3D positions)
+    [ ] Implement feature diffusion (atom types as continuous then discretized)
+    [ ] Implement joint coordinate + feature diffusion
+    [ ] Handle variable-size molecules in batched forward process
+    [ ] Verify forward process marginals match analytic form
+    [ ] Visualize forward process trajectories for sample molecules
+
+1.4  Implement Reverse Process with Non-Isotropic Posterior
+    [ ] Implement posterior mean: mu_{t-1|t,0} using M_t, M_t^T
+    [ ] Implement posterior covariance: Sigma_{t-1|t,0} (non-isotropic)
+    [ ] Implement DDPM-style reverse step:
+        z_{t-1} = mu_{t-1|t,0}(z_t, epsilon_theta) + Sigma^{1/2} * noise
+    [ ] Implement DDIM-style deterministic reverse step (optional)
+    [ ] Implement ancestral sampling with full covariance
+    [ ] Implement Lanczos-accelerated posterior sampling
+    [ ] Implement number-of-atoms prediction/conditioning
+    [ ] Handle resolution transitions cleanly during reverse process
+    [ ] Verify reverse process produces valid molecular geometries
+
+1.5  Implement Noise Schedules
+    [ ] Implement ConvexDecay schedule:
+        alpha_t = 1 - (t/T)^p for convexity parameter p
+    [ ] Implement SigmoidLikeDecay schedule:
+        alpha_t = sigmoid(-a*(t/T - b)) / sigmoid(a*b)
+    [ ] Implement linear schedule (baseline)
+    [ ] Implement cosine schedule (baseline, from Nichol & Dhariwal)
+    [ ] Implement schedule interpolation and blending
+    [ ] Plot SNR curves for all schedules
+    [ ] Make schedule selection configurable via hydra config
+
+1.6  Implement Min-SNR-5 Loss Weighting
+    [ ] Implement SNR calculation: SNR(t) = alpha_t^2 / sigma_t^2
+    [ ] Implement Min-SNR-gamma weighting:
+        w(t) = min(SNR(t), gamma) / SNR(t), gamma=5
+    [ ] Implement weighted MSE loss on epsilon prediction
+    [ ] Implement VLB loss term (optional, for hybrid objective)
+    [ ] Compare training curves with and without Min-SNR weighting
+    [ ] Validate loss weighting reduces variance of gradient estimates
+
+1.7  Training Loop with Resolution-Aware Batching
+    [ ] Implement resolution-aware batch sampler:
+        - Group molecules by size for efficient padding
+        - Balance resolution levels within each batch
+    [ ] Implement training step:
+        - Sample t ~ Uniform(0, T)
+        - Compute M_t, forward process
+        - Predict epsilon, compute weighted loss
+        - Backprop and optimizer step
+    [ ] Implement gradient clipping (max norm = 1.0)
+    [ ] Implement EMA of model weights (decay = 0.9999)
+    [ ] Implement learning rate schedule (warmup + cosine decay)
+    [ ] Implement checkpointing (save every N epochs + best model)
+    [ ] Implement logging to W&B (loss, lr, grad norm, samples)
+    [ ] Implement mixed precision training (AMP / bf16)
+    [ ] Implement multi-GPU training (DDP)
+    [ ] Implement resumable training from checkpoint
+
+1.8  QM9 Dataset Loader and Preprocessing
+    [ ] Download QM9 dataset (133,885 molecules, up to 9 heavy atoms)
+    [ ] Parse SDF/XYZ files to extract 3D coordinates and atom types
+    [ ] Compute molecular graphs (bonds from distance cutoffs or RDKit)
+    [ ] Precompute graph Laplacians for all molecules
+    [ ] Precompute coarsening matrices at all resolution levels
+    [ ] Split into train/val/test (100K/18K/13K or standard splits)
+    [ ] Implement PyG InMemoryDataset for QM9
+    [ ] Implement data augmentation (random rotation for training)
+    [ ] Validate loader: check shapes, dtypes, batch construction
+
+1.9  QM9 Unconditional Generation Experiments
+    [ ] Train MolSSD on QM9 unconditional generation
+    [ ] Hyperparameter search: learning rate, EMA decay, T (diffusion steps),
+        number of resolution levels, Lanczos iterations
+    [ ] Training target: ~200-500 epochs, ~24-48h on 4x A100
+    [ ] Evaluate generation quality metrics:
+        - Atom stability (% atoms with correct valence)
+        - Molecule stability (% valid molecules)
+        - Validity (RDKit sanitization pass rate)
+        - Uniqueness (% unique among generated)
+        - Novelty (% not in training set)
+        - FCD (Frechet ChemNet Distance)
+    [ ] Generate 10,000 molecules for evaluation
+    [ ] Qualitative inspection: visualize 50 generated molecules
+    [ ] Compare sampling speed: SSD vs standard diffusion (wall-clock time)
+
+1.10 Ablation Studies
+    [ ] Ablation: Coarsening operators
+        [ ] Spectral coarsening (our method)
+        [ ] BRICS decomposition coarsening
+        [ ] Random coarsening (assign atoms to groups randomly)
+        [ ] Murcko scaffold-based coarsening
+        [ ] Measure: validity, stability, FCD for each
+    [ ] Ablation: Resolution levels
+        [ ] 2-level (full + 1 coarse)
+        [ ] 3-level
+        [ ] 4-level
+        [ ] 5-level
+        [ ] Measure: generation quality vs training/sampling cost
+    [ ] Ablation: Resolution schedules
+        [ ] Linear schedule (equal time per resolution)
+        [ ] Front-loaded (more time at fine resolution)
+        [ ] Back-loaded (more time at coarse resolution)
+        [ ] Learned schedule (parameterized and optimized)
+    [ ] Ablation: Isotropic vs non-isotropic posterior
+        [ ] Isotropic posterior (standard Gaussian, as in DDPM)
+        [ ] Non-isotropic posterior (our method with Lanczos)
+        [ ] Measure: sample quality, diversity, sampling speed
+    [ ] Compile ablation results into tables and plots
+
+1.11 Baseline Comparisons on QM9
+    [ ] Reproduce or obtain EDM (Equivariant Diffusion Model) results on QM9
+    [ ] Reproduce or obtain GeoLDM results on QM9
+    [ ] Run MolSSD with best hyperparameters on same QM9 split
+    [ ] Compare: validity, stability, uniqueness, novelty, FCD
+    [ ] Compare: sampling time per molecule
+    [ ] Compare: training compute (GPU-hours)
+    [ ] Statistical significance tests (5 seeds, report mean +/- std)
+
+
+================================================================================
+PHASE 2: SCALING & OMol25 (Months 3-4)
+================================================================================
+
+2.1  GEOM-Drugs Dataset
+    [ ] Download GEOM-Drugs dataset (~300K drug-like molecules, up to ~180 atoms)
+    [ ] Parse and preprocess (3D conformers, atom types, bonds)
+    [ ] Precompute coarsening hierarchies
+    [ ] Implement PyG dataset class for GEOM-Drugs
+    [ ] Train/val/test split
+    [ ] Train MolSSD on GEOM-Drugs
+    [ ] Evaluate generation quality (same metrics as QM9)
+    [ ] Demonstrate scaling advantage: compare wall-clock training time
+        MolSSD vs EDM on GEOM-Drugs
+    [ ] Show MolSSD maintains quality while being faster on larger molecules
+
+2.2  OMol25 Data Pipeline
+    [ ] Download OMol25 dataset from fairchem repository
+    [ ] Analyze OMol25 composition (element types, molecule sizes, charge states)
+    [ ] Filter for organic/main-group subset:
+        - Elements: H, C, N, O, F, S, P, Cl, Br, I, Si, B
+        - Exclude transition metals, lanthanides, actinides
+        - Exclude ionic/salt systems
+    [ ] Target: ~40M molecules after filtering
+    [ ] Implement efficient data pipeline:
+        - LMDB or WebDataset format for fast I/O
+        - On-the-fly coarsening computation (too many to precompute)
+        - Lazy loading with prefetching
+    [ ] Implement size-based batching:
+        - Bin molecules by number of atoms
+        - Dynamic batch size to maintain constant memory usage
+        - Example: batch_size=64 for <20 atoms, batch_size=8 for 100-200 atoms
+    [ ] Validate data pipeline throughput (samples/sec, GPU utilization)
+
+2.3  Pre-train Molecular Flexi-Net on OMol25
+    [ ] Configure large-scale training:
+        - Multi-node DDP (8-32 GPUs)
+        - Gradient accumulation for effective large batch size
+        - bf16 mixed precision
+    [ ] Pre-train on OMol25 filtered subset
+    [ ] Training budget: ~1-2 weeks on 8x A100 (or equivalent)
+    [ ] Monitor training: loss curves, sample quality at checkpoints
+    [ ] Save checkpoints at regular intervals for downstream fine-tuning
+    [ ] Evaluate pre-trained model on QM9 and GEOM-Drugs (zero-shot and fine-tuned)
+
+2.4  Scalability Benchmarks
+    [ ] Benchmark molecules across size range: 2, 5, 10, 20, 50, 100, 200, 350 atoms
+    [ ] Measure training time per step vs molecule size (MolSSD vs baselines)
+    [ ] Measure sampling time per molecule vs molecule size
+    [ ] Measure peak GPU memory vs molecule size
+    [ ] Plot scaling curves (log-log): time vs N_atoms
+    [ ] Demonstrate sub-quadratic scaling of MolSSD (target: O(N log N) or better)
+    [ ] Compare against EDM scaling (expected: O(N^2) or worse)
+
+2.5  eSEN Integration
+    [ ] Load eSEN-md-direct checkpoint from fairchem
+    [ ] Validate eSEN on known UV-absorber-like molecules:
+        - Benzotriazole derivatives
+        - Benzophenone derivatives
+        - Triazine derivatives
+    [ ] Benchmark eSEN inference speed on molecules of varying size
+    [ ] Implement eSEN-based geometry optimization pipeline:
+        - Input: generated 3D coordinates
+        - Output: relaxed 3D coordinates + energy
+    [ ] Implement eSEN-based conformer ranking
+    [ ] Implement strain energy calculation from eSEN
+    [ ] Validate eSEN geometries against DFT reference (subset)
+
+
+================================================================================
+PHASE 3: UV-ABSORBER DATASET (Months 4-5)
+================================================================================
+
+3.1  Curate UV Absorber Dataset
+    [ ] Define UV absorber chemical classes to include:
+        - Benzotriazoles (e.g., Tinuvin class)
+        - Benzophenones (e.g., BP-1 through BP-8)
+        - Hydroxyphenyl triazines (e.g., Tinuvin 1577 class)
+        - Cyanoacrylates
+        - Oxanilides
+        - Cinnamates
+        - Dibenzoylmethanes
+        - Phenyl salicylates
+        - Novel chromophore scaffolds from recent literature
+    [ ] Query ChEMBL for UV absorber-related bioactivity data
+    [ ] Query PubChem for UV absorber compounds (keyword + structure search)
+    [ ] Query ZINC for commercially available UV absorbers
+    [ ] Query PatentLens/Google Patents for patented UV absorber structures
+    [ ] Deduplicate by InChIKey
+    [ ] Target dataset size: 50,000-200,000 molecules
+
+3.2  Collect/Compute UV-Vis Absorption Spectra
+    [ ] Extract experimental UV-Vis spectra from:
+        - Reaxys database
+        - NIST Chemistry WebBook
+        - Published literature (manual curation for key compounds)
+    [ ] For molecules without experimental spectra, compute via TD-DFT:
+        - Functional: CAM-B3LYP or wB97X-D
+        - Basis set: 6-311+G(d,p)
+        - Solvent model: PCM (ethanol or cyclohexane)
+        - Compute first 10-20 excited states
+    [ ] Batch TD-DFT calculations on HPC cluster
+    [ ] Extract from TD-DFT: lambda_max, oscillator strengths, full spectrum
+    [ ] Validate TD-DFT against experimental spectra for 50+ known UV absorbers
+    [ ] Compute mean absolute error of predicted vs experimental lambda_max
+    [ ] Store spectra as: [wavelength_array, intensity_array, lambda_max, epsilon_max]
+
+3.3  Extract 3D Conformers
+    [ ] For molecules present in OMol25: extract OMol25 3D conformers
+    [ ] For molecules not in OMol25: generate 3D conformers via RDKit ETKDG
+        - Generate 10 conformers per molecule
+        - MMFF94 force field optimization
+        - Select lowest energy conformer
+    [ ] For critical molecules: optimize with eSEN for better geometries
+    [ ] Validate 3D quality: bond lengths, angles within expected ranges
+    [ ] Store conformers in SDF format with associated properties
+
+3.4  Dataset Statistics and Analysis
+    [ ] Compute and report:
+        - Number of molecules per UV absorber class
+        - Molecular weight distribution
+        - Heavy atom count distribution
+        - lambda_max distribution (UVB: 280-320nm, UVA: 320-400nm, visible: >400nm)
+        - Molar extinction coefficient distribution
+        - logP distribution
+        - Synthetic accessibility (SA) score distribution
+    [ ] Identify gaps in chemical space coverage
+    [ ] Create dataset splits: train (80%), val (10%), test (10%)
+    [ ] Stratify splits by UV absorber class and lambda_max range
+    [ ] Save dataset in standardized format (PyG compatible)
+
+
+================================================================================
+PHASE 4: CONDITIONAL MolSSD (Months 5-6)
+================================================================================
+
+4.1  Implement Absorption Spectrum Conditioning
+    [ ] Design spectrum encoder:
+        - 1D CNN or Transformer on discretized spectrum (200-800nm, 1nm bins)
+        - Output: spectrum embedding vector (d=256)
+    [ ] Implement cross-attention conditioning:
+        - Spectrum embedding attends to molecular graph features
+        - Inject at each EGNN layer
+    [ ] Implement adaLN (adaptive Layer Normalization) conditioning:
+        - Spectrum embedding -> scale and shift parameters
+        - Apply to EGNN layer outputs
+    [ ] Implement lambda_max-only conditioning (simpler alternative):
+        - Scalar lambda_max -> sinusoidal embedding -> MLP -> conditioning vector
+    [ ] Compare cross-attention vs adaLN vs lambda_max-only on validation set
+
+4.2  Implement Property Conditioning
+    [ ] Implement multi-property conditioning vector:
+        - Photostability (binary or continuous score)
+        - Thermal stability (T_decomposition or binary)
+        - logP (continuous)
+        - Molecular weight (continuous)
+        - SA score (continuous)
+    [ ] Normalize properties to zero mean, unit variance
+    [ ] Encode properties via MLP -> conditioning vector
+    [ ] Concatenate with spectrum conditioning vector
+    [ ] Handle missing properties with learned mask tokens
+
+4.3  Implement Scaffold/Chromophore Constraint (Optional)
+    [ ] Implement scaffold conditioning:
+        - Encode scaffold subgraph with separate EGNN
+        - Condition generation on scaffold embedding
+    [ ] Implement inpainting-style scaffold constraint:
+        - Fix scaffold atoms during reverse diffusion
+        - Only generate/denoise R-group atoms
+    [ ] Implement chromophore class conditioning:
+        - One-hot encoding of chromophore class
+        - Embed and add to conditioning vector
+
+4.4  Fine-tune on UV Absorber Dataset
+    [ ] Load pre-trained OMol25 checkpoint
+    [ ] Fine-tune with UV absorber conditional generation objective
+    [ ] Learning rate: lower than pre-training (1e-5 to 5e-5)
+    [ ] Fine-tuning duration: ~50-100 epochs
+    [ ] Monitor conditional generation quality on validation set
+    [ ] Early stopping based on validation FCD or conditional metrics
+
+4.5  Multi-task Loss
+    [ ] Implement joint loss:
+        L = L_diffusion + alpha * L_property_prediction
+    [ ] L_diffusion: weighted MSE on noise prediction (Min-SNR-5)
+    [ ] L_property_prediction: MSE on predicted lambda_max, logP, etc.
+        from denoised representation
+    [ ] Tune alpha on validation set (grid search: 0.01, 0.1, 0.5, 1.0)
+    [ ] Verify multi-task learning improves conditional generation quality
+
+4.6  Classifier-Free Guidance
+    [ ] Implement training with random condition dropout (p=0.1-0.2):
+        - With probability p, replace condition with null token
+    [ ] Implement guided sampling:
+        epsilon_guided = (1 + w) * epsilon_cond - w * epsilon_uncond
+    [ ] Sweep guidance weight w: 0.5, 1.0, 2.0, 3.0, 5.0
+    [ ] Evaluate: quality-diversity tradeoff at different guidance weights
+    [ ] Select optimal guidance weight for downstream generation campaigns
+
+4.7  Conditional Generation Validation
+    [ ] Generate molecules conditioned on known UV absorber spectra
+    [ ] Measure: how well generated molecules' predicted spectra match target
+    [ ] Compute conditional metrics:
+        - MAE of lambda_max (predicted vs target)
+        - Spectral overlap integral
+        - Property prediction accuracy
+    [ ] Generate molecules conditioned on unseen spectra (test set)
+    [ ] Qualitative: visualize generated molecules alongside target spectra
+    [ ] Compare against unconditional generation + filtering baseline
+
+
+================================================================================
+PHASE 5: GENERATION & SCREENING (Months 6-7)
+================================================================================
+
+5.1  Generation Campaign 1: Broad-Spectrum UVA+UVB Absorbers
+    [ ] Define target profile:
+        - lambda_max in 300-350nm range (UVA/UVB crossover)
+        - Broad absorption: significant absorption 280-400nm
+        - Molar extinction coefficient epsilon > 30,000 L/(mol*cm)
+    [ ] Generate 10,000+ candidates with classifier-free guidance
+    [ ] Use multiple guidance weights and pool results
+    [ ] Log generation metadata (seed, guidance weight, conditioning values)
+
+5.2  Generation Campaign 2: Photostable UV Absorbers
+    [ ] Define target profile:
+        - lambda_max in 300-380nm
+        - High photostability score (condition on top quintile)
+        - Intramolecular hydrogen bonding motifs preferred (ESIPT mechanism)
+    [ ] Generate 10,000+ candidates
+    [ ] Prioritize molecules with known photostable scaffolds
+
+5.3  Generation Campaign 3: Coating-Compatible UV Absorbers
+    [ ] Define target profile:
+        - lambda_max in 300-380nm
+        - logP in 3-6 range (compatible with polymer matrices)
+        - Molecular weight 250-500 Da
+        - No reactive functional groups that interfere with coating chemistry
+    [ ] Generate 10,000+ candidates
+    [ ] Post-filter for coating compatibility rules
+
+5.4  Generation Campaign 4: UV-C Absorbers
+    [ ] Define target profile:
+        - lambda_max in 200-280nm (UV-C range)
+        - High extinction coefficient epsilon > 20,000
+        - This is a less-explored space; emphasize novelty
+    [ ] Generate 10,000+ candidates
+    [ ] Flag molecules with known UV-C absorbing chromophores
+
+5.5  Post-Generation Filtering
+    [ ] Validity filter: RDKit sanitization, kekulization, valence check
+    [ ] Uniqueness filter: deduplicate by InChIKey
+    [ ] Novelty filter: remove molecules present in training set
+    [ ] Synthesizability filter: SA score < 4.0 (Ertl & Schuffenhauer)
+    [ ] Drug-likeness filter (optional): Lipinski-like rules adapted for materials
+    [ ] Structural alert filter: remove PAINS, reactive groups, toxic substructures
+    [ ] Report filter statistics: how many pass each stage
+
+5.6  eSEN Geometry Optimization of Candidates
+    [ ] Run eSEN geometry optimization on all filtered candidates
+    [ ] Discard molecules that fail to converge or have unreasonable geometries
+    [ ] Compute strain energy: E_eSEN(generated_geom) - E_eSEN(optimized_geom)
+    [ ] Discard molecules with strain energy > threshold (e.g., > 50 kcal/mol)
+    [ ] Rank conformers by eSEN energy
+    [ ] Store optimized geometries for downstream TD-DFT
+
+5.7  eSEN Stability Assessment
+    [ ] Run short eSEN MD simulations (1ps, 300K) on top candidates
+    [ ] Assess structural stability: does molecule maintain connectivity?
+    [ ] Compute RMSD of MD trajectory vs optimized geometry
+    [ ] Flag molecules with large structural fluctuations
+    [ ] Rank by stability score (low RMSD, maintained connectivity)
+
+5.8  TD-DFT Verification of Top Candidates
+    [ ] Select top 500 candidates based on:
+        - Passed all filters
+        - Low strain energy
+        - Stable in eSEN MD
+        - High predicted UV absorption quality
+    [ ] Run TD-DFT on top 500 (CAM-B3LYP/6-311+G(d,p), PCM solvent)
+    [ ] Compare TD-DFT lambda_max with model-predicted lambda_max
+    [ ] Compute epsilon (oscillator strength) from TD-DFT
+    [ ] Identify molecules where TD-DFT confirms target absorption profile
+    [ ] Report hit rate: % of candidates meeting absorption criteria after TD-DFT
+
+5.9  ADMET/Toxicity Screening
+    [ ] Run ADMET predictions on confirmed candidates:
+        - Aquatic toxicity (EC50)
+        - Skin sensitization potential
+        - Endocrine disruption potential
+        - Bioaccumulation (BCF)
+        - Biodegradability
+    [ ] Use open-source tools: ADMETlab2, pkCSM, or similar
+    [ ] Flag and remove candidates with toxicity concerns
+    [ ] Regulatory compliance check (REACH, EPA guidelines for UV absorbers)
+
+5.10 Final Ranking
+    [ ] Define composite scoring function:
+        Score = w1 * absorption_match + w2 * photostability +
+                w3 * SA_accessibility + w4 * coating_compatibility +
+                w5 * safety_score + w6 * novelty_bonus
+    [ ] Tune weights based on application priority
+    [ ] Rank all passing candidates by composite score
+    [ ] Select top 50 for detailed analysis
+    [ ] Create detailed molecular profiles for top 50:
+        - Structure, SMILES, InChIKey
+        - Predicted and TD-DFT absorption spectra
+        - Predicted properties (logP, SA, stability)
+        - Potential synthesis routes (retrosynthetic analysis)
+    [ ] Expert review of top 50 (chemistry team)
+    [ ] Select top 10-20 for wet-lab synthesis
+
+
+================================================================================
+PHASE 6: WET-LAB VALIDATION (Months 7-9)
+================================================================================
+
+6.1  Synthetic Route Planning
+    [ ] Run retrosynthetic analysis on top 10-20 candidates:
+        - Use ASKCOS, IBM RXN, or similar retrosynthesis tools
+        - Manual expert review of proposed routes
+    [ ] Identify commercially available starting materials
+    [ ] Estimate synthesis complexity (number of steps, expected yield)
+    [ ] Prioritize candidates with shortest synthetic routes (ideally 2-5 steps)
+    [ ] Order starting materials and reagents
+    [ ] Prepare detailed synthesis protocols
+
+6.2  Synthesis and Characterization
+    [ ] Synthesize top 10-20 candidates
+    [ ] Purification (column chromatography, recrystallization)
+    [ ] Characterization by NMR:
+        - 1H NMR (confirm structure, purity)
+        - 13C NMR (confirm carbon skeleton)
+        - 2D NMR if needed (COSY, HSQC, HMBC)
+    [ ] Mass spectrometry (ESI-MS or MALDI-TOF, confirm molecular weight)
+    [ ] IR spectroscopy (confirm functional groups)
+    [ ] Melting point determination
+    [ ] Purity assessment (HPLC, target >95%)
+    [ ] Report synthesis yield and any difficulties encountered
+
+6.3  UV-Vis Absorption Spectroscopy
+    [ ] Measure UV-Vis absorption spectra in solution:
+        - Solvents: ethanol, cyclohexane, and coating-relevant solvent
+        - Concentration series for epsilon determination
+        - Wavelength range: 200-800nm
+    [ ] Determine lambda_max, epsilon_max, bandwidth
+    [ ] Compare experimental spectra with:
+        - Model-predicted spectra
+        - TD-DFT-predicted spectra
+    [ ] Compute prediction errors (MAE of lambda_max, spectral overlap)
+    [ ] Assess broad-spectrum coverage (280-400nm)
+    [ ] Measure spectra in solid state / thin film (if relevant)
+
+6.4  Photostability Testing
+    [ ] Prepare solutions and thin films of each candidate
+    [ ] Xenon arc lamp exposure (simulating sunlight):
+        - 500 hours continuous exposure
+        - Monitor UV-Vis spectrum at 0, 50, 100, 200, 500 hours
+    [ ] Calculate photostability:
+        - % retention of absorbance at lambda_max
+        - Rate of photodegradation
+    [ ] Identify photodegradation products (LC-MS if needed)
+    [ ] Compare with commercial benchmarks:
+        - Tinuvin 326 (benzotriazole)
+        - Chimassorb 81 (benzophenone)
+        - Tinuvin 1577 (hydroxyphenyl triazine)
+    [ ] Classify: photostable (>90% retention at 500h) vs unstable
+
+6.5  Thermal Analysis
+    [ ] TGA (Thermogravimetric Analysis):
+        - Heating rate: 10 C/min, N2 atmosphere
+        - Determine T_onset (decomposition onset), T_50% (50% weight loss)
+        - Target: T_onset > 250 C for coating applications
+    [ ] DSC (Differential Scanning Calorimetry):
+        - Determine T_m (melting point), T_g (glass transition if amorphous)
+        - Assess thermal transitions relevant to processing
+    [ ] Thermal stability ranking of candidates
+
+6.6  Coating Formulation and Testing
+    [ ] Prepare coating formulations:
+        - Epoxy matrix: mix UV absorber at 1-5 wt% in epoxy resin
+        - Polyurethane (PU) matrix: mix at 1-5 wt% in PU coating
+        - Control coatings (no UV absorber, commercial UV absorber)
+    [ ] Cast/spray coatings on standard substrates (aluminum, steel, wood)
+    [ ] Cure coatings per standard protocols
+    [ ] Assess UV absorber compatibility:
+        - Visual clarity (haze, yellowing)
+        - Homogeneity (no phase separation or blooming)
+
+6.7  UV Transmission and Accelerated Weathering
+    [ ] Measure UV-Vis transmission of coated substrates:
+        - Before weathering (baseline)
+        - Target: <5% transmission at 280-380nm
+    [ ] QUV accelerated weathering test:
+        - UVA-340 lamps, 0.89 W/m2 at 340nm
+        - Alternating cycles: 8h UV at 60C / 4h condensation at 50C
+        - Duration: 1000-2000 hours
+    [ ] Measure at intervals (0, 250, 500, 1000, 2000 hours):
+        - UV transmission
+        - Color change (Delta E, ASTM D2244)
+        - Gloss retention (ASTM D523)
+        - Visual inspection (cracking, chalking, delamination)
+    [ ] Compare with commercial UV absorber coatings
+
+6.8  Adhesion and Mechanical Properties
+    [ ] Cross-cut adhesion test (ASTM D3359) before and after weathering
+    [ ] Pull-off adhesion test (ASTM D4541) if relevant
+    [ ] Pencil hardness (ASTM D3363)
+    [ ] Impact resistance (ASTM D2794) if relevant
+    [ ] Verify UV absorber does not compromise coating mechanical integrity
+
+6.9  Comparison Against Commercial Benchmarks
+    [ ] Side-by-side comparison table:
+        Metric                  | MolSSD candidates | Tinuvin 326 | Chimassorb 81 | Tinuvin 1577
+        lambda_max              |                   |             |               |
+        epsilon_max             |                   |             |               |
+        Photostability (500h)   |                   |             |               |
+        T_onset (TGA)           |                   |             |               |
+        UV protection (QUV)     |                   |             |               |
+        Color stability (dE)    |                   |             |               |
+    [ ] Identify candidates that match or exceed commercial performance
+    [ ] Identify novel structural motifs with superior properties
+    [ ] Assess cost-competitiveness (starting material cost, synthesis steps)
+
+
+================================================================================
+PHASE 7: ANALYSIS & PAPER (Months 9-11)
+================================================================================
+
+7.1  Generate All Figures
+    [ ] Figure 1: MolSSD framework overview
+        - Diagram showing forward process with spectral coarsening
+        - Reverse process with non-isotropic posterior
+        - Hierarchical resolution levels
+    [ ] Figure 2: Spectral coarsening visualization
+        - Example molecule at each resolution level
+        - Laplacian eigenvalues and eigenvectors
+        - Information content vs resolution
+    [ ] Figure 3: QM9 benchmark results
+        - Table: MolSSD vs EDM vs GeoLDM (all metrics)
+        - Generated molecule gallery
+    [ ] Figure 4: Scaling curves
+        - Training time vs molecule size (log-log)
+        - Sampling time vs molecule size (log-log)
+        - MolSSD vs baselines
+    [ ] Figure 5: OMol25 pre-training results
+        - Loss curves, sample quality at scale
+        - Transfer learning performance
+    [ ] Figure 6: Conditional generation results
+        - Target spectrum -> generated molecules -> TD-DFT verification
+        - Conditioning accuracy (predicted vs target lambda_max)
+    [ ] Figure 7: UV absorber design results
+        - Generated candidates with absorption spectra
+        - Comparison with commercial absorbers
+        - Novel structural motifs discovered
+    [ ] Figure 8: Experimental validation
+        - Experimental vs predicted UV-Vis spectra
+        - Photostability curves (absorbance retention vs time)
+        - Weathering test results
+    [ ] Figure 9: Ablation study results
+        - Bar charts comparing coarsening methods
+        - Resolution level comparison
+        - Isotropic vs non-isotropic posterior
+
+7.2  Write/Finalize Nature Manuscript
+    [ ] Draft Title and Abstract (200-300 words)
+    [ ] Draft Introduction:
+        - UV protection challenge and commercial landscape
+        - Limitations of existing molecular generation methods at scale
+        - SSD innovation: spectral coarsening for scalable diffusion
+        - MolSSD contribution: conditional generation + eSEN screening
+    [ ] Draft Methods:
+        - Spectral graph coarsening formalism
+        - SSD forward and reverse process
+        - Molecular Flexi-Net architecture
+        - OMol25 pre-training protocol
+        - Conditional generation mechanism
+        - eSEN integration for screening
+    [ ] Draft Results:
+        - QM9 benchmarks and ablations
+        - GEOM-Drugs scaling demonstration
+        - OMol25 pre-training and transfer
+        - UV absorber conditional generation
+        - TD-DFT verification of candidates
+        - Experimental validation highlights
+    [ ] Draft Discussion:
+        - Significance of scaling molecular diffusion
+        - Design principles learned from generated UV absorbers
+        - Limitations and future directions
+        - Broader impact (materials discovery beyond UV absorbers)
+    [ ] Draft Data Availability statement
+    [ ] Draft Code Availability statement (GitHub repo)
+    [ ] Internal review by all co-authors
+    [ ] Revise based on feedback (2-3 rounds)
+    [ ] Professional figure preparation (Nature formatting guidelines)
+    [ ] Ensure manuscript meets Nature word/figure limits
+
+7.3  Supplementary Materials
+    [ ] Supplementary Methods:
+        - Full mathematical derivations
+        - Lanczos algorithm details
+        - All hyperparameters and training details
+    [ ] Supplementary Tables:
+        - Full ablation results
+        - All generated candidate properties
+        - TD-DFT computational details
+        - Experimental protocols
+    [ ] Supplementary Figures:
+        - Additional generated molecule galleries
+        - Training curves
+        - Additional spectral comparisons
+        - Coating test photographs
+    [ ] Supplementary Data:
+        - SMILES of all top candidates
+        - Experimental spectra as CSV
+        - Weathering test raw data
+
+7.4  Peer Review Preparation
+    [ ] Identify potential reviewers (experts in molecular generation,
+        UV absorbers, diffusion models, equivariant GNNs)
+    [ ] Prepare cover letter highlighting:
+        - Novelty: first scalable spectral diffusion for molecules
+        - Impact: practical UV absorber discovery
+        - Breadth: computation + experiment
+    [ ] Prepare point-by-point response template for anticipated questions
+    [ ] Prepare additional analyses that reviewers might request
+    [ ] Have 2-3 external colleagues provide feedback before submission
+
+7.5  Submission
+    [ ] Format manuscript according to Nature submission guidelines
+    [ ] Prepare all files: manuscript PDF, figures (separate high-res),
+        supplementary materials, cover letter
+    [ ] Upload to Nature submission system
+    [ ] Verify all files render correctly in submission system
+    [ ] Submit manuscript
+    [ ] Archive all code, data, and results for reproducibility
+    [ ] Prepare GitHub repository for public release upon acceptance
+
+
+================================================================================
+                            END OF ROADMAP
+================================================================================
