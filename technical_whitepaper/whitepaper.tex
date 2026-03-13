@@ -146,9 +146,9 @@ Song et al.~\cite{song2021scorebased} unify DDPM with score matching by interpre
 \end{equation}
 where $\bm{f}$ is the drift coefficient, $g$ is the diffusion coefficient, and $\bm{w}$ is a standard Wiener process. The reverse-time SDE is:
 \begin{equation}\label{eq:reverse_sde}
-    d\bx = \left[\bm{f}(\bx, t) - g(t)^2 \nabla_\bx \log q_t(\bx)\right] dt + g(t)\, d\bar{\bm{w}},
+    d\bx = \left[\bm{f}(\bx, t) - g(t)^2 \nabla_{\bx} \log q_t(\bx)\right] dt + g(t)\, d\bar{\bm{w}},
 \end{equation}
-where $\nabla_\bx \log q_t(\bx)$ is the score function, approximated by a neural network $\bm{s}_\theta(\bx, t) \approx \nabla_\bx \log q_t(\bx)$.
+where $\nabla_{\bx} \log q_t(\bx)$ is the score function, approximated by a neural network $\bm{s}_\theta(\bx, t) \approx \nabla_{\bx} \log q_t(\bx)$.
 
 \subsubsection{Noise Schedules}
 
@@ -336,7 +336,7 @@ The coarsened graph $\cG^{(k)}$ has nodes corresponding to super-nodes, with pos
 \end{equation}
 and edges connecting super-nodes whose constituent atom clusters share at least one bond in $\cG^{(0)}$.
 
-\subsection{Linear Degradation Operator $\Mt$}\label{sec:degradation}
+\subsection{Linear Degradation Operator \texorpdfstring{$\Mt$}{M\_t}}\label{sec:degradation}
 
 Following SSD, we define the per-step degradation operator:
 \begin{equation}\label{eq:mol_Mt}
@@ -435,7 +435,7 @@ In practice, only the $N_{r(t)}$ non-trivial eigenvalues differ from $\sigma_{t-
 \end{equation}
 where $\bm{V}_k$ and $\bm{D}_k$ are the $k = N_{r(t)}$ non-trivial eigenpairs.
 
-\subsection{$\Mt$ Transpose via Vector-Jacobian Product}\label{sec:vjp}
+\subsection{\texorpdfstring{$\Mt$}{M\_t} Transpose via Vector-Jacobian Product}\label{sec:vjp}
 
 Computing $\Mt^\top \bm{v}$ explicitly requires materializing $\Mt$, which may be memory-intensive for large molecules. Instead, we observe that $\Mt$ is a composition of differentiable operations (clustering assignment, mass-weighted averaging, pseudoinverse), so $\Mt^\top \bm{v}$ can be computed as a vector-Jacobian product (VJP) using automatic differentiation:
 
@@ -1377,6 +1377,6 @@ The experimental program, spanning computational benchmarks on QM9, GEOM-Drugs, 
 % References
 % ============================================================
 \bibliographystyle{unsrtnat}
-\bibliography{../references}
+\bibliography{references}
 
 \end{document}
