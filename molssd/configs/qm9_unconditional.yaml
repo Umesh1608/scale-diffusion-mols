@@ -1,0 +1,28 @@
+# QM9 Unconditional Generation Config
+# Inherits from defaults.yaml, overrides QM9-specific settings
+
+defaults:
+  - defaults
+
+data:
+  dataset: qm9
+  max_atoms: 29              # QM9 max atoms (including H)
+  max_heavy_atoms: 9         # QM9 max heavy atoms
+
+model:
+  num_atom_types: 5           # H, C, N, O, F
+
+resolution:
+  max_levels: 3               # QM9 molecules are small: 3 levels sufficient
+  coarsening_ratio: 3         # ~29 -> ~10 -> ~3 -> 1
+
+training:
+  batch_size: 64
+  max_steps: 300000
+  lr: 3.0e-4
+
+loss:
+  lambda_prop: 0.0            # No property conditioning
+
+logging:
+  wandb_project: molssd-qm9

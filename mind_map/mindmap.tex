@@ -24,7 +24,7 @@
 % Title
 \begin{tikzpicture}
 
-\node[font=\Large\bfseries\sffamily, text=coreOrange!90!black] at (0,18)
+\node[font=\Large\bfseries\sffamily, text=coreOrange!90!black] at (0,21)
   {MolSSD Project -- Complete Mind Map};
 
 \begin{scope}[
@@ -34,239 +34,233 @@
   text=white,
   concept color=coreOrange,
   level 1/.append style={
-    level distance=7.5cm,
+    level distance=8.5cm,
     sibling angle=40,
-    font=\small\bfseries,
-    minimum size=2.8cm,
-    text width=2.5cm,
+    font=\scriptsize\bfseries,
+    minimum size=2.2cm,
+    text width=2.0cm,
   },
   level 2/.append style={
-    level distance=4.5cm,
-    sibling angle=40,
-    font=\scriptsize,
-    minimum size=1.8cm,
-    text width=1.6cm,
+    level distance=4.0cm,
+    sibling angle=38,
+    font=\tiny,
+    minimum size=1.4cm,
+    text width=1.3cm,
   },
   level 3/.append style={
-    level distance=3.2cm,
-    sibling angle=36,
+    level distance=2.8cm,
+    sibling angle=34,
     font=\tiny,
-    minimum size=1.2cm,
-    text width=1.1cm,
+    minimum size=1.0cm,
+    text width=0.9cm,
   },
 ]
 
 % CENTRAL NODE
-\node [font=\large\bfseries, minimum size=4cm, text width=3.5cm]
-  {MolSSD\\[4pt]{\normalsize Molecular}\\{\normalsize Scale-Space}\\{\normalsize Diffusion}}
+\node [font=\normalsize\bfseries, minimum size=3.5cm, text width=3.0cm]
+  {MolSSD\\[3pt]{\small Molecular}\\{\small Scale-Space}\\{\small Diffusion}}
 %
-% BRANCH 1 - Theoretical Foundations
+% BRANCH 1 - Theoretical Foundations (top-left)
   child [concept color=brTheory, grow=160] {
     node (theory) {Theoretical Foundations}
-    child [grow=195] {
+    child [grow=200] {
       node (sst) {Scale-Space Theory}
-      child { node {Lindeberg Witkin Koenderink} }
-      child { node {Gaussian Blurring} }
+      child { node {Lindeberg Witkin} }
+      child { node {Gaussian Blur} }
       child { node {Heat Equation} }
     }
-    child [grow=160] {
+    child [grow=165] {
       node {Diffusion Models}
       child { node {DDPM} }
       child { node {Score SDE} }
     }
     child [grow=130] {
       node (sgt) {Spectral Graph Theory}
-      child { node {Laplacian Eigende\-composition} }
-      child { node {Spectral Clustering} }
+      child { node {Laplacian Eigdec.} }
+      child { node {Spectral Cluster} }
     }
     child [grow=100] {
-      node {Information Theory}
-      child { node {Mutual Information} }
-    }
-    child [grow=225] {
-      node {Renormali\-zation Group}
-      child { node {Kadanoff Blocking} }
-      child { node {Wilson RG} }
+      node {Info Theory}
+      child { node {Mutual Info} }
     }
   }
 %
-% BRANCH 2 - Mathematical Framework
-  child [concept color=brMath, grow=110] {
-    node (math) {Mathematical Framework}
-    child [grow=140] {
+% BRANCH 2 - Mathematical Framework (top)
+  child [concept color=brMath, grow=112] {
+    node (math) {Math Framework}
+    child [grow=145] {
       node {Forward Process}
     }
-    child [grow=115] {
-      node (speccoarse) {Spectral Coarsening Operator}
+    child [grow=120] {
+      node (speccoarse) {Spectral Coarsening}
     }
-    child [grow=90] {
+    child [grow=95] {
       node (graphlap) {Graph Laplacian}
     }
-    child [grow=65] {
+    child [grow=70] {
       node {Non-Isotropic Posterior}
-      child { node {Lanczos Algorithm} }
+      child { node {Lanczos Alg.} }
     }
-    child [grow=40] {
-      node {SE(3) Equi\-variance}
-      child { node {CoM Aggregation} }
+    child [grow=45] {
+      node {SE(3) Equivariance}
+      child { node {CoM Aggr.} }
       child { node {Local Frames} }
     }
   }
 %
-% BRANCH 3 - Architecture
-  child [concept color=brArch, grow=55] {
-    node (arch) {Architecture Molecular Flexi-Net}
+% BRANCH 3 - Architecture (top-right)
+  child [concept color=brArch, grow=60] {
+    node (arch) {Architecture Flexi-Net}
     child [grow=90] {
       node {Hierarchical EGNN}
-      child { node {Lv0: 2 blk 512 ch} }
-      child { node {Lv1: 3 blk 384 ch} }
-      child { node {Lv2: 3 blk 256 ch} }
-      child { node {LvL: 4 blk 128 ch} }
+      child { node {Lv0: 2blk 512ch} }
+      child { node {Lv1: 3blk 384ch} }
+      child { node {Lv2: 3blk 256ch} }
+      child { node {LvL: 4blk 128ch} }
     }
     child [grow=50] {
-      node {Dynamic Level Activation}
+      node {Dynamic Activation}
     }
-    child [grow=25] {
+    child [grow=20] {
       node (uvcond) {UV Conditioning}
-      child { node {Cross Attention} }
+      child { node {Cross Attn} }
       child { node {adaLN} }
       child { node {CFG} }
     }
   }
 %
-% BRANCH 4 - Multi-Scale Hierarchy
+% BRANCH 4 - Multi-Scale Hierarchy (right)
   child [concept color=brScale, grow=0] {
     node (hierarchy) {Multi-Scale Hierarchy}
-    child [grow=30] {
-      node {Scale 0: Full Atomic}
+    child [grow=25] {
+      node {Sc0: Full Atomic}
     }
-    child [grow=10] {
-      node {Scale 1: Functional Groups}
+    child [grow=8] {
+      node {Sc1: Func.\ Groups}
     }
-    child [grow=-10] {
-      node {Scale 2: Fragment Level}
+    child [grow=-8] {
+      node {Sc2: Fragment}
     }
-    child [grow=-30] {
-      node (chromo) {Scale 3: Chromo\-phore Skeleton}
+    child [grow=-25] {
+      node (chromo) {Sc3: Chromo\-phore}
+    }
+    child [grow=-42] {
+      node {ScL: Centroid}
+    }
+  }
+%
+% BRANCH 5 - Data and Infrastructure (bottom-right)
+  child [concept color=brData, grow=-50] {
+    node (data) {Data \& Infra}
+    child [grow=-18] {
+      node (omol) {OMol25 140M DFT}
+      child { node (pretrain) {Pre-train} }
+      child { node {eSEN Oracle} }
+      child { node {Scale Bench} }
     }
     child [grow=-50] {
-      node {Scale L: Single Centroid}
+      node {QM9 130K}
+    }
+    child [grow=-75] {
+      node {GEOM-Drugs 317K}
+    }
+    child [grow=-100] {
+      node (uvdata) {UV Dataset 50--200K}
     }
   }
 %
-% BRANCH 5 - Data and Infrastructure
-  child [concept color=brData, grow=-55] {
-    node (data) {Data and Infra\-structure}
-    child [grow=-20] {
-      node (omol) {OMol25 140M DFT 83M Molecules}
-      child { node (pretrain) {Pre-training Backbone} }
-      child { node {eSEN Energy Oracle} }
-      child { node {Scalability Benchmark} }
-    }
-    child [grow=-55] {
-      node {QM9 130K Validation}
-    }
-    child [grow=-80] {
-      node {GEOM-Drugs 317K Scaling}
-    }
-    child [grow=-105] {
-      node (uvdata) {UV Absorber Dataset 50K--200K}
-    }
-  }
-%
-% BRANCH 6 - UV-Absorber Application
-  child [concept color=brUV, grow=-115] {
+% BRANCH 6 - UV-Absorber Application (bottom)
+  child [concept color=brUV, grow=-110] {
     node (uvapp) {UV-Absorber Application}
     child [grow=-75] {
-      node {Commercial UV Absorbers}
-      child { node {Benzo\-triazoles Tinuvin} }
-      child { node {Benzo\-phenones Chimassorb} }
+      node {Commercial UV}
+      child { node {Benzo\-triazoles} }
+      child { node {Benzo\-phenones} }
       child { node {Triazines} }
-      child { node {Cyano\-acrylates Uvinul} }
+      child { node {Cyano\-acrylates} }
     }
     child [grow=-115] {
       node (uvtarget) {Target Properties}
-      child { node {Broad UV 280--400nm} }
-      child { node {High Molar Absorptivity} }
+      child { node {UV 280--400nm} }
+      child { node {High Absorpt.} }
       child { node {Photo\-stability} }
-      child { node {Thermal Stability} }
     }
-    child [grow=-150] {
-      node {Drones Vehicles Outdoor Infra}
+    child [grow=-148] {
+      node {Drones Vehicles Outdoor}
     }
   }
 %
-% BRANCH 7 - Experimental Pipeline
-  child [concept color=brPipe, grow=-165] {
+% BRANCH 7 - Experimental Pipeline (bottom-left)
+  child [concept color=brPipe, grow=-170] {
     node (pipe) {Experimental Pipeline}
     child [grow=-130] {
-      node {Ph1: Foundation Validation}
+      node {Ph1: Validation}
     }
-    child [grow=-150] {
-      node {Ph2: OMol25 Pre-train}
+    child [grow=-148] {
+      node {Ph2: Pre-train}
     }
-    child [grow=-170] {
-      node {Ph3: UV Dataset TD-DFT}
+    child [grow=-166] {
+      node {Ph3: UV TD-DFT}
     }
-    child [grow=-190] {
-      node {Ph4: Conditional Training}
+    child [grow=-184] {
+      node {Ph4: Cond.\ Train}
     }
-    child [grow=-210] {
-      node (phase5) {Ph5: Generate 10K Screen Top50}
+    child [grow=-202] {
+      node (phase5) {Ph5: Screen}
     }
-    child [grow=-230] {
-      node {Ph6: Wet-Lab Synthesis}
+    child [grow=-220] {
+      node {Ph6: Wet-Lab}
     }
-    child [grow=-245] {
-      node {Ph7: Nature Paper}
+    child [grow=-238] {
+      node {Ph7: Paper}
     }
   }
 %
-% BRANCH 8 - Research Gaps
-  child [concept color=brGaps, grow=205] {
+% BRANCH 8 - Research Gaps (left)
+  child [concept color=brGaps, grow=210] {
     node (gaps) {7 Research Gaps}
-    child [grow=250] {
-      node {G1: No Info-Theoretic Basis}
+    child [grow=260] {
+      node {G1: No Info-Theory}
     }
-    child [grow=230] {
-      node {G2: Ad-hoc Fragmen\-tation}
+    child [grow=243] {
+      node {G2: Ad-hoc Frag.}
     }
-    child [grow=210] {
-      node {G3: No Non-Isotropic Posteriors}
+    child [grow=226] {
+      node {G3: No Non-Iso Post.}
     }
-    child [grow=190] {
-      node {G4: Full Resolution Inefficiency}
+    child [grow=209] {
+      node {G4: Full-Res Ineffic.}
     }
-    child [grow=170] {
-      node {G5: No Interpretable Intermediates}
+    child [grow=192] {
+      node {G5: No Interp.\ Interm.}
     }
-    child [grow=150] {
-      node {G6: No CG-Generative Unification}
+    child [grow=175] {
+      node {G6: No CG-Gen Unify}
     }
-    child [grow=270] {
-      node {G7: No UV Generative Design}
+    child [grow=277] {
+      node {G7: No UV Design}
     }
   }
 %
-% BRANCH 9 - Baselines and Metrics
-  child [concept color=brBase, grow=-250] {
-    node (baselines) {Baselines and Metrics}
-    child [grow=-215] {
+% BRANCH 9 - Baselines and Metrics (far left / bottom-left gap)
+  child [concept color=brBase, grow=-240] {
+    node (baselines) {Baselines \& Metrics}
+    child [grow=-210] {
       node {Baselines}
       child { node {EDM GeoLDM} }
       child { node {GCDM EQGAT} }
-      child { node {MolDiff HierDiff} }
+      child { node {HierDiff} }
     }
-    child [grow=-250] {
-      node {Molecular Metrics}
-      child { node {Validity Unique\-ness Novelty} }
-      child { node {JS Divergence} }
-      child { node {QED SA Score} }
+    child [grow=-245] {
+      node {Mol.\ Metrics}
+      child { node {Valid Uniq Nov} }
+      child { node {JS Diverg.} }
+      child { node {QED SA} }
     }
-    child [grow=-280] {
-      node (uvmetrics) {UV-Specific Metrics}
-      child { node {Absorption Accuracy} }
-      child { node {Photo\-stability Score} }
+    child [grow=-275] {
+      node (uvmetrics) {UV Metrics}
+      child { node {Absorp.\ Acc.} }
+      child { node {Photostab.} }
     }
   }
 ; % end of mindmap tree

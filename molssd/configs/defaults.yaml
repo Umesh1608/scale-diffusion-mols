@@ -1,0 +1,72 @@
+# MolSSD Default Configuration
+
+# Diffusion
+diffusion:
+  T: 1000                    # Total diffusion timesteps
+  T_sample: 250              # Sampling timesteps (can be fewer)
+  noise_schedule: cosine      # cosine | linear
+  noise_s: 0.008              # Cosine schedule offset
+
+# Resolution
+resolution:
+  schedule_type: convex_decay # convex_decay | equal | sigmoid
+  gamma: 0.5                  # ConvexDecay exponent (0.5 = more time at coarse)
+  max_levels: 5               # Maximum coarsening levels
+  coarsening_ratio: 3         # Approximate fold reduction per level
+
+# Model
+model:
+  type: flexi_net
+  hidden_dim: 256
+  time_dim: 128
+  edge_dim: 4                 # Bond type one-hot (single, double, triple, aromatic)
+  num_atom_types: 6           # H, C, N, O, F, coarsened
+  attention: true
+  normalize: true
+
+# Flexi-Net levels (shallowest to deepest)
+flexi_net:
+  levels:
+    - {num_blocks: 4, hidden_dim: 128}   # Level L (full atomic)
+    - {num_blocks: 3, hidden_dim: 256}   # Level L-1
+    - {num_blocks: 3, hidden_dim: 384}   # Level L-2
+    - {num_blocks: 2, hidden_dim: 512}   # Level 0 (coarsest)
+
+# Training
+training:
+  optimizer: adamw
+  lr: 3.0e-4
+  weight_decay: 0.01
+  warmup_steps: 5000
+  max_steps: 500000
+  batch_size: 64
+  grad_clip_norm: 1.0
+  ema_decay: 0.9999
+  mixed_precision: true       # bf16
+
+# Loss
+loss:
+  snr_gamma: 5.0              # Min-SNR clipping threshold
+  lambda_type: 0.1            # Weight for atom type cross-entropy
+  lambda_prop: 0.0            # Weight for property prediction (0 = unconditional)
+
+# Data
+data:
+  dataset: qm9
+  data_dir: ./data
+  num_workers: 4
+  pin_memory: true
+
+# Logging
+logging:
+  wandb_project: molssd
+  log_every: 100
+  sample_every: 5000
+  checkpoint_every: 10000
+  eval_every: 10000
+
+# Compute
+compute:
+  seed: 42
+  num_gpus: 1
+  device: cuda
