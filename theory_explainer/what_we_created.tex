@@ -15,7 +15,7 @@
 \usepackage{natbib}
 \usepackage{setspace}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning,calc,shapes.geometric}
+\usetikzlibrary{arrows.meta,positioning,calc,shapes.geometric,decorations.pathreplacing}
 \usepackage{tcolorbox}
 \usepackage{caption}
 
@@ -303,6 +303,71 @@ In MolSSD, at a resolution-changing step (e.g., going from 10 super-nodes back t
 q(\bm{x}_{t-1} \mid \bm{x}_t, \bm{x}_0) = \cN\!\left(\bm{x}_{t-1};\; \bm{\mu}_{t \to t-1},\; \underbrace{\sigma_{t-1}^2 \bm{I} - \frac{\sigma_{t-1}^4}{\sigma_t^2} \bm{M}_t^\top \bm{M}_t}_{\text{NOT a scalar times identity!}}\right)
 \]
 
+The difference is easiest to see visually. In 2D, sampling from these two distributions produces qualitatively different point clouds:
+
+\begin{center}
+\begin{tikzpicture}[scale=0.85]
+% --- Isotropic (left) ---
+\begin{scope}[shift={(-4.5,0)}]
+  \node[font=\bfseries\small, text=blue!70!black] at (0,2.5) {Isotropic Posterior (Standard DDPM)};
+  \node[font=\small, text=gray] at (0,2.0) {$\bm{\Sigma} = \sigma^2 \bm{I}$};
+
+  % Draw circle (equal variance in all directions)
+  \draw[blue!60, thick, fill=blue!8] (0,0) circle (1.5cm);
+
+  % Axes
+  \draw[-{Stealth}, gray!50] (-2,0) -- (2,0) node[right, font=\tiny, text=gray] {direction 1};
+  \draw[-{Stealth}, gray!50] (0,-2) -- (0,2) node[above, font=\tiny, text=gray] {direction 2};
+
+  % Sample points (scattered uniformly)
+  \foreach \x/\y in {0.3/0.8, -0.5/0.6, 0.9/-0.3, -0.7/-0.5, 0.2/-0.9,
+                     -0.3/0.2, 0.6/0.5, -0.8/0.1, 0.1/-0.4, -0.2/-0.8,
+                     0.7/0.7, -0.6/-0.3, 0.4/-0.6, -0.1/0.9, 0.8/0.1} {
+    \fill[blue!70] (\x,\y) circle (1.5pt);
+  }
+
+  % Variance labels
+  \draw[<->, blue!70, thick] (-1.5,-1.8) -- (1.5,-1.8);
+  \node[font=\tiny, text=blue!70] at (0,-2.1) {$\sigma^2$ in every direction};
+
+  \node[font=\footnotesize] at (0,-2.7) {All atoms get equal noise};
+\end{scope}
+
+% --- Non-Isotropic (right) ---
+\begin{scope}[shift={(4.5,0)}]
+  \node[font=\bfseries\small, text=novelty!80!black] at (0,2.5) {Non-Isotropic Posterior (MolSSD)};
+  \node[font=\small, text=gray] at (0,2.0) {$\bm{\Sigma} = \sigma^2 \bm{I} - \tfrac{\sigma^4}{\sigma_t^2}\bm{M}_t^\top \bm{M}_t$};
+
+  % Draw ellipse (different variance per direction)
+  \draw[novelty!60, thick, fill=novelty!8, rotate=25] (0,0) ellipse (2cm and 0.7cm);
+
+  % Axes
+  \draw[-{Stealth}, gray!50] (-2.5,0) -- (2.5,0) node[right, font=\tiny, text=gray] {between clusters};
+  \draw[-{Stealth}, gray!50] (0,-2) -- (0,2) node[above, font=\tiny, text=gray] {within cluster};
+
+  % Sample points (elongated along one axis)
+  \foreach \x/\y in {0.8/0.3, -0.6/0.1, 1.2/-0.1, -0.9/-0.2, 0.3/0.2,
+                     -0.4/-0.1, 1.5/0.4, -1.3/0.0, 0.5/-0.3, -0.1/0.1,
+                     1.0/0.2, -1.1/-0.3, 0.7/0.0, -0.7/0.2, 1.4/-0.2} {
+    \fill[novelty!70] (\x,\y) circle (1.5pt);
+  }
+
+  % Variance labels
+  \draw[<->, novelty!70, thick] (-2,-1.8) -- (2,-1.8);
+  \node[font=\tiny, text=novelty!70] at (0,-2.1) {high $\sigma^2$ between clusters};
+  \draw[<->, novelty!70, thick] (2.3,-0.7) -- (2.3,0.7);
+  \node[font=\tiny, text=novelty!70, rotate=90, anchor=south] at (2.6,0) {low $\sigma^2$};
+
+  \node[font=\footnotesize] at (0,-2.7) {Constrained within clusters};
+\end{scope}
+
+% Arrow between
+\draw[-{Stealth}, very thick, gray!40] (-1.5,0) -- (1.5,0);
+\node[font=\tiny, text=gray, fill=white, inner sep=2pt] at (0,0) {resolution change};
+\end{tikzpicture}
+\captionof{figure}{Isotropic vs.\ non-isotropic posterior sampling. Left: standard DDPM noise is uniform in all directions (circle). Right: MolSSD noise is direction-dependent (ellipse) --- low variance within clusters (atoms constrained near their cluster center) and high variance between clusters (clusters can be far apart). The ellipse shape is determined by $\bm{M}_t^\top \bm{M}_t$.}
+\end{center}
+
 \subsection{Why This Happens: An Intuition}
 
 \begin{insightbox}[Intuition]
@@ -310,6 +375,77 @@ When you go from a coarse representation (10 super-nodes) to a finer one (30 ato
 
 Analogy: if someone tells you ``the cat is on the mat,'' you know the cat and mat are near each other (low uncertainty for their relative position) but you don't know where in the room they are (high uncertainty for their absolute position). The uncertainty is direction-dependent.
 \end{insightbox}
+
+The following diagram illustrates this concretely. When we ``uncoarsen'' from 3 super-nodes back to 9 atoms, the atoms within each cluster (same color) are tightly constrained around their cluster center, but the clusters themselves have normal uncertainty:
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+% --- Coarse level (left) ---
+\begin{scope}[shift={(-5,0)}]
+  \node[font=\bfseries\small] at (0,3) {Coarse Level ($t$)};
+  \node[font=\small, text=gray] at (0,2.5) {3 super-nodes};
+
+  % Three super-nodes
+  \fill[red!60] (-1.5,0) circle (8pt);
+  \node[font=\tiny, text=white, font=\bfseries] at (-1.5,0) {A};
+  \fill[green!50!black] (1.0,1.0) circle (8pt);
+  \node[font=\tiny, text=white, font=\bfseries] at (1.0,1.0) {B};
+  \fill[blue!60] (0.5,-1.2) circle (8pt);
+  \node[font=\tiny, text=white, font=\bfseries] at (0.5,-1.2) {C};
+
+  % Edges
+  \draw[thick, gray!50] (-1.5,0) -- (1.0,1.0);
+  \draw[thick, gray!50] (1.0,1.0) -- (0.5,-1.2);
+  \draw[thick, gray!50] (-1.5,0) -- (0.5,-1.2);
+
+  % Uncertainty circles (equal = isotropic at this level)
+  \draw[gray, dashed] (-1.5,0) circle (0.6cm);
+  \draw[gray, dashed] (1.0,1.0) circle (0.6cm);
+  \draw[gray, dashed] (0.5,-1.2) circle (0.6cm);
+\end{scope}
+
+% Arrow
+\draw[-{Stealth[length=8pt]}, very thick, novelty!70] (-2.2,0) -- (-0.3,0);
+\node[font=\small, text=novelty!70, fill=white, inner sep=3pt] at (-1.25,0.5) {uncoarsen};
+\node[font=\tiny, text=gray] at (-1.25,-0.3) {resolution change};
+
+% --- Fine level (right) ---
+\begin{scope}[shift={(3,0)}]
+  \node[font=\bfseries\small] at (0,3) {Fine Level ($t{-}1$)};
+  \node[font=\small, text=gray] at (0,2.5) {9 atoms};
+
+  % Cluster A atoms (red, tightly grouped)
+  \fill[red!60] (-1.7,0.2) circle (4pt);
+  \fill[red!60] (-1.3,-0.15) circle (4pt);
+  \fill[red!60] (-1.5,0.45) circle (4pt);
+  \draw[red!30, dashed, thick] (-1.5,0.17) ellipse (0.45cm and 0.45cm);
+  \node[font=\tiny, text=red!60, anchor=west] at (-0.85,0.17) {A: tight};
+
+  % Cluster B atoms (green, tightly grouped)
+  \fill[green!50!black] (0.85,1.15) circle (4pt);
+  \fill[green!50!black] (1.2,0.85) circle (4pt);
+  \fill[green!50!black] (0.9,0.7) circle (4pt);
+  \draw[green!30!black, dashed, thick] (0.98,0.9) ellipse (0.45cm and 0.4cm);
+  \node[font=\tiny, text=green!50!black, anchor=west] at (1.55,0.9) {B: tight};
+
+  % Cluster C atoms (blue, tightly grouped)
+  \fill[blue!60] (0.35,-1.05) circle (4pt);
+  \fill[blue!60] (0.65,-1.35) circle (4pt);
+  \fill[blue!60] (0.5,-0.8) circle (4pt);
+  \draw[blue!30, dashed, thick] (0.5,-1.07) ellipse (0.4cm and 0.45cm);
+  \node[font=\tiny, text=blue!60, anchor=west] at (1.05,-1.07) {C: tight};
+
+  % Show the BETWEEN-cluster uncertainty (large)
+  \draw[<->, gray!60, thick] (-1.5,-1.8) -- (0.5,-1.8);
+  \node[font=\tiny, text=gray] at (-0.5,-2.15) {between-cluster: high uncertainty};
+
+  % Show the WITHIN-cluster uncertainty (small)
+  \draw[<->, novelty!60, thick] (-1.7,-0.5) -- (-1.3,-0.5);
+  \node[font=\tiny, text=novelty!60, anchor=north] at (-1.5,-0.55) {within: low};
+\end{scope}
+\end{tikzpicture}
+\captionof{figure}{Resolution transition from coarse to fine. At the coarse level (left), each super-node has isotropic uncertainty (dashed circles). After uncoarsening (right), atoms within the same cluster (same color) are tightly constrained near their cluster center-of-mass (small within-cluster variance), while the positions of different clusters relative to each other have normal uncertainty (large between-cluster variance). This asymmetry is the non-isotropic structure.}
+\end{center}
 
 \subsection{The Exact Posterior (Theorem)}
 
@@ -325,6 +461,62 @@ and the posterior mean is:
 where $\hat{\bm{x}}_0$ is the model's prediction of the clean data.
 \end{theorem}
 
+The eigenvalue structure of $\bm{\Sigma}$ is the key to understanding this. The following diagram shows the eigenvalue spectrum for a typical QM9 molecule (22 atoms, first resolution change at $t = 566$):
+
+\begin{center}
+\begin{tikzpicture}[scale=0.85]
+  % Axes
+  \draw[-{Stealth}, thick] (-0.5,0) -- (12,0) node[right, font=\small] {eigenvalue index $j$};
+  \draw[-{Stealth}, thick] (0,-0.5) -- (0,5.5) node[above, font=\small] {$\lambda_j(\bm{\Sigma})$};
+
+  % Isotropic baseline
+  \draw[blue!50, thick, dashed] (0,4) -- (11.5,4);
+  \node[font=\tiny, text=blue!60, anchor=west] at (11.6,4) {$\sigma_{t-1}^2 = 0.845$ (isotropic)};
+
+  % Bulk eigenvalues (15 directions at sigma_{t-1}^2)
+  \foreach \x in {0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5} {
+    \fill[blue!60] (\x, 4) circle (3pt);
+  }
+
+  % Deviating eigenvalues (7 directions, from our QM9 data)
+  % 0.5623, 0.2995, 0.2995, 0.2225, 0.2225, 0.2225, 0.1274
+  % Scale: 0.845 -> 4.0, so multiply by 4.0/0.845 = 4.73
+  \fill[novelty!80] (8.0, 2.66) circle (4pt);   % 0.5623
+  \fill[novelty!80] (8.5, 1.42) circle (4pt);   % 0.2995
+  \fill[novelty!80] (9.0, 1.42) circle (4pt);   % 0.2995
+  \fill[novelty!80] (9.5, 1.05) circle (4pt);   % 0.2225
+  \fill[novelty!80] (10.0, 1.05) circle (4pt);  % 0.2225
+  \fill[novelty!80] (10.5, 1.05) circle (4pt);  % 0.2225
+  \fill[novelty!80] (11.0, 0.60) circle (4pt);  % 0.1274
+
+  % Annotations
+  \draw[decorate, decoration={brace, amplitude=5pt, mirror}, thick, blue!60]
+    (0.3,-0.3) -- (7.7,-0.3);
+  \node[font=\footnotesize, text=blue!60, anchor=north] at (4,-0.6) {15 bulk directions: $\lambda_j = \sigma_{t-1}^2$};
+  \node[font=\tiny, text=blue!40, anchor=north] at (4,-1.1) {These directions are unaffected by coarsening};
+
+  \draw[decorate, decoration={brace, amplitude=5pt, mirror}, thick, novelty!70]
+    (7.8,-0.3) -- (11.2,-0.3);
+  \node[font=\footnotesize, text=novelty!70, anchor=north] at (9.5,-0.6) {7 deviating directions};
+  \node[font=\tiny, text=novelty!40, anchor=north] at (9.5,-1.1) {Constrained by coarsening ($\bm{M}_t^\top \bm{M}_t$)};
+
+  % Ratio annotation
+  \draw[<->, thick, gray] (11.5, 0.60) -- (11.5, 4.0);
+  \node[font=\tiny, text=gray, anchor=west, align=left] at (11.7, 2.3) {ratio\\$= 6.6\times$};
+
+  % Tick marks on y-axis
+  \draw[thick] (-0.1, 4.0) -- (0.1, 4.0);
+  \node[font=\tiny, anchor=east] at (-0.15, 4.0) {0.845};
+  \draw[thick] (-0.1, 2.66) -- (0.1, 2.66);
+  \node[font=\tiny, anchor=east] at (-0.15, 2.66) {0.562};
+  \draw[thick] (-0.1, 1.42) -- (0.1, 1.42);
+  \node[font=\tiny, anchor=east] at (-0.15, 1.42) {0.300};
+  \draw[thick] (-0.1, 0.60) -- (0.1, 0.60);
+  \node[font=\tiny, anchor=east] at (-0.15, 0.60) {0.127};
+\end{tikzpicture}
+\captionof{figure}{Eigenvalue spectrum of the posterior covariance $\bm{\Sigma}$ for a representative QM9 molecule (22 atoms, $t = 566$). The 15 blue dots at $\sigma_{t-1}^2 = 0.845$ are bulk directions unaffected by coarsening --- here the posterior IS isotropic. The 7 magenta dots are the deviating directions where $\bm{M}_t^\top \bm{M}_t$ compresses the variance, with eigenvalues as low as 0.127 (6.6$\times$ less than the bulk). A standard DDPM model would treat ALL 22 directions as having eigenvalue 0.845, producing the wrong noise magnitude in 7 directions.}
+\end{center}
+
 \subsection{Why Existing Models Get This Wrong}
 
 Every existing molecular diffusion model (EDM, GeoDiff, GCDM, etc.) implicitly assumes $\bm{M}_t = \sqrt{\alpha_t} \bm{I}$, which gives an isotropic posterior $\bm{\Sigma} = \sigma^2 \bm{I}$. If you tried to add multi-scale coarsening to these models without fixing the posterior, you would be sampling from the \emph{wrong distribution}. The generated molecules would have incorrect bond lengths and angles because the noise structure doesn't match the coarsening structure.
@@ -337,9 +529,53 @@ The key observation: $\bm{M}_t^\top \bm{M}_t$ has rank at most $N_{r(t)}$ (the n
 
 The \textbf{Lanczos algorithm} computes exactly these $N_{r(t)}$ eigenvalue-eigenvector pairs in $O(N_{r(t)} \cdot N_{r(t-1)})$ time --- linear in the fine resolution, not cubic. The sampling then uses a correction formula:
 \[
-\bm{x}_{t-1} = \bm{\mu} + \sigma_{t-1} \bm{z} + \bm{V}_k \left(\bm{D}_k^{1/2} - \sigma_{t-1} \bm{I}_k\right) \bm{V}_k^\top \bm{z}
+\bm{x}_{t-1} = \underbrace{\bm{\mu} + \sigma_{t-1} \bm{z}}_{\text{isotropic sample}} + \underbrace{\bm{V}_k \left(\bm{D}_k^{1/2} - \sigma_{t-1} \bm{I}_k\right) \bm{V}_k^\top \bm{z}}_{\text{rank-}k\text{ correction}}
 \]
-where $\bm{V}_k, \bm{D}_k$ are the Lanczos eigenpairs and $\bm{z} \sim \cN(\bm{0}, \bm{I})$. This adds only a small correction to the isotropic sample, making it extremely efficient.
+where $\bm{V}_k, \bm{D}_k$ are the Lanczos eigenpairs and $\bm{z} \sim \cN(\bm{0}, \bm{I})$. The following diagram shows how this works:
+
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners, minimum width=2.5cm, minimum height=0.9cm, align=center, font=\small, fill=#1},
+  arrow/.style={-{Stealth[length=5pt]}, thick},
+  scale=0.9,
+]
+  % Step 1: Isotropic sample
+  \node[box=blue!10] (iso) at (0,0) {Draw $\bm{z} \sim \cN(\bm{0}, \bm{I})$\\(all $N$ directions)};
+
+  % Step 2: Isotropic scaling
+  \node[box=blue!15] (scale) at (5,0) {$\bm{s} = \bm{\mu} + \sigma_{t-1} \bm{z}$\\(isotropic noise)};
+
+  % Step 3: Lanczos projection
+  \node[box=novelty!12] (proj) at (0,-2.5) {Project onto $k$\\Lanczos directions:\\$\bm{c} = \bm{V}_k^\top \bm{z}$};
+
+  % Step 4: Correction
+  \node[box=novelty!15] (corr) at (5,-2.5) {Scale corrections:\\$\bm{c}' = (\sqrt{d_j} - \sigma_{t-1}) c_j$\\for $j = 1, \ldots, k$};
+
+  % Step 5: Add back
+  \node[box=novelty!20] (add) at (10,-2.5) {Project back:\\$\Delta = \bm{V}_k \bm{c}'$};
+
+  % Final
+  \node[box=green!15, minimum width=3cm] (final) at (10,0) {$\bm{x}_{t-1} = \bm{s} + \Delta$\\(correct sample)};
+
+  % Arrows
+  \draw[arrow] (iso) -- (scale);
+  \draw[arrow] (iso) -- (proj);
+  \draw[arrow, blue!50] (scale) -- (final);
+  \draw[arrow, novelty!70] (proj) -- (corr);
+  \draw[arrow, novelty!70] (corr) -- (add);
+  \draw[arrow, novelty!70] (add) -- (final);
+
+  % Labels
+  \node[font=\tiny, text=blue!60, anchor=south] at (2.5,0.1) {standard path};
+  \node[font=\tiny, text=novelty!60, anchor=north] at (2.5,-2.6) {only $k$ directions};
+  \node[font=\tiny, text=novelty!60, anchor=west] at (5.2,-1.3) {cheap: $O(k)$};
+
+  % Cost annotation
+  \node[draw, rounded corners, fill=math!5, font=\footnotesize, text=math!80!black, inner sep=4pt] at (5, -4.5)
+    {Cost: $O(N \cdot k)$ total, not $O(N^3)$. For QM9: $k \approx 7$, $N \approx 22$.};
+\end{tikzpicture}
+\captionof{figure}{Lanczos-based efficient sampling. The isotropic sample (blue path) is computed normally in all $N$ directions. The rank-$k$ correction (magenta path) only touches the $k$ special directions identified by Lanczos, adjusting their variance from $\sigma_{t-1}^2$ to $d_j$. This avoids the $O(N^3)$ cost of a full Cholesky factorization.}
+\end{center}
 
 \subsection{Empirical Validation on QM9}
 
@@ -363,7 +599,88 @@ The posterior is emphatically non-isotropic: the eigenvalue ratio averages 14.6$
 \end{validationbox}
 
 \paragraph{Test (b): Does non-isotropic sampling give correct variances?}
-We drew 2,000 samples from both the exact non-isotropic posterior and the isotropic approximation, then measured how well each matched the target per-direction variance.
+We drew 2,000 samples from both the exact non-isotropic posterior and the isotropic approximation, then measured how well each matched the target per-direction variance. The following diagram illustrates what happens in each case:
+
+\begin{center}
+\begin{tikzpicture}[scale=0.75]
+  % --- Target (left) ---
+  \begin{scope}[shift={(-6,0)}]
+    \node[font=\bfseries\footnotesize, text=math!80!black] at (0,3.3) {Target Variance};
+    \node[font=\tiny, text=gray] at (0,2.8) {(from exact $\bm{\Sigma}$)};
+
+    % Bars showing target variance per direction
+    \foreach \i/\h/\col in {1/2.0/blue!50, 2/2.0/blue!50, 3/2.0/blue!50, 4/2.0/blue!50,
+                             5/1.3/novelty!50, 6/0.7/novelty!60, 7/0.3/novelty!80} {
+      \fill[\col] (\i*0.6 - 2.4, 0) rectangle (\i*0.6 - 1.9, \h);
+      \draw[gray!50] (\i*0.6 - 2.4, 0) rectangle (\i*0.6 - 1.9, \h);
+    }
+
+    % Axis
+    \draw[-{Stealth}, gray] (-2.5,0) -- (2.5,0);
+    \node[font=\tiny, text=gray] at (0,-0.3) {eigendirection $j$};
+    \draw[-{Stealth}, gray] (-2.5,0) -- (-2.5,2.5);
+    \node[font=\tiny, text=gray, rotate=90, anchor=south] at (-2.8,1.2) {variance};
+
+    % Labels
+    \draw[decorate, decoration={brace, amplitude=3pt}, blue!50] (-1.85, 2.1) -- (-0.05, 2.1);
+    \node[font=\tiny, text=blue!50, anchor=south] at (-0.95, 2.2) {bulk};
+    \draw[decorate, decoration={brace, amplitude=3pt}, novelty!60] (0.55, 1.4) -- (2.15, 1.4);
+    \node[font=\tiny, text=novelty!60, anchor=south] at (1.35, 1.5) {deviating};
+  \end{scope}
+
+  % --- Isotropic (center) ---
+  \begin{scope}[shift={(0,0)}]
+    \node[font=\bfseries\footnotesize, text=red!60!black] at (0,3.3) {Isotropic Sampling};
+    \node[font=\tiny, text=gray] at (0,2.8) {(standard DDPM)};
+
+    % All bars at same height (sigma^2)
+    \foreach \i in {1,2,3,4,5,6,7} {
+      \fill[red!30] (\i*0.6 - 2.4, 0) rectangle (\i*0.6 - 1.9, 2.0);
+      \draw[gray!50] (\i*0.6 - 2.4, 0) rectangle (\i*0.6 - 1.9, 2.0);
+    }
+
+    % Error markers on deviating directions
+    \foreach \i/\h in {5/1.3, 6/0.7, 7/0.3} {
+      \draw[red, very thick] (\i*0.6 - 2.15, \h) -- (\i*0.6 - 2.15, 2.0);
+      \draw[red, thick] (\i*0.6 - 2.35, \h) -- (\i*0.6 - 1.95, \h);
+    }
+
+    \draw[-{Stealth}, gray] (-2.5,0) -- (2.5,0);
+    \draw[-{Stealth}, gray] (-2.5,0) -- (-2.5,2.5);
+
+    \node[font=\tiny, text=red!60, anchor=north] at (1.4,-0.1) {too much};
+    \node[font=\tiny, text=red!60, anchor=north] at (1.4,-0.4) {noise here!};
+    \node[font=\tiny, text=gray] at (0,-0.8) {error: 1.545};
+  \end{scope}
+
+  % --- Non-isotropic (right) ---
+  \begin{scope}[shift={(6,0)}]
+    \node[font=\bfseries\footnotesize, text=math!80!black] at (0,3.3) {Non-Isotropic Sampling};
+    \node[font=\tiny, text=gray] at (0,2.8) {(MolSSD)};
+
+    % Bars matching target
+    \foreach \i/\h/\col in {1/2.0/blue!50, 2/2.0/blue!50, 3/2.0/blue!50, 4/2.0/blue!50,
+                             5/1.3/novelty!50, 6/0.7/novelty!60, 7/0.3/novelty!80} {
+      \fill[\col] (\i*0.6 - 2.4, 0) rectangle (\i*0.6 - 1.9, \h);
+      \draw[gray!50] (\i*0.6 - 2.4, 0) rectangle (\i*0.6 - 1.9, \h);
+    }
+
+    % Checkmarks
+    \node[font=\small, text=math!70!black] at (0,-0.15) {\checkmark};
+
+    \draw[-{Stealth}, gray] (-2.5,0) -- (2.5,0);
+    \draw[-{Stealth}, gray] (-2.5,0) -- (-2.5,2.5);
+
+    \node[font=\tiny, text=math!70!black, anchor=north] at (0,-0.45) {matches target!};
+    \node[font=\tiny, text=gray] at (0,-0.8) {error: 0.025};
+  \end{scope}
+
+  % Arrows between panels
+  \node[font=\small, text=gray] at (-3,1) {vs.};
+  \node[font=\small, text=gray] at (3,1) {vs.};
+\end{tikzpicture}
+\captionof{figure}{Variance per eigendirection for target, isotropic, and non-isotropic sampling. Left: the true posterior has 4 bulk directions (full height) and 3 deviating directions (reduced height). Center: isotropic sampling assigns equal variance everywhere --- the red lines show excess noise in deviating directions, producing incorrect bond geometries. Right: non-isotropic sampling matches the target almost perfectly. Simplified to 7 directions for clarity; real QM9 molecules have $\sim$22 directions with $\sim$7 deviating.}
+\end{center}
 
 \begin{validationbox}[Result: Sampling Variance Accuracy]
 \begin{center}
