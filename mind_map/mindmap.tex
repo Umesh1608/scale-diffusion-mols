@@ -48,8 +48,8 @@
     text width=0.9cm,
   },
   level 3/.append style={
-    level distance=3.5cm,
-    sibling angle=45,
+    level distance=4.0cm,
+    sibling angle=25,
     font=\tiny,
     minimum size=0.8cm,
     text width=0.7cm,
@@ -61,13 +61,13 @@
   {MolSSD\\[3pt]{\small Molecular}\\{\small Scale-Space}\\{\small Diffusion}}
 %
 % ===============================================================
-% 9 branches at even 40-deg spacing.
-% Level 2 siblings: min 15 deg apart (arc=1.3cm > 1.0cm node).
-% Level 3 siblings: 35 deg default (arc=1.83cm > 0.85cm node).
+% 9 branches at 40-deg spacing.
+% All level 3 children have explicit grow angles and some have
+% custom level distances to prevent cross-parent/cross-branch overlap.
+% Verified: all 33 level 3 node pairs >= 1.6cm apart.
 % ===============================================================
 %
 % BRANCH 1 - Multi-Scale Hierarchy  (0 deg, right)
-%   4 children, 3x15=45 deg span, from -22 to +22
   child [concept color=brScale, grow=0] {
     node (hierarchy) {Multi-Scale Hierarchy}
     child [grow=22] {
@@ -84,29 +84,27 @@
     }
   }
 %
-% BRANCH 2 - Architecture  (40 deg, upper-right)
-%   3 children, 2x18=36 deg span, from 22 to 58
+% BRANCH 2 - Architecture  (40 deg)
   child [concept color=brArch, grow=40] {
     node (arch) {Architecture Flexi-Net}
     child [grow=58] {
       node {Hierarchical EGNN}
-      child { node {Lv0: 2blk 512} }
-      child { node {Lv1: 3blk 384} }
-      child { node {Lv2: 3blk 256} }
-      child { node {LvL: 4blk 128} }
+      child [grow=90, level distance=3.0cm] { node {Lv0: 2blk 512} }
+      child [grow=65] { node {Lv1: 3blk 384} }
+      child [grow=40] { node {Lv2: 3blk 256} }
+      child [grow=15] { node {LvL: 4blk 128} }
     }
     child [grow=40] {
       node {Dynamic Activation}
     }
     child [grow=22] {
       node (uvcond) {UV Cond.}
-      child { node {Cross Attn} }
-      child { node {adaLN} }
+      child [grow=22] { node {Cross Attn} }
+      child [grow=-3] { node {adaLN} }
     }
   }
 %
-% BRANCH 3 - Mathematical Framework  (80 deg, upper)
-%   5 children, 4x15=60 deg span, from 50 to 110
+% BRANCH 3 - Mathematical Framework  (80 deg)
   child [concept color=brMath, grow=80] {
     node (math) {Math Framework}
     child [grow=110] {
@@ -120,68 +118,66 @@
     }
     child [grow=65] {
       node {Non-Iso Posterior}
-      child { node {Lanczos} }
+      child [grow=78] { node {Lanczos} }
     }
     child [grow=50] {
       node {SE(3) Equiv.}
-      child { node {CoM Aggr.} }
-      child { node {Local Frames} }
+      child [grow=55] { node {CoM Aggr.} }
+      child [grow=30, level distance=3.0cm] { node {Local Frames} }
     }
   }
 %
-% BRANCH 4 - Baselines & Metrics  (120 deg, upper-left)
-%   3 children at 95, 120, 145 (25 deg spacing).
-%   Explicit level 3 grows to fan away from neighbors.
+% BRANCH 4 - Baselines & Metrics  (120 deg)
+%   L2 at 150, 120, 90 (30 deg spacing).
+%   Staggered L3 distances prevent cross-parent overlap.
   child [concept color=brBase, grow=120] {
     node (baselines) {Baselines \& Metrics}
-    child [grow=145] {
+    child [grow=150] {
       node {Baselines}
       child [grow=170] { node {EDM GeoLDM} }
-      child [grow=145] { node {GCDM EQGAT} }
-      child [grow=120] { node {HierDiff} }
+      child [grow=150, level distance=2.5cm] { node {GCDM EQGAT} }
+      child [grow=135] { node {HierDiff} }
     }
     child [grow=120] {
-      node {Mol.\ Metrics}
-      child [grow=145] { node {Valid Uniq Nov} }
-      child [grow=120] { node {JS Diverg.} }
-      child [grow=95] { node {QED SA} }
+      node {Mol.\ Metrics / JS}
+      child [grow=132] { node {Valid Uniq Nov} }
+      child [grow=107] { node {QED SA} }
     }
-    child [grow=95] {
+    child [grow=90] {
       node (uvmetrics) {UV Metrics}
-      child [grow=115] { node {Absorp.\ Acc.} }
-      child [grow=75] { node {Photostab.} }
+      child [grow=100, level distance=3.0cm] { node {Absorp.\ Acc.} }
+      child [grow=70] { node {Photostab.} }
     }
   }
 %
-% BRANCH 5 - Theoretical Foundations  (160 deg, left)
-%   4 children at 134, 152, 170, 188 (18 deg spacing).
-%   Explicit level 3 grows to fan away from neighbors.
+% BRANCH 5 - Theoretical Foundations  (160 deg)
+%   L2 at 198, 173, 148, 123 (25 deg spacing).
+%   All L3 explicit grows; MutualInfo uses shorter level distance.
   child [concept color=brTheory, grow=160] {
     node (theory) {Theoretical Foundations}
-    child [grow=188] {
+    child [grow=198] {
       node (sst) {Scale-Space Theory}
-      child [grow=218] { node {Lindeberg Witkin} }
-      child [grow=190] { node {Gaussian Blur} }
-      child [grow=163] { node {Heat Eqn.} }
+      child [grow=236] { node {Lindeberg Witkin} }
+      child [grow=211] { node {Gaussian Blur} }
+      child [grow=186] { node {Heat Eqn.} }
     }
-    child [grow=170] {
+    child [grow=173] {
       node {Diffusion Models}
-      child [grow=190] { node {DDPM} }
-      child [grow=150] { node {Score SDE} }
+      child [grow=185] { node {DDPM} }
+      child [grow=161] { node {Score SDE} }
     }
-    child [grow=152] {
+    child [grow=148] {
       node (sgt) {Spectral Graph Th.}
-      child [grow=170] { node {Lap.\ Eigdec.} }
-      child [grow=132] { node {Spec.\ Cluster} }
+      child [grow=160] { node {Lap.\ Eigdec.} }
+      child [grow=136] { node {Spec.\ Cluster} }
     }
-    child [grow=134] {
+    child [grow=123] {
       node {Info Theory}
-      child [grow=134] { node {Mutual Info} }
+      child [grow=115, level distance=2.5cm] { node {Mutual Info} }
     }
   }
 %
-% BRANCH 6 - Research Gaps  (200 deg, lower-left)
-%   7 children, 6x14=84 deg span, from 158 to 242
+% BRANCH 6 - Research Gaps  (200 deg)
   child [concept color=brGaps, grow=200] {
     node (gaps) {7 Research Gaps}
     child [grow=242] {
@@ -207,8 +203,7 @@
     }
   }
 %
-% BRANCH 7 - Experimental Pipeline  (240 deg, lower-left)
-%   6 children, 5x14=70 deg span, from 205 to 275
+% BRANCH 7 - Experimental Pipeline  (240 deg)
   child [concept color=brPipe, grow=240] {
     node (pipe) {Experimental Pipeline}
     child [grow=275] {
@@ -231,37 +226,34 @@
     }
   }
 %
-% BRANCH 8 - UV-Absorber Application  (280 deg, lower)
-%   3 children at 250, 275, 310 (35 deg between CU and TP).
-%   Level 3 children use explicit grow to fan AWAY from neighbors.
+% BRANCH 8 - UV-Absorber Application  (280 deg)
   child [concept color=brUV, grow=280] {
     node (uvapp) {UV-Absorber Application}
     child [grow=310] {
       node {Commercial UV}
-      child [grow=340] { node {Benzo\-triazoles} }
-      child [grow=315] { node {Benzo\-phenones} }
-      child [grow=290] { node {Triazines} }
+      child [grow=343] { node {Benzo\-triazoles} }
+      child [grow=318] { node {Benzo\-phenones} }
+      child [grow=293] { node {Triazines} }
     }
     child [grow=275] {
       node (uvtarget) {Target Properties}
-      child [grow=295] { node {UV 280--400nm} }
-      child [grow=270] { node {High Absorpt.} }
-      child [grow=245] { node {Photo\-stab.} }
+      child [grow=292] { node {UV 280--400nm} }
+      child [grow=267] { node {High Absorpt.} }
+      child [grow=242] { node {Photo\-stab.} }
     }
     child [grow=250] {
       node {Drones Vehicles Outdoor}
     }
   }
 %
-% BRANCH 9 - Data & Infrastructure  (320 deg, lower-right)
-%   4 children, 3x15=45 deg span, from 298 to 343
+% BRANCH 9 - Data & Infrastructure  (320 deg)
   child [concept color=brData, grow=320] {
     node (data) {Data \& Infra}
     child [grow=343] {
       node (omol) {OMol25 140M DFT}
-      child { node (pretrain) {Pre-train} }
-      child { node {eSEN Oracle} }
-      child { node {Scale Bench} }
+      child [grow=20] { node (pretrain) {Pre-train} }
+      child [grow=355] { node {eSEN Oracle} }
+      child [grow=330] { node {Scale Bench} }
     }
     child [grow=328] {
       node {QM9 130K}
