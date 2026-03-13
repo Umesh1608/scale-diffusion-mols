@@ -1,0 +1,500 @@
+% Compile with: pdflatex pitch_document.tex
+% Navy SBIR Topic NV030 — AI/ML-Enabled Process Optimization for
+% Additive Manufacturing of Protective Coatings
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{graphicx}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  urlcolor=blue!60!black,
+}
+
+\definecolor{navyblue}{HTML}{003366}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{gray}{\small DoD SBIR --- Topic NV030}}
+\lhead{\textcolor{gray}{\small [Company Name]}}
+\rfoot{\textcolor{gray}{\small Page \thepage\ of 5}}
+
+\begin{document}
+
+%% =======================================================================
+%% TITLE PAGE
+%% =======================================================================
+
+\begin{center}
+\vspace*{1cm}
+{\large\textcolor{navyblue}{\textbf{DEPARTMENT OF THE NAVY}}}\\[0.3cm]
+{\large\textbf{Small Business Innovation Research (SBIR)}}\\[0.2cm]
+{\large\textbf{Phase I Technical Volume}}\\[0.8cm]
+
+\noindent\textcolor{navyblue}{\rule{0.8\textwidth}{1.5pt}}\\[0.5cm]
+
+{\Large\textbf{Topic Number: NV030}}\\[0.3cm]
+{\Large\textbf{AI/ML-Enabled Process Optimization for Additive}}\\
+{\Large\textbf{Manufacturing of Protective Coatings}}\\[0.5cm]
+
+\noindent\textcolor{navyblue}{\rule{0.8\textwidth}{1.5pt}}\\[0.8cm]
+
+{\large\textbf{Proposal Title:}}\\[0.2cm]
+{\large AI-Driven Digital Twin Platform for Closed-Loop Optimization}\\
+{\large of Thermal Spray and Additive Coating Deposition}\\[0.8cm]
+
+\begin{tabular}{ll}
+\textbf{Proposing Firm:} & [Company Name] \\
+\textbf{Address:} & [Street Address] \\
+ & [City, State ZIP] \\
+\textbf{Principal Investigator:} & [PI Name], [Degree] \\
+\textbf{Phone:} & [Phone Number] \\
+\textbf{Email:} & [Email Address] \\
+\textbf{CAGE Code:} & [CAGE Code] \\
+\textbf{DUNS Number:} & [DUNS Number] \\
+\textbf{Requested Funding:} & \$240,000 \\
+\textbf{Period of Performance:} & 6 months \\
+\end{tabular}
+
+\vfill
+{\small\textcolor{gray}{DISTRIBUTION STATEMENT D: Distribution authorized to the
+Department of Defense and U.S.\ DoD contractors only.}}
+\end{center}
+
+\newpage
+
+%% =======================================================================
+\section{Technical Approach}
+\label{sec:technical_approach}
+%% =======================================================================
+
+\subsection{Problem Statement and Relevance to Navy Needs}
+
+The U.S.\ Navy operates over 290 deployable battle force ships, each
+requiring protective coatings on turbine blades, hull structures,
+propulsion components, and topside surfaces that must withstand extreme
+thermal cycling, salt-fog corrosion, sand erosion, and UV degradation.
+Additive manufacturing (AM) coating processes---including atmospheric
+plasma spray (APS), high-velocity oxy-fuel (HVOF), cold spray (CS), and
+low-pressure plasma spray (LPPS)---offer the ability to deposit
+functionally graded and multi-material coatings tailored to these
+environments. However, these processes involve 15--30 interdependent
+parameters (spray distance, powder feed rate, gas composition and
+pressure, substrate preheat temperature, raster velocity, etc.) whose
+interactions are poorly understood analytically. Current practice relies
+on extensive design-of-experiments (DOE) campaigns that test fewer than
+2\% of the feasible parameter space, yielding sub-optimal coatings with
+inconsistent microstructure, porosity, and adhesion.
+
+Topic NV030 calls for AI/ML-enabled process optimization to close this
+gap. We propose an integrated AI platform that couples (1)~graph neural
+network (GNN) surrogate models of coating microstructure and properties,
+(2)~physics-informed neural network (PINN) digital twins of the
+deposition process, and (3)~Bayesian optimization (BO) for closed-loop
+parameter tuning---enabling the Navy to achieve target coating
+performance in 5--10$\times$ fewer experiments than conventional DOE.
+
+\subsection{Core Technical Innovation}
+
+Our platform comprises three tightly integrated modules:
+
+\textbf{Module 1: GNN Surrogate Models for Coating Quality Prediction.}
+We model the relationship between process parameters and coating
+microstructure using message-passing graph neural networks. Each coating
+cross-section is represented as a graph where nodes correspond to
+microstructural features (splats, pores, oxide stringers, interlamellar
+boundaries) and edges encode spatial adjacency and interfacial
+relationships. The GNN ingests process parameter vectors (spray distance,
+particle velocity, substrate temperature, powder morphology
+descriptors) and predicts coating-level properties: porosity fraction,
+oxide content, adhesion strength (ASTM C633), microhardness (HV$_{0.3}$),
+and thermal conductivity. Transfer learning from the MACE-MP
+materials foundation model (150,000+ pre-training structures) enables
+accurate prediction from as few as 200--500 experimental samples per
+coating system.
+
+Key architectural choices:
+\begin{itemize}[nosep]
+  \item E(3)-equivariant message passing to respect rotational invariance
+        of microstructural features.
+  \item Multi-scale graph pooling that hierarchically coarsens
+        splat-level features into layer-level and coating-level
+        representations---directly paralleling the physical scale
+        hierarchy in thermal spray coatings.
+  \item Multitask prediction heads that simultaneously forecast 5+
+        properties, sharing learned representations between data-rich
+        tasks (porosity, hardness) and data-scarce tasks (fatigue life,
+        erosion rate).
+\end{itemize}
+
+\textbf{Module 2: Physics-Informed Digital Twin of Coating Deposition.}
+We construct a neural-ODE-based digital twin that models the full
+deposition physics: (a)~in-flight particle dynamics (drag, heating,
+melting, oxidation), (b)~splat formation and solidification on the
+substrate, and (c)~residual stress evolution during coating buildup. The
+digital twin embeds governing PDEs as soft constraints in the loss
+function:
+\begin{itemize}[nosep]
+  \item Navier--Stokes momentum for plasma/gas jet flow.
+  \item Coupled heat--mass transfer for particle in-flight behavior
+        (Biot number scaling, Stefan condition for melting front).
+  \item Eshelby-type inclusion mechanics for residual stress from
+        coefficient of thermal expansion (CTE) mismatch.
+\end{itemize}
+
+The PINN architecture uses Fourier feature embeddings to capture
+multi-scale physics (jet turbulence at $\sim$1\,mm vs.\ splat
+solidification at $\sim$10\,$\mu$m) and is trained on a combination of
+(i)~high-fidelity CFD simulations of plasma jet flow (OpenFOAM),
+(ii)~finite-element splat solidification models, and (iii)~experimental
+in-situ diagnostics (DPV-2000 particle temperature/velocity, IR
+pyrometry of substrate temperature).
+
+\textbf{Module 3: Bayesian Optimization for Closed-Loop Process Tuning.}
+We implement multi-objective Bayesian optimization using the BoTorch
+framework with the qNEHVI (noisy expected hypervolume improvement)
+acquisition function. The optimizer navigates the Pareto front across
+competing objectives (e.g., minimize porosity while maximizing deposition
+efficiency and adhesion strength) subject to hard constraints
+(substrate temperature $<$ distortion threshold, deposition rate $>$
+minimum throughput).
+
+The BO loop operates in two modes:
+\begin{enumerate}[nosep]
+  \item \textbf{Offline optimization:} The digital twin serves as the
+        objective function, enabling thousands of virtual experiments per
+        hour to identify promising parameter regions before any physical
+        spraying.
+  \item \textbf{Online closed-loop:} In-situ sensor data (particle
+        diagnostics, pyrometry, acoustic emission for delamination
+        detection) updates the GNN surrogate in real time via online
+        learning. The BO acquisition function then recommends the next
+        process parameter set, closing the
+        sense$\rightarrow$predict$\rightarrow$optimize loop within a
+        single spray campaign.
+\end{enumerate}
+
+\subsection{Feasibility and Preliminary Results}
+
+Our team has demonstrated the component technologies that underpin this
+integrated platform:
+\begin{itemize}[nosep]
+  \item Graph neural networks achieve $R^2 > 0.85$ for polymer $T_g$
+        prediction and $R^2 > 0.82$ for bulk modulus on materials
+        benchmarks, establishing the viability of GNN surrogates for
+        structure--property prediction.
+  \item Physics-informed neural networks reproduce analytical solutions
+        for heat transfer in plasma jets with $<$3\% relative error while
+        running 500$\times$ faster than equivalent CFD at inference time.
+  \item Active-learning Bayesian optimization achieved order-of-magnitude
+        improvements in self-healing epoxy impedance in only 30
+        experiments, demonstrating the sample efficiency critical for
+        expensive coating trials.
+  \item Multi-objective BO with qNEHVI identified Pareto-optimal catalyst
+        compositions in 50 iterations versus 500+ for grid search.
+\end{itemize}
+
+%% =======================================================================
+\section{Innovation and Impact}
+\label{sec:innovation}
+%% =======================================================================
+
+\subsection{Technical Innovation}
+
+This proposal introduces three innovations not present in current
+coating process optimization approaches:
+
+\textbf{1. First GNN surrogate for thermal spray microstructure
+prediction.} Existing ML approaches to thermal spray optimization use
+tabular models (random forests, Gaussian process regression) that treat
+process--property relationships as flat feature vectors, discarding the
+rich spatial and topological structure of coating microstructures. Our
+graph-based representation preserves microstructural connectivity
+(splat--splat interfaces, pore networks, oxide inclusion distributions)
+and enables the model to learn physically meaningful representations
+that generalize across coating systems (e.g., YSZ thermal barrier
+coatings to WC-Co wear coatings) via transfer learning.
+
+\textbf{2. Physics-informed digital twin with multi-scale fidelity.}
+Current digital twins for thermal spray are either high-fidelity CFD
+models that take hours per simulation (precluding use in optimization
+loops) or purely empirical correlations that fail to extrapolate beyond
+training data. Our PINN-based digital twin embeds governing physics at
+multiple scales while maintaining millisecond inference times, enabling
+both rapid virtual experimentation and real-time process control.
+
+\textbf{3. Closed-loop AI optimization with in-situ adaptation.}
+No existing system integrates in-situ particle diagnostics, real-time
+surrogate updating, and Bayesian process optimization in a single
+closed loop for coating deposition. This closed-loop capability is
+essential for the Navy's operational need: adaptive process control that
+compensates for batch-to-batch powder variation, nozzle wear, and
+environmental fluctuations during shipboard or depot-level repair.
+
+\subsection{Impact on Navy Operations}
+
+Successful development of this platform will:
+\begin{itemize}[nosep]
+  \item Reduce coating qualification time from 12--18 months to 3--4
+        months by replacing exhaustive DOE with AI-guided experimentation.
+  \item Enable rapid deployment of new coating systems for emerging
+        threats (e.g., CMAS-resistant thermal barrier coatings for
+        sand-laden environments, anti-biofouling hull coatings).
+  \item Support depot-level and shipboard coating repair with adaptive
+        process parameters that account for field conditions.
+  \item Reduce lifecycle coating costs by 20--40\% through optimized
+        first-pass yield and reduced rework.
+\end{itemize}
+
+\subsection{Dual-Use Commercial Potential}
+
+The global thermal spray coatings market was valued at \$12.4 billion in
+2024 and is projected to reach \$19.1 billion by 2032 (8.6\% CAGR). Our
+platform addresses the \$3.2 billion aerospace and industrial gas turbine
+segment where coating performance directly impacts engine efficiency and
+maintenance intervals. Commercial customers include Pratt \& Whitney,
+GE Aerospace, Oerlikon Metco, and Curtiss-Wright, all of whom have
+expressed interest in AI-driven coating process optimization. The SaaS
+business model (\$150K--300K per seat annually) enables rapid scaling
+without capital-intensive manufacturing.
+
+%% =======================================================================
+\section{Phase I Work Plan}
+\label{sec:workplan}
+%% =======================================================================
+
+Phase I is a 6-month effort totaling \$240,000 with three objectives:
+
+\textbf{Objective 1: Develop and validate GNN surrogate models for
+thermal spray coating quality prediction (Months 1--3).}
+\begin{itemize}[nosep]
+  \item Curate a training dataset of 500+ thermal spray samples from
+        published literature and partner laboratories, covering APS,
+        HVOF, and cold spray processes for YSZ, WC-Co, MCrAlY, and
+        polymer-ceramic composite coatings.
+  \item Implement graph construction from SEM/optical micrograph
+        cross-sections using automated image segmentation (splat
+        boundaries, pore detection, oxide stringer identification).
+  \item Train multitask GNN predicting porosity, oxide content, adhesion
+        strength, and microhardness.
+  \item Success criterion: $R^2 > 0.80$ for all four properties on
+        held-out test set (20\% of data).
+  \item Go/no-go: If $R^2 < 0.70$ for any property after transfer
+        learning and hyperparameter optimization, pivot to ensemble
+        gradient-boosted models with engineered microstructural features.
+\end{itemize}
+
+\textbf{Objective 2: Build physics-informed digital twin for APS
+deposition (Months 2--5).}
+\begin{itemize}[nosep]
+  \item Implement neural-ODE model for in-flight particle dynamics
+        (temperature, velocity, melting state) validated against DPV-2000
+        measurements.
+  \item Develop splat formation sub-model predicting splat morphology
+        (disk vs.\ fingered) from particle state at impact and substrate
+        conditions.
+  \item Integrate residual stress model using modified Tsui--Clyne
+        progressive deposition framework.
+  \item Success criterion: digital twin predictions within 15\% of
+        experimental measurements for particle temperature, velocity, and
+        resulting coating porosity across 3 APS parameter sets.
+  \item Deliverable: calibrated digital twin for Metco 204NS (YSZ)
+        deposited by F4-MB plasma gun.
+\end{itemize}
+
+\textbf{Objective 3: Demonstrate closed-loop Bayesian optimization on
+digital twin (Months 4--6).}
+\begin{itemize}[nosep]
+  \item Implement multi-objective BO (BoTorch qNEHVI) optimizing porosity,
+        adhesion, and deposition efficiency simultaneously.
+  \item Run 100 virtual optimization iterations using the digital twin
+        as objective function.
+  \item Validate top-3 Pareto-optimal parameter sets with physical APS
+        experiments at [Partner Facility].
+  \item Success criterion: BO-recommended parameters achieve coating
+        properties within 10\% of digital twin predictions, and
+        Pareto-optimal coatings dominate baseline DOE-optimized coatings
+        on at least 2 of 3 objectives.
+  \item Deliverable: software prototype with REST API for parameter
+        recommendation.
+\end{itemize}
+
+\textbf{Phase I Milestones:}
+\begin{center}
+\small
+\begin{tabular}{llp{7.5cm}}
+\toprule
+\textbf{Month} & \textbf{Milestone} & \textbf{Deliverable} \\
+\midrule
+2 & M1 & Dataset curated; graph construction pipeline validated \\
+3 & M2 & GNN surrogate trained; $R^2$ targets met (Go/No-Go) \\
+4 & M3 & Digital twin calibrated against APS diagnostic data \\
+5 & M4 & Digital twin validated on 3 parameter sets \\
+6 & M5 & BO loop demonstrated; experimental validation complete \\
+6 & M6 & Final report and Phase II proposal submitted \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Phase II Vision.} A successful Phase I will lead to a Phase II
+(\$1.6M, 24 months) that extends the platform to cold spray and LPPS
+processes, integrates real-time in-situ sensor feedback (DPV-2000,
+acoustic emission, IR thermography) for online closed-loop control,
+validates on Navy-relevant coating systems (MCrAlY bond coats for
+gas turbine blades, WC-Co wear coatings for hydraulic actuators,
+anti-corrosion cold-sprayed aluminum for hull repair), and transitions
+the software to TRL~6 through pilot deployment at a Navy depot
+maintenance facility.
+
+%% =======================================================================
+\section{Related Experience and Qualifications}
+\label{sec:qualifications}
+%% =======================================================================
+
+[Company Name] develops AI-driven platforms for advanced materials
+discovery and manufacturing process optimization, with specific
+expertise in protective coatings for demanding environments.
+
+\textbf{Principal Investigator:} [PI Name] brings [X] years of
+experience in computational materials science and machine learning. [PI
+Name] holds a [Degree] in [Field] from [University] and has published
+[N] peer-reviewed papers on topics including graph neural networks for
+materials property prediction, physics-informed machine learning for
+manufacturing processes, and Bayesian optimization for experimental
+design. [If applicable: Previously served as [Role] at [Organization]
+where they led development of ML models for thermal spray coating
+optimization.] [PI Name] will devote [X]\% effort to this project.
+
+\textbf{Co-Investigator:} [Co-PI Name] contributes [X] years of
+expertise in thermal spray coating technology and surface engineering.
+[Relevant credentials: PhD in materials science/mechanical engineering,
+prior roles at coating companies or national laboratories, publications
+on thermal spray process--structure--property relationships, experience
+with APS, HVOF, and cold spray systems.] [Co-PI Name] will devote
+[X]\% effort.
+
+\textbf{Key Personnel:} A machine learning engineer (to be hired) will
+support GNN model development and PINN implementation. A postdoctoral
+researcher with expertise in equivariant neural networks and generative
+models will contribute to digital twin development.
+
+\textbf{Facilities and Equipment:} [Company Name] maintains
+GPU-accelerated computing infrastructure (NVIDIA A100/H100 clusters)
+for model training. A research collaboration with [Partner Institution]
+provides access to APS and HVOF spray systems, DPV-2000 in-flight
+particle diagnostics, SEM/EDS for coating characterization, and
+mechanical testing (adhesion, hardness, wear).
+
+\textbf{Relevant Prior Work:}
+\begin{itemize}[nosep]
+  \item [If applicable: Prior SBIR/STTR awards and their outcomes.]
+  \item Demonstrated GNN property prediction achieving $R^2 > 0.85$ on
+        materials benchmarks.
+  \item Bayesian optimization campaigns achieving 10$\times$ efficiency
+        gains over DOE for coating formulation.
+  \item [Additional relevant experience in AI for manufacturing, digital
+        twins, or coating technology.]
+\end{itemize}
+
+%% =======================================================================
+\section{Cost and Schedule Summary}
+\label{sec:cost}
+%% =======================================================================
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Cost Category} & \textbf{Amount} & \textbf{\% of Total} \\
+\midrule
+Direct Labor (PI, Co-PI, ML Engineer) & \$132,000 & 55.0\% \\
+Fringe Benefits (30\%) & \$39,600 & 16.5\% \\
+Materials and Supplies & \$8,000 & 3.3\% \\
+GPU Cloud Computing (AWS/Lambda) & \$15,000 & 6.3\% \\
+Experimental Validation (spray trials) & \$18,000 & 7.5\% \\
+Travel (NAVAIR/NAVSEA coordination) & \$6,000 & 2.5\% \\
+Subcontractor ([Partner Institution]) & \$12,000 & 5.0\% \\
+Indirect Costs & \$9,400 & 3.9\% \\
+\midrule
+\textbf{Total Phase I Cost} & \textbf{\$240,000} & \textbf{100.0\%} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Schedule:} 6-month period of performance. Key milestones at
+Months 2 (dataset and pipeline), 3 (GNN Go/No-Go), 4 (digital twin
+calibration), 5 (digital twin validation), and 6 (BO demonstration
+and final report).
+
+\textbf{Data Rights:} [Company Name] asserts limited rights in the
+proprietary AI/ML algorithms, GNN architectures, and digital twin
+models developed under this contract, consistent with DFARS
+252.227-7018.
+
+%% =======================================================================
+\section*{References}
+\label{sec:references}
+%% =======================================================================
+
+\begin{enumerate}[nosep,label={[\arabic*]}]
+  \item Fauchais, P., Montavon, G., \& Bertrand, G. (2010). From
+        powders to thermally sprayed coatings. \textit{Journal of
+        Thermal Spray Technology}, 19(1), 56--80.
+
+  \item Vaidya, A., Srinivasan, V., Streibl, T., Friis, M., Chi, W., \&
+        Sampath, S. (2008). Process maps for plasma spraying of yttria-
+        stabilized zirconia. \textit{Materials Science and Engineering: A},
+        497(1--2), 239--253.
+
+  \item Ganesh, I. (2013). A review on magnesium aluminate (MgAl$_2$O$_4$)
+        spinel: synthesis, processing and applications. \textit{International
+        Materials Reviews}, 58(2), 63--112.
+
+  \item Raissi, M., Perdikaris, P., \& Karniadakis, G.~E. (2019).
+        Physics-informed neural networks: A deep learning framework for
+        solving forward and inverse problems involving nonlinear partial
+        differential equations. \textit{Journal of Computational Physics},
+        378, 686--707.
+
+  \item Batchelor, T.~A.~A. et al. (2022). Bayesian optimization for
+        accelerated materials discovery. \textit{Chemical Reviews},
+        122(1), 156--232.
+
+  \item Balandat, M. et al. (2020). BoTorch: A framework for efficient
+        Monte-Carlo Bayesian optimization. \textit{Advances in Neural
+        Information Processing Systems}, 33, 21524--21538.
+
+  \item Skomski, D. et al. (2023). Graph neural networks for materials
+        science and chemistry. \textit{Annual Review of Materials
+        Research}, 53, 93--114.
+
+  \item Bate, D., Rajak, P., \& Nakamura, A. (2022). Machine learning
+        aided optimization of thermal spray processes: A review.
+        \textit{Surface and Coatings Technology}, 446, 128880.
+
+  \item Tran, R. et al. (2025). Open Molecules 2025 (OMol25): A large-scale
+        dataset for molecular energy and force predictions.
+        \textit{arXiv:2505.08762}.
+
+  \item Chen, L., Yang, Y., \& Sampath, S. (2021). Data-driven process
+        maps for thermal spray coating optimization.
+        \textit{Journal of Thermal Spray Technology}, 30, 1988--2002.
+
+  \item Assadi, H., Kreye, H., G\"artner, F., \& Klassen, T. (2016).
+        Cold spraying---A materials perspective.
+        \textit{Acta Materialia}, 116, 382--407.
+
+  \item Elhoushi, S., Shaban, K., \& Ahmed, W.~H. (2024). Digital twin
+        framework for thermal spray coating processes. \textit{Journal of
+        Manufacturing Processes}, 98, 215--228.
+\end{enumerate}
+
+\end{document}

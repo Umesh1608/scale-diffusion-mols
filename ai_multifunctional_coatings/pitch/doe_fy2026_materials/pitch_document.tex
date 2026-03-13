@@ -1,0 +1,413 @@
+% Compile with: pdflatex pitch_document.tex
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  urlcolor=blue!60!black,
+}
+
+\definecolor{doegreen}{HTML}{005C3B}
+\definecolor{doegray}{HTML}{4A4A4A}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{gray}{\small DOE SBIR/STTR Phase I Proposal}}
+\lhead{\textcolor{gray}{\small [Company Name]}}
+\rfoot{\textcolor{gray}{\small \thepage}}
+
+\title{%
+  \vspace{-1cm}
+  \textcolor{doegreen}{\Large\textbf{DOE Office of Science SBIR/STTR Phase I}}\\[0.3cm]
+  \textbf{AI-Driven Platform for Accelerated Discovery of\\Advanced Coating Materials for Clean Energy Infrastructure}\\[0.3cm]
+  \large [Company Name]\\[0.2cm]
+  \normalsize Topic Area: Advanced Materials Discovery Using Machine Learning
+}
+\author{}
+\date{FY 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\noindent\textcolor{doegreen}{\rule{\textwidth}{1.5pt}}
+
+\vspace{0.3cm}
+\begin{center}
+\begin{tabular}{ll}
+\textbf{Principal Investigator:} & [PI Name], [Title] \\
+\textbf{Organization:} & [Company Name] \\
+\textbf{Address:} & [Street Address, City, State ZIP] \\
+\textbf{Phone:} & [Phone] \\
+\textbf{Email:} & [Email] \\
+\textbf{DUNS Number:} & [DUNS] \\
+\textbf{Requested Budget:} & \$200,000 (Phase I, 12 months) \\
+\textbf{DOE Program:} & Office of Science SBIR/STTR \\
+\textbf{Topic:} & Advanced Materials Discovery Using Machine Learning \\
+\end{tabular}
+\end{center}
+
+\vspace{0.3cm}
+\noindent\textcolor{doegreen}{\rule{\textwidth}{1.5pt}}
+
+\vspace{0.5cm}
+\noindent\textit{This proposal addresses DOE's mission to accelerate clean energy materials discovery through machine learning. The proposed AI platform will design advanced protective coatings for energy infrastructure---solar panels, wind turbines, hydrogen systems, nuclear facilities, and grid components---reducing materials development timelines from years to weeks while improving durability and sustainability.}
+
+\vspace{0.3cm}
+\noindent\textit{Placeholders marked with [brackets] must be replaced with actual company and team information before submission.}
+
+%% =======================================================================
+\section{Technical Approach}
+\label{sec:technical}
+%% =======================================================================
+
+\subsection{Problem Statement: The Materials Bottleneck in Clean Energy Deployment}
+
+The U.S.\ Department of Energy's clean energy goals---net-zero emissions by 2050, 100\% clean electricity by 2035, and a national clean hydrogen economy---depend critically on the durability of deployed infrastructure. Protective coatings are a first line of defense against degradation, yet coating development remains one of the slowest materials R\&D cycles in the energy sector:
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Solar photovoltaics:} Encapsulant and anti-reflective coating degradation accounts for 40--60\% of module power losses over 25-year lifetimes. UV-induced yellowing of EVA encapsulants remains a dominant failure mode, costing the U.S.\ solar industry an estimated \$3.5 billion annually in premature replacements.
+  \item \textbf{Wind energy:} Leading-edge erosion of turbine blades from rain, hail, and particulates reduces aerodynamic efficiency by 5--25\%, costing \$150,000+ per blade repair. Current polyurethane coatings degrade within 3--5 years offshore.
+  \item \textbf{Hydrogen infrastructure:} Hydrogen embrittlement and permeation through pipeline and storage vessel walls demand next-generation barrier coatings. DOE's Hydrogen Shot target of \$1/kg requires dramatically lower infrastructure maintenance costs.
+  \item \textbf{Nuclear facilities:} Decontaminable coatings for reactor containment must withstand radiation, chemical exposure, and decontamination cycles. Current qualified coatings (ASTM D5144) have limited lifespans requiring costly shutdowns for recoating.
+  \item \textbf{Grid infrastructure:} Corrosion of transmission towers, substations, and underground cables costs U.S.\ utilities \$13.6 billion annually (NACE International). Climate change is accelerating degradation in coastal and high-humidity regions.
+  \item \textbf{Geothermal systems:} Downhole equipment coatings must resist temperatures exceeding 250$^\circ$C, highly acidic brines (pH $< 3$), and abrasive particulates---conditions that destroy conventional coatings within months.
+\end{itemize}
+
+In every case, the coating material discovery cycle---typically 3--5 years from concept to qualification---is a critical bottleneck. The combinatorial complexity of coating formulation (polymer binders, functional nanoparticle additives, solvent systems, curing conditions) means that traditional Edisonian R\&D explores fewer than 1\% of the feasible design space. DOE national laboratories have recognized this gap: Argonne's Polybot autonomous experimentation platform documented nearly one million fabrication combinations for a single polymer film.
+
+\subsection{Proposed Solution: An Integrated AI Platform for Energy Coating Discovery}
+
+We propose an integrated artificial intelligence platform that unifies three capabilities---generative molecular design, graph neural network (GNN) property prediction, and multi-objective Bayesian optimization (MOBO)---into a closed-loop pipeline purpose-built for advanced coating materials discovery. This platform directly addresses DOE's priorities in ML-accelerated materials science and advanced manufacturing by compressing the coating design cycle from years to weeks.
+
+\subsubsection{Component 1: Energy-Coating-Specific Generative Model}
+
+We will develop a generative molecular model using the Junction Tree Variational Autoencoder (JT-VAE) architecture with a fragment vocabulary specifically curated for energy-relevant coating chemistries:
+
+\begin{itemize}[noitemsep]
+  \item \textbf{UV-stabilizing chromophores:} Benzotriazole, hydroxybenzophenone, triazine, and hindered amine light stabilizer (HALS) fragments for solar panel encapsulant and anti-reflective coating design.
+  \item \textbf{Corrosion-inhibiting groups:} Phosphonate, silane coupling agent, azole, and rare-earth complexation fragments for anti-corrosion coatings on steel, aluminum, and copper infrastructure.
+  \item \textbf{Hydrogen barrier moieties:} Fluoropolymer, polyimide, graphene-functionalized, and clay-nanocomposite fragments for hydrogen permeation barrier coatings.
+  \item \textbf{Thermal-stable backbones:} Polysiloxane, polybenzimidazole, polyimide, and ceramic precursor fragments for thermal barrier and geothermal coatings.
+  \item \textbf{Cross-linking and self-healing groups:} Epoxide, isocyanate, Diels-Alder adduct, and disulfide exchange fragments enabling autonomous damage repair.
+\end{itemize}
+
+Fragment-based generation ensures 100\% chemical validity (versus $\sim$43\% for character-level approaches) and constrains the search to synthetically accessible molecules. The model will be trained on $>$5,000 coating molecules extracted from DOE technical reports, patent databases, and published literature, encoded using SELFIES for guaranteed validity.
+
+\subsubsection{Component 2: Multitask GNN Property Predictors for Energy-Relevant Properties}
+
+We will train multitask graph neural network models predicting properties critical to energy infrastructure coatings:
+
+\begin{itemize}[noitemsep]
+  \item \textbf{UV absorption spectrum:} Peak wavelength and breadth of absorption for UV-protective coatings (solar encapsulants, wind blade coatings).
+  \item \textbf{Electrochemical impedance:} Impedance modulus at 0.01\,Hz as a proxy for corrosion barrier performance (grid infrastructure, offshore wind, nuclear).
+  \item \textbf{Glass transition temperature ($T_g$):} Thermal stability for high-temperature applications (geothermal, turbine, nuclear).
+  \item \textbf{Hydrogen permeability:} Diffusion coefficient and solubility for hydrogen barrier coating design.
+  \item \textbf{Adhesion energy:} Interfacial strength on steel, aluminum, and glass substrates relevant to energy infrastructure.
+  \item \textbf{Weathering resistance:} Accelerated aging performance prediction (critical for 25--30 year solar and wind lifetimes).
+\end{itemize}
+
+Transfer learning from the MACE-MP foundation model (pre-trained on $>$150,000 DFT-calculated structures) will enable accurate predictions from fewer than 500 coating-specific training samples per property. Multitask learning shares knowledge across data-rich properties ($T_g$: 1,200+ samples) and data-scarce properties (hydrogen permeability: $<$100 samples).
+
+\subsubsection{Component 3: Constraint-Aware Multi-Objective Bayesian Optimization}
+
+The MOBO module uses BoTorch's qNEHVI (q-Noisy Expected Hypervolume Improvement) acquisition function to navigate the Pareto front across competing objectives. For energy coating applications, we will simultaneously optimize:
+
+\begin{itemize}[noitemsep]
+  \item Corrosion resistance (maximize impedance modulus)
+  \item UV stability (maximize absorption in target wavelength range)
+  \item Thermal stability (maximize $T_g$ or decomposition temperature)
+  \item Hydrogen barrier performance (minimize permeability, where applicable)
+  \item Mechanical durability (maximize adhesion, minimize brittleness)
+\end{itemize}
+
+Subject to constraints including VOC $< 250$\,g/L (EPA regulations), PFAS-free formulation (emerging regulations), and compatibility with existing manufacturing processes (spray coating, dip coating, roll-to-roll deposition). Mixed-variable Gaussian processes with Gower distance kernels handle the combined continuous-categorical design space.
+
+\subsection{Alignment with DOE Office of Science Priorities}
+
+This work directly supports multiple DOE strategic priorities:
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Basic Energy Sciences (BES):} Fundamental understanding of structure-property relationships in functional coating materials through data-driven discovery.
+  \item \textbf{Energy Efficiency and Renewable Energy (EERE):} Extending the operational lifetime and reducing maintenance costs of solar, wind, and hydrogen infrastructure.
+  \item \textbf{Advanced Manufacturing:} Enabling rapid, AI-guided formulation optimization compatible with scalable manufacturing processes.
+  \item \textbf{Integrated Computational Materials Engineering (ICME):} Bridging molecular-scale design to macroscopic coating performance through multiscale property prediction.
+  \item \textbf{Clean Energy Materials Genome:} Contributing to the Materials Genome Initiative by generating open datasets linking coating molecular structure to energy-relevant performance.
+\end{itemize}
+
+%% =======================================================================
+\section{Innovation and Impact}
+\label{sec:innovation}
+%% =======================================================================
+
+\subsection{Scientific Innovation}
+
+The proposed platform introduces three scientific innovations to the field of computational materials discovery:
+
+\textbf{1. First generative AI system purpose-built for energy coating materials.} Existing generative molecular models (GraphVAE, JT-VAE, diffusion models) target drug-like small molecules (20--50 atoms). Coating monomers and oligomers frequently exceed 100 atoms and include functional group combinations absent from pharmaceutical training sets. Our fragment vocabulary, curated from energy coating literature and DOE-funded research, ensures the generative model explores chemically relevant space. No existing commercial or academic tool provides this capability.
+
+\textbf{2. Multiscale property prediction bridging molecular design to coating performance.} Current AI tools for coatings (Citrine Informatics, Uncountable) optimize at the formulation level---adjusting weight percentages of known components---but cannot predict how novel molecular structures will perform. Our GNN models predict molecular-level properties (UV absorption, $T_g$) that directly determine macroscopic coating performance, creating a continuous design loop from atoms to applications.
+
+\textbf{3. Constraint-aware multi-objective optimization for energy-specific requirements.} Energy infrastructure coatings face unique multi-objective challenges: a solar encapsulant must simultaneously maximize UV transmittance in the visible range, block UV below 350\,nm, resist hydrolysis for 25+ years, and maintain adhesion through thermal cycling. Our MOBO framework is the first to handle these energy-specific objective combinations with hard regulatory constraints.
+
+\subsection{Impact on DOE Clean Energy Mission}
+
+\textbf{Accelerated deployment of renewable energy:} By reducing coating development timelines from 3--5 years to 3--6 months, our platform accelerates the qualification of next-generation protective materials for solar, wind, and hydrogen infrastructure. This directly supports DOE's timeline for achieving 100\% clean electricity by 2035.
+
+\textbf{Reduced levelized cost of energy (LCOE):} Coating failures are a major contributor to operations and maintenance costs across energy sectors. Longer-lasting coatings designed by our platform could reduce solar LCOE by 5--8\% (\$0.001--0.002/kWh) and wind LCOE by 3--6\% through extended maintenance intervals.
+
+\textbf{Domestic manufacturing competitiveness:} The platform generates formulations optimized for compatibility with U.S.\ manufacturing processes (spray coating, roll-to-roll, thermal spray), supporting reshoring of advanced coating production and DOE's advanced manufacturing objectives.
+
+\textbf{Sustainability and environmental compliance:} All generated formulations are constrained to comply with EPA VOC limits and emerging PFAS regulations, supporting the transition to environmentally sustainable coating chemistries without sacrificing performance.
+
+\textbf{Open science contributions:} Phase I results, including curated coating property datasets and benchmark model performance, will be published in peer-reviewed journals and deposited in open repositories (e.g., Materials Cloud, NOMAD), consistent with DOE's open science policies.
+
+%% =======================================================================
+\section{Phase I Work Plan}
+\label{sec:workplan}
+%% =======================================================================
+
+Phase I spans 12 months with a total budget of \$200,000. The work is organized into four tasks aligned with DOE materials science priorities.
+
+\subsection{Task 1: Energy Coating Data Curation and Fragment Vocabulary (Months 1--3)}
+
+\textbf{Objective:} Assemble the most comprehensive training dataset of energy-relevant coating molecules and their experimentally measured properties.
+
+\textbf{Activities:}
+\begin{itemize}[noitemsep]
+  \item Extract molecular structures and property data from DOE technical reports, NIST databases, MatWeb, Reaxys, and patent literature, targeting $>$5,000 unique coating molecules.
+  \item Curate a fragment vocabulary of 250+ energy-coating-relevant substructures organized by function (UV absorbers, corrosion inhibitors, hydrogen barriers, thermal stabilizers, cross-linkers).
+  \item Compute DFT-level molecular descriptors (HOMO-LUMO gap, dipole moment, polarizability) for molecules lacking electronic structure data, using ORCA at the B3LYP/def2-TZVP level.
+  \item Prepare train/validation/test splits stratified by coating application domain (solar, wind, hydrogen, nuclear, grid, geothermal).
+\end{itemize}
+
+\textbf{Milestone:} Curated dataset of $\geq$5,000 molecules with $\geq$3 measured properties each; fragment vocabulary validated by domain expert review.
+
+\textbf{Budget:} \$45,000 (personnel, computational resources, database access).
+
+\subsection{Task 2: Generative Model Development and Validation (Months 3--7)}
+
+\textbf{Objective:} Train and validate a generative molecular model that proposes novel coating molecules tailored to energy infrastructure applications.
+
+\textbf{Activities:}
+\begin{itemize}[noitemsep]
+  \item Implement Junction Tree VAE with energy-coating fragment vocabulary using SELFIES encoding.
+  \item Train on curated dataset with augmentation from GEOM-Drugs conformer data for larger molecules ($>$50 atoms).
+  \item Evaluate: generate 1,000 novel molecules per energy application domain (6,000 total) and assess chemical validity ($>$99\% target), novelty ($>$80\% not in training set), synthetic accessibility (SA score $< 4.0$ for $>$85\%), and diversity (internal Tanimoto similarity $< 0.4$).
+  \item Conduct domain-expert evaluation of top 100 candidates per application for chemical plausibility.
+\end{itemize}
+
+\textbf{Milestone:} Generative model producing 6,000+ novel, valid, synthetically accessible coating molecules across six energy application domains.
+
+\textbf{Budget:} \$55,000 (personnel, GPU compute on DOE ASCR resources or commercial cloud).
+
+\subsection{Task 3: Multitask GNN Property Prediction (Months 4--9)}
+
+\textbf{Objective:} Develop GNN property predictors achieving $R^2 > 0.80$ for energy-relevant coating properties.
+
+\textbf{Activities:}
+\begin{itemize}[noitemsep]
+  \item Implement E(3)-equivariant GNN architecture based on SchNet/DimeNet++ with multitask output heads for six properties (UV absorption, impedance, $T_g$, hydrogen permeability, adhesion, weathering resistance).
+  \item Apply transfer learning from MACE-MP foundation model, freezing early message-passing layers and fine-tuning task-specific heads.
+  \item Benchmark against random forest baselines on Morgan fingerprints and Gaussian process models.
+  \item Quantify prediction uncertainty via deep ensembles (5 models) for downstream Bayesian optimization.
+  \item Validate on held-out test sets; target $R^2 > 0.80$ for each property.
+\end{itemize}
+
+\textbf{Go/No-Go Decision (Month 8):} If $R^2 < 0.70$ for any property after transfer learning and ensemble approaches, pivot to gradient-boosted tree ensembles with physics-informed molecular descriptors.
+
+\textbf{Milestone:} Validated multitask GNN achieving $R^2 > 0.80$ for $\geq$5 of 6 target properties with calibrated uncertainty estimates.
+
+\textbf{Budget:} \$55,000 (personnel, GPU compute, MACE-MP licensing if applicable).
+
+\subsection{Task 4: Pipeline Integration and Energy Application Demonstrations (Months 8--12)}
+
+\textbf{Objective:} Integrate all components into a closed-loop pipeline and demonstrate AI-guided coating material discovery for two priority DOE energy applications.
+
+\textbf{Activities:}
+\begin{itemize}[noitemsep]
+  \item Connect generative model, GNN predictors, and MOBO optimizer into a single automated workflow.
+  \item \textbf{Demonstration 1---Solar encapsulant coatings:} Optimize for UV blocking (300--380\,nm), visible transmittance ($>$90\%), hydrolysis resistance, and thermal cycling stability. Screen 10,000+ generated candidates and identify Pareto-optimal top 50.
+  \item \textbf{Demonstration 2---Anti-corrosion coatings for grid infrastructure:} Optimize for impedance modulus, adhesion on steel, salt spray resistance, and VOC compliance. Screen 10,000+ candidates and identify top 50.
+  \item Benchmark pipeline against random screening and single-objective optimization baselines.
+  \item Prepare Phase II experimental validation plan with DOE national laboratory and/or industry partners.
+\end{itemize}
+
+\textbf{Milestone:} Integrated pipeline demonstrated on two energy applications, producing ranked candidate lists ready for Phase II experimental synthesis and testing.
+
+\textbf{Budget:} \$45,000 (personnel, compute, reporting).
+
+\subsection{Budget Summary}
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Task} & \textbf{Budget} & \textbf{Months} \\
+\midrule
+Task 1: Data Curation \& Fragment Vocabulary & \$45,000 & 1--3 \\
+Task 2: Generative Model Development & \$55,000 & 3--7 \\
+Task 3: Multitask GNN Property Prediction & \$55,000 & 4--9 \\
+Task 4: Pipeline Integration \& Demonstrations & \$45,000 & 8--12 \\
+\midrule
+\textbf{Total Phase I} & \textbf{\$200,000} & \textbf{12 months} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%% =======================================================================
+\section{Commercial Potential}
+\label{sec:commercial}
+%% =======================================================================
+
+\subsection{Market Size and Growth}
+
+The platform addresses multiple large and growing markets driven by the clean energy transition:
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Global protective coatings market:} \$17 billion (2025), projected \$32.4 billion by 2034 (7.3\% CAGR, Precedence Research).
+  \item \textbf{Solar encapsulant materials:} \$3.2 billion (2025), growing at 12\% CAGR with global solar deployment.
+  \item \textbf{Wind turbine coatings:} \$1.8 billion (2025), driven by offshore wind expansion.
+  \item \textbf{Hydrogen infrastructure materials:} Emerging market expected to reach \$2.5 billion by 2030 (DOE Hydrogen Shot initiative).
+  \item \textbf{Anti-corrosion coatings for energy infrastructure:} \$8.2 billion (2025), with utilities and grid operators as primary customers.
+  \item \textbf{Nuclear-qualified coatings:} \$600 million niche market with extremely high barriers to entry.
+\end{itemize}
+
+Our serviceable addressable market (SAM) is the high-performance energy infrastructure coatings segment, estimated at \$4.5 billion, where formulation complexity and performance requirements justify AI-driven optimization.
+
+\subsection{Commercialization Strategy}
+
+\textbf{Phase I $\rightarrow$ Phase II Transition:} Phase I delivers a validated software prototype. Phase II (\$1.5M, 24 months) will fund experimental synthesis and testing of top candidates at DOE national laboratory partner facilities, targeting 3--5 experimentally validated coating formulations per energy application domain.
+
+\textbf{Revenue Model:}
+\begin{itemize}[noitemsep]
+  \item \textbf{SaaS Platform:} Annual licensing at \$150K--300K per seat for coating manufacturers and energy companies. Premium tiers include custom model training on proprietary formulation data.
+  \item \textbf{Discovery Partnerships:} Co-development agreements with coating manufacturers (PPG, Hempel, Sherwin-Williams) and energy technology companies (First Solar, Vestas, NextEra Energy), with milestone payments and royalties on commercialized formulations.
+  \item \textbf{Government Contracts:} Follow-on DOE, DOD, and NASA contracts for mission-specific coating optimization (e.g., extreme environment coatings for fusion reactors, space-rated coatings).
+\end{itemize}
+
+\textbf{Intellectual Property:} Phase I will generate IP in three areas: (1) energy-coating fragment vocabularies and training datasets, (2) trained GNN models for energy-relevant property prediction, and (3) the integrated pipeline architecture. Patent applications will be filed for novel coating molecules identified through the platform.
+
+\subsection{Customer Validation}
+
+[Company Name] has initiated discussions with potential Phase II partners including:
+\begin{itemize}[noitemsep]
+  \item [Coating Manufacturer] --- interest in AI-accelerated development of PFAS-free anti-corrosion coatings.
+  \item [Energy Company/Utility] --- interest in next-generation solar encapsulant materials with extended UV stability.
+  \item [DOE National Laboratory] --- potential collaboration on experimental validation using [Lab's] coating characterization facilities.
+\end{itemize}
+
+\textbf{Letters of interest from industry and national laboratory partners will be included in the full proposal.}
+
+%% =======================================================================
+\section{Related Experience and Qualifications}
+\label{sec:team}
+%% =======================================================================
+
+\subsection{Principal Investigator}
+
+\textbf{[PI Name]}, [Title], [Company Name]. [PI Name] brings [X] years of experience in computational materials science, machine learning, and molecular design. [Relevant credentials: PhD in chemistry, materials science, chemical engineering, or computer science with materials focus. Publications in peer-reviewed journals on GNN property prediction, generative molecular design, or computational coatings science. Prior experience with DOE-funded research or national laboratory collaborations.]
+
+Relevant expertise includes:
+\begin{itemize}[noitemsep]
+  \item Graph neural network development for materials property prediction
+  \item Generative models for molecular design (VAE, diffusion models, reinforcement learning)
+  \item Multi-objective optimization for materials discovery
+  \item [Specific coating or polymer materials experience]
+\end{itemize}
+
+\subsection{Co-Investigators and Key Personnel}
+
+\textbf{[Co-PI Name]}, [Title]. Brings [X] years of expertise in protective coating chemistry, polymer formulation, and experimental characterization. [Relevant credentials: PhD or MS in polymer science, coatings technology, or corrosion engineering. Industrial R\&D experience at coating manufacturers or energy companies. Expertise in EIS, UV-Vis spectroscopy, salt spray testing, accelerated weathering.]
+
+\textbf{[ML Engineer Name]}, [Title]. [X] years of experience in deep learning infrastructure, model deployment, and scientific software development. [Relevant credentials: experience with PyTorch, PyTorch Geometric, BoTorch; prior ML platform development.]
+
+\subsection{Organizational Capabilities}
+
+[Company Name], founded [Year] in [City, State], is dedicated to replacing Edisonian coating R\&D with AI-driven materials discovery. The company maintains:
+
+\begin{itemize}[noitemsep]
+  \item Computational infrastructure: [GPU cluster specifications or cloud computing agreements for model training].
+  \item Software stack: Production-grade Python/PyTorch/BoTorch pipeline with version control, CI/CD, and automated testing.
+  \item Research partnerships: Collaboration agreements with [University] providing access to [characterization facilities] and with [DOE National Laboratory] for [specific capabilities].
+  \item Advisory board: [Names and affiliations of advisors in computational materials science, coating industry, and energy sector].
+\end{itemize}
+
+\subsection{Prior Funding and Relevant Experience}
+
+[If applicable: Prior SBIR/STTR awards from NSF, DOE, DOD, or other agencies. Description of related prior work, publications, or preliminary results.]
+
+[If new company: Description of founders' relevant prior work at universities, national laboratories, or industry, including publications and patents related to AI-driven materials discovery.]
+
+%% =======================================================================
+\section{References}
+\label{sec:references}
+%% =======================================================================
+
+\begin{enumerate}[noitemsep]
+
+\item Armelin, E., et al.\ ``Corrosion protection with polyaniline and polypyrrole as anticorrosion coatings.'' \textit{Corrosion Science} 50, 721--728 (2008).
+
+\item Axelrod, S. \& Gomez-Bombarelli, R.\ ``GEOM: Energy-annotated molecular conformations.'' \textit{Scientific Data} 9, 185 (2022).
+
+\item Baxter, D.\ ``DOE hydrogen infrastructure materials challenges.'' DOE Hydrogen Program Review (2024).
+
+\item Degen, J., et al.\ ``On the art of compiling and using `drug-like' chemical fragment spaces.'' \textit{ChemMedChem} 3, 1503--1507 (2008).
+
+\item Deshwal, A., et al.\ ``Bayesian optimization over high-dimensional combinatorial spaces via dictionary-based embeddings.'' \textit{NeurIPS} (2023).
+
+\item Dunn, A., et al.\ ``Benchmarking materials property prediction methods.'' \textit{npj Computational Materials} 6, 138 (2020).
+
+\item Hachmann, J., et al.\ ``The Harvard Clean Energy Project: large-scale computational screening and design of organic photovoltaics.'' \textit{Energy \& Environmental Science} 4, 4849--4861 (2011).
+
+\item Hoogeboom, E., et al.\ ``Equivariant diffusion for molecule generation in 3D.'' \textit{ICML} (2022).
+
+\item Jain, A., et al.\ ``Commentary: The Materials Project.'' \textit{APL Materials} 1, 011002 (2013).
+
+\item Jin, W., et al.\ ``Junction tree variational autoencoder for molecular graph generation.'' \textit{ICML} (2018).
+
+\item Koch, G., et al.\ ``International measures of prevention, application, and economics of corrosion technologies study.'' NACE International (2016).
+
+\item Krenn, M., et al.\ ``Self-referencing embedded strings (SELFIES): A 100\% robust molecular string representation.'' \textit{Machine Learning: Science and Technology} 1, 045024 (2020).
+
+\item Musil, F., et al.\ ``Physics-inspired structural representations for molecules and materials.'' \textit{Chemical Reviews} 121, 9759--9815 (2021).
+
+\item National Renewable Energy Laboratory.\ ``Best practices for operation and maintenance of photovoltaic and energy storage systems.'' NREL Technical Report TP-7A40-73822 (2018).
+
+\item Paszke, A., et al.\ ``PyTorch: An imperative style, high-performance deep learning library.'' \textit{NeurIPS} (2019).
+
+\item Pilania, G., et al.\ ``Machine learning bandgaps of double perovskites.'' \textit{Scientific Reports} 6, 19375 (2016).
+
+\item Ramprasad, R., et al.\ ``Machine learning in materials informatics: recent applications and prospects.'' \textit{npj Computational Materials} 3, 54 (2017).
+
+\item Szymanski, N.J., et al.\ ``An autonomous laboratory for the accelerated synthesis of novel materials.'' \textit{Nature} 624, 86--91 (2023).
+
+\item U.S.\ Department of Energy.\ ``Hydrogen Shot: An Introduction.'' DOE Hydrogen and Fuel Cell Technologies Office (2023).
+
+\item Ward, L., et al.\ ``Matminer: An open source toolkit for materials data mining.'' \textit{Computational Materials Science} 152, 60--69 (2018).
+
+\item Xie, T. \& Grossman, J.C.\ ``Crystal graph convolutional neural networks for an accurate and interpretable prediction of material properties.'' \textit{Physical Review Letters} 120, 145301 (2018).
+
+\end{enumerate}
+
+\vspace{1cm}
+\noindent\textcolor{doegreen}{\rule{\textwidth}{1.5pt}}
+
+\begin{center}
+\small\textcolor{doegray}{
+DOE Office of Science SBIR/STTR FY 2026\\
+Topic: Advanced Materials Discovery Using Machine Learning\\
+[Company Name] --- Confidential
+}
+\end{center}
+
+\end{document}

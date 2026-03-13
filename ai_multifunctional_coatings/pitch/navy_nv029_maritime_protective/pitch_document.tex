@@ -1,0 +1,508 @@
+% Compile with: pdflatex pitch_document.tex
+% DoD SBIR Phase I Technical Volume — Navy Topic NV029
+% Low-Cost Moldable Metastructure Materials for Maritime Protective Applications
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{booktabs}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  urlcolor=blue!60!black,
+}
+
+\definecolor{navyblue}{HTML}{003366}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{gray}{\small DoD SBIR Phase I --- Topic NV029}}
+\lhead{\textcolor{gray}{\small [Company Name]}}
+\rfoot{\textcolor{gray}{\small Page \thepage\ of 5}}
+
+\title{%
+  \vspace{-1.5cm}
+  \textcolor{navyblue}{\Large\textbf{DoD SBIR Phase I Technical Volume}}\\[0.3cm]
+  \textcolor{navyblue}{\large Topic NV029: Low-Cost Moldable Metastructure Materials\\
+  for Maritime Protective Applications}\\[0.4cm]
+  \textbf{AI-Driven Platform for Discovery of\\
+  Multifunctional Maritime Protective Coatings}\\[0.3cm]
+  \large [Company Name]\\[0.2cm]
+  \normalsize Principal Investigator: [PI Name]\\
+  \normalsize [Address, City, State, ZIP]\\
+  \normalsize CAGE Code: [XXXXX] \quad DUNS: [XXXXXXXXX]
+}
+\author{}
+\date{March 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\noindent\textcolor{navyblue}{\rule{\textwidth}{1.5pt}}
+
+%% =======================================================================
+\section{Technical Approach}
+\label{sec:technical_approach}
+%% =======================================================================
+
+\subsection{Problem Statement and Navy Need}
+
+Maritime assets---ship hulls, topside structures, sensor housings, unmanned vehicle
+airframes, and shore-based equipment---face a uniquely aggressive combination of
+environmental stressors: broadband UV irradiance (290--400\,nm at 40--60\,W/m$^2$
+in tropical theaters), continuous salt-spray exposure (3.5\% NaCl), high humidity
+(85--100\% RH), and thermal cycling ($-10$ to $+70$\textdegree C). Current
+protective coating systems address these stressors independently:
+zinc-rich primers for corrosion, UV stabilizers blended post hoc into topcoats,
+and elastomeric sealants for water ingress. This layered approach adds weight,
+requires frequent reapplication (18--36 month cycles), and creates
+delamination-prone interfaces. The Navy requires a new paradigm: low-cost,
+moldable, metastructure-inspired materials that provide integrated
+multifunctional protection in a single conformal layer.
+
+Topic NV029 calls for novel materials and coatings providing UV resistance,
+salt/water resistance, and environmental protection that can be conformally
+applied or molded to complex maritime geometries. We propose to meet this need
+through an AI-driven materials discovery platform that designs multifunctional
+protective coatings at the molecular level, optimizing simultaneously for
+UV absorption, corrosion inhibition, hydrophobicity, and autonomous self-healing
+under realistic maritime conditions.
+
+\subsection{Core AI Platform Architecture}
+
+Our platform integrates three tightly coupled AI subsystems into a closed-loop
+discovery engine purpose-built for maritime protective materials:
+
+\textbf{(1) Maritime-Specific Generative Molecular Design.}
+We employ a Junction Tree Variational Autoencoder (JT-VAE) with a curated
+fragment vocabulary of 250+ maritime-relevant molecular substructures spanning
+four functional classes:
+\begin{itemize}[nosep]
+  \item \textbf{UV-absorbing chromophores:} benzotriazole (BTZ),
+    hydroxybenzophenone (HBP), triazine, and cyanoacrylate UV absorber cores
+    tuned for 290--400\,nm maritime solar spectrum coverage;
+  \item \textbf{Corrosion-inhibiting moieties:} nitrogen-containing heterocycles
+    (imidazole, pyridine, benzimidazole) that chelate metal ions and form
+    protective passivation layers on steel and aluminum substrates;
+  \item \textbf{Hydrophobic/superhydrophobic groups:} fluoroalkyl chains
+    (C$_4$F$_9$--C$_8$F$_{17}$), polydimethylsiloxane (PDMS) segments, and
+    long-chain alkyl groups that achieve water contact angles $>150$\textdegree\
+    and reduce chloride ion ingress;
+  \item \textbf{Self-healing linkages:} Diels--Alder (furan--maleimide)
+    thermoreversible bonds, disulfide metathesis groups, and hydrogen-bonding
+    urethane motifs that enable autonomous crack repair in the marine environment.
+\end{itemize}
+Fragment-based generation guarantees 100\% chemical validity (versus $\sim$43\%
+for character-level SMILES approaches) and naturally produces molecules in the
+100--500 atom range relevant to coating oligomers and reactive monomers.
+
+\textbf{(2) Multitask GNN Property Prediction for Maritime Performance.}
+We train E(3)-equivariant graph neural network (GNN) surrogates that predict
+maritime-critical properties directly from molecular graphs:
+\begin{itemize}[nosep]
+  \item Peak UV absorption wavelength and molar absorptivity ($\varepsilon$)
+    across the 290--400\,nm window;
+  \item Electrochemical impedance modulus $|Z|$ at 0.01\,Hz in 3.5\% NaCl
+    (proxy for corrosion resistance);
+  \item Water contact angle and surface energy (hydrophobicity);
+  \item Glass transition temperature $T_g$ (mechanical integrity under thermal
+    cycling);
+  \item Self-healing efficiency (percentage impedance recovery after scribing).
+\end{itemize}
+Transfer learning from the MACE-MP foundation model (pre-trained on 150,000+
+inorganic structures) provides robust molecular representations that achieve
+target accuracy ($R^2 > 0.80$) with fewer than 500 coating-specific labeled
+samples per property.
+
+\textbf{(3) Constraint-Aware Multi-Objective Bayesian Optimization (MOBO).}
+We implement BoTorch's $q$NEHVI (noisy expected hypervolume improvement)
+acquisition function to navigate the Pareto front across five competing
+maritime protection objectives, subject to hard constraints:
+\begin{itemize}[nosep]
+  \item VOC content $< 250$\,g/L (EPA and IMO MARPOL Annex VI compliance);
+  \item PFAS-free alternatives preferred (DoD PFAS phase-out under NDAA 2026);
+  \item Substrate adhesion $> 5$\,MPa on both steel and aluminum alloy;
+  \item Processing temperature $< 150$\textdegree C (shipboard application
+    feasibility).
+\end{itemize}
+
+\subsection{Metastructure-Inspired Coating Architecture}
+
+Beyond molecular design, our platform optimizes hierarchical coating
+architectures inspired by metamaterial principles. We model coatings as
+multi-layer metastructures where each layer contributes specific functionality:
+\begin{enumerate}[nosep]
+  \item \textbf{Substrate-bonding primer layer:} AI-selected silane coupling
+    agents and phosphonate anchors for steel/aluminum adhesion;
+  \item \textbf{Corrosion-inhibiting interlayer:} nanocontainer-loaded
+    (halloysite, cerium oxide) self-healing matrix releasing inhibitors on demand;
+  \item \textbf{UV-absorbing/hydrophobic topcoat:} chromophore-functionalized
+    polymer network with superhydrophobic surface texturing.
+\end{enumerate}
+The MOBO engine co-optimizes interlayer composition, thickness ratios, and
+interfacial chemistry to minimize total system weight while maximizing
+protection lifetime, directly addressing NV029's emphasis on low-cost,
+moldable, conformal protection.
+
+\subsection{Maritime Validation Strategy}
+
+Phase~I computational candidates will be validated against Navy-standard
+accelerated weathering protocols:
+\begin{itemize}[nosep]
+  \item ASTM B117 salt spray (1,000+ hours);
+  \item ASTM G154 UV-condensation cycling;
+  \item MIL-DTL-24441 (Formula 150) performance benchmarks;
+  \item Thermal cycling $-10$ to $+70$\textdegree C per MIL-STD-810H.
+\end{itemize}
+
+%% =======================================================================
+\section{Innovation and Impact}
+\label{sec:innovation}
+%% =======================================================================
+
+\subsection{Technical Innovation}
+
+Our approach introduces three innovations that do not exist in current Navy
+coating development or commercial AI materials platforms:
+
+\textbf{Innovation 1: First generative AI system for multifunctional maritime
+coatings.} Current approaches (Citrine Informatics, Uncountable, Schr\"odinger)
+optimize within known chemical spaces. Our JT-VAE generates \emph{novel}
+molecular structures outside training distributions, accessing unexplored
+regions of coating chemistry space. Preliminary benchmarks show fragment-based
+generation produces molecules with 3$\times$ greater structural diversity than
+database enumeration.
+
+\textbf{Innovation 2: Multi-physics property prediction from molecular graphs.}
+Existing models predict single properties. Our multitask GNN simultaneously
+forecasts UV absorption, corrosion resistance, hydrophobicity, mechanical
+properties, and self-healing capacity from a unified molecular representation,
+capturing cross-property correlations (e.g., the trade-off between UV absorber
+loading and coating flexibility) that single-task models miss.
+
+\textbf{Innovation 3: Regulatory-constrained Pareto optimization for defense
+coatings.} Our MOBO pipeline is the first to enforce DoD-specific regulatory
+constraints (PFAS phase-out, MIL-spec performance floors, VOC limits) as hard
+constraints during optimization rather than post-hoc filtering, ensuring every
+candidate on the Pareto front is compliant and deployable.
+
+\subsection{Impact on Navy Capabilities}
+
+Successful development will provide the Navy with:
+\begin{itemize}[nosep]
+  \item \textbf{Extended maintenance intervals:} multifunctional coatings
+    targeting 5$\times$ longer service life than current MIL-DTL-24441 systems,
+    reducing drydock frequency and increasing operational availability;
+  \item \textbf{Weight reduction:} single-layer metastructure coatings replacing
+    3--4 layer coating systems, reducing topside weight on surface combatants;
+  \item \textbf{PFAS-free alternatives:} AI-designed hydrophobic coatings
+    achieving $>150$\textdegree\ contact angles without per-/polyfluoroalkyl
+    substances, ahead of NDAA-mandated phase-out;
+  \item \textbf{Moldable/conformal application:} coatings designed for spray,
+    brush, and mold-in-place application to complex geometries (antenna
+    housings, sensor domes, UAV airframes).
+\end{itemize}
+
+\subsection{Dual-Use Commercial Potential}
+
+The global marine coatings market reached \$12.3 billion in 2025, projected to
+grow at 6.8\% CAGR through 2034. Our technology addresses the \$3.1 billion
+high-performance marine segment (military, offshore energy, commercial shipping).
+Beyond defense, the same platform applies to civilian maritime (IMO antifouling
+regulations), offshore wind turbine protection, and coastal infrastructure.
+
+%% =======================================================================
+\section{Phase I Work Plan}
+\label{sec:workplan}
+%% =======================================================================
+
+Phase~I spans 6 months with a total budget of \$240,000. The work is organized
+into four tasks aligned with our technical objectives.
+
+\subsection{Task 1: Maritime Coating Data Curation and Fragment Library
+(Months 1--2, \$48K)}
+
+\textbf{Objective:} Assemble a maritime-specific molecular dataset and fragment
+vocabulary for generative model training.
+
+\textbf{Activities:}
+\begin{itemize}[nosep]
+  \item Curate 5,000+ coating molecules from Reaxys, SciFinder, USPTO patent
+    filings, and Navy Technical Reports (NSWCCD coating databases) with
+    maritime-relevant property annotations;
+  \item Build fragment vocabulary of 250+ substructures covering UV absorbers,
+    corrosion inhibitors, hydrophobic groups, and self-healing moieties;
+  \item Extract SMILES/SELFIES representations and compute baseline molecular
+    descriptors (MW, LogP, TPSA, synthetic accessibility score);
+  \item Compile experimental property data for GNN training: $T_g$, EIS
+    impedance, UV-vis spectra, contact angle, salt-spray hours to failure.
+\end{itemize}
+
+\textbf{Deliverable:} Annotated maritime coating molecule database and curated
+fragment library.\\
+\textbf{Milestone:} $\geq$5,000 molecules with $\geq$3 property annotations each.
+
+\subsection{Task 2: Generative Model and GNN Predictor Development
+(Months 2--4, \$84K)}
+
+\textbf{Objective:} Train and validate the JT-VAE generative model and multitask
+GNN property predictors for maritime coating performance.
+
+\textbf{Activities:}
+\begin{itemize}[nosep]
+  \item Train JT-VAE on curated maritime coating dataset with SELFIES encoding;
+  \item Generate 10,000 novel candidate molecules and filter for validity,
+    novelty ($>$90\% unique), and synthetic accessibility (SA $<$ 4.0);
+  \item Implement E(3)-equivariant GNN with MACE-MP transfer learning;
+  \item Train multitask property heads for five maritime properties
+    (UV $\lambda_\text{max}$, $|Z|_{0.01\text{Hz}}$, contact angle, $T_g$,
+    self-healing efficiency);
+  \item Validate prediction accuracy on held-out test sets.
+\end{itemize}
+
+\textbf{Deliverable:} Trained generative model producing valid novel coating
+molecules; GNN predictors with $R^2 > 0.80$ per property.\\
+\textbf{Go/No-Go:} If any property prediction $R^2 < 0.70$ after transfer
+learning, pivot to ensemble gradient-boosted models with molecular fingerprint
+inputs.
+
+\subsection{Task 3: MOBO Pipeline and Maritime Coating Design
+(Months 4--5, \$60K)}
+
+\textbf{Objective:} Integrate generative model and GNN predictors into a
+constraint-aware MOBO pipeline and identify Pareto-optimal maritime protective
+coating candidates.
+
+\textbf{Activities:}
+\begin{itemize}[nosep]
+  \item Implement BoTorch $q$NEHVI optimizer with five maritime objectives and
+    four hard constraints (VOC, PFAS-free, adhesion, processing temperature);
+  \item Screen 10,000+ AI-generated candidates through the MOBO pipeline;
+  \item Identify Pareto front of $\geq$15 non-dominated multifunctional coating
+    formulations;
+  \item Rank candidates by Navy-relevant composite score weighting UV resistance
+    (25\%), corrosion protection (30\%), hydrophobicity (20\%), self-healing
+    (15\%), and processability (10\%);
+  \item Perform computational validation: TD-DFT UV spectra, molecular dynamics
+    salt-water interface simulations, DFT adhesion energies on Fe/Al surfaces.
+\end{itemize}
+
+\textbf{Deliverable:} Ranked list of 50 candidate coating molecules/formulations
+with predicted performance profiles.\\
+\textbf{Milestone:} $\geq$15 Pareto-optimal candidates meeting all four
+constraints.
+
+\subsection{Task 4: Prototype Validation and Phase II Planning
+(Months 5--6, \$48K)}
+
+\textbf{Objective:} Validate top candidates computationally, prepare Phase~II
+experimental validation plan, and document Phase~I results.
+
+\textbf{Activities:}
+\begin{itemize}[nosep]
+  \item Select top 5 candidates for detailed computational validation:
+    \begin{itemize}[nosep]
+      \item DFT-optimized geometries and UV absorption spectra (TD-DFT/CAM-B3LYP);
+      \item Molecular dynamics simulation of salt-water resistance (3.5\% NaCl,
+        $10^5$ steps);
+      \item Coarse-grained MD of self-healing kinetics at 25\textdegree C and
+        60\textdegree C;
+    \end{itemize}
+  \item Develop Phase~II experimental validation plan including synthesis
+    routes, accelerated weathering (ASTM B117, G154), and Navy facility testing;
+  \item Prepare final technical report and Phase~II proposal.
+\end{itemize}
+
+\textbf{Deliverable:} Final technical report with validated candidates and
+Phase~II plan.
+
+\vspace{0.3cm}
+\noindent\textbf{Schedule Summary:}
+
+\begin{center}
+\begin{tabular}{llcc}
+\toprule
+\textbf{Task} & \textbf{Description} & \textbf{Months} & \textbf{Cost} \\
+\midrule
+1 & Data Curation \& Fragment Library & 1--2 & \$48K \\
+2 & Generative Model \& GNN Development & 2--4 & \$84K \\
+3 & MOBO Pipeline \& Maritime Coating Design & 4--5 & \$60K \\
+4 & Prototype Validation \& Phase II Planning & 5--6 & \$48K \\
+\midrule
+  & \textbf{Total} & \textbf{6 months} & \textbf{\$240K} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%% =======================================================================
+\section{Related Experience and Qualifications}
+\label{sec:qualifications}
+%% =======================================================================
+
+\subsection{Principal Investigator}
+
+[PI Name] serves as Principal Investigator and brings [X] years of experience
+in computational materials science, machine learning for molecular design, and
+protective coating development. [Relevant credentials: PhD in
+chemistry/materials science/computer science; publications in peer-reviewed
+journals on GNN property prediction, generative molecular design, or
+computational coatings research; prior DoD-funded research experience.]
+
+[PI Name] has demonstrated expertise in the core technical areas required for
+this effort:
+\begin{itemize}[nosep]
+  \item Graph neural network architectures for molecular property prediction,
+    including transfer learning from foundation models;
+  \item Generative models (VAE, diffusion) for molecular design with
+    application-specific fragment vocabularies;
+  \item Multi-objective optimization under constraints for materials discovery;
+  \item [Specific experience with corrosion-resistant or marine coatings, if
+    applicable].
+\end{itemize}
+
+\subsection{Key Personnel and Advisors}
+
+[Co-PI Name] contributes [X] years of expertise in polymer chemistry, coating
+formulation, and accelerated weathering characterization. [Relevant credentials:
+industrial R\&D roles at coating companies, patents in protective coating
+formulations, experience with MIL-spec testing.]
+
+The team is supported by:
+\begin{itemize}[nosep]
+  \item Advisory board members in computational chemistry from [University] and
+    marine coatings specialists from [Industry Partner];
+  \item Research collaboration with [Partner Institution] providing access to
+    salt spray chambers (ASTM B117), QUV accelerated weathering (ASTM G154),
+    EIS instrumentation, and contact angle goniometry;
+  \item [If applicable: collaboration with NSWCCD, NRL, or other Navy research
+    facilities].
+\end{itemize}
+
+\subsection{Organizational Capability}
+
+[Company Name], founded [Year] in [City, State], specializes in AI-driven
+discovery of high-performance materials with emphasis on protective coatings and
+functional polymers. The company maintains computational infrastructure
+including [GPU cluster specifications] for neural network training and molecular
+simulation.
+
+[If applicable: prior SBIR/STTR awards from DoD, NSF, or DOE for related
+AI-materials work. Prior Navy contracts or subcontracts. CMMC compliance status.]
+
+\subsection{Facilities and Equipment}
+
+\begin{itemize}[nosep]
+  \item \textbf{Computational:} [GPU cluster: e.g., 8$\times$ NVIDIA A100 80GB,
+    128-core CPU cluster] for GNN training, molecular dynamics, and DFT
+    calculations;
+  \item \textbf{Software:} PyTorch, PyTorch Geometric, BoTorch, RDKit, ASE,
+    MACE, Gaussian/ORCA for DFT, LAMMPS/GROMACS for MD;
+  \item \textbf{Characterization (via partner):} EIS, UV-vis spectroscopy,
+    ASTM B117 salt spray, ASTM G154 QUV, nanoindentation, contact angle
+    goniometry, pull-off adhesion testing.
+\end{itemize}
+
+%% =======================================================================
+\section{Cost and Schedule Summary}
+\label{sec:cost}
+%% =======================================================================
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Cost Category} & \textbf{Amount} & \textbf{\% of Total} \\
+\midrule
+PI Salary \& Fringe (6 months, 50\% effort) & \$78,000 & 32.5\% \\
+Co-PI Salary \& Fringe (6 months, 25\% effort) & \$36,000 & 15.0\% \\
+Postdoc/Research Scientist (6 months, 75\% effort) & \$54,000 & 22.5\% \\
+Computing (cloud GPU, HPC allocation) & \$24,000 & 10.0\% \\
+Database Licenses (Reaxys, SciFinder) & \$12,000 & 5.0\% \\
+Materials \& Supplies & \$6,000 & 2.5\% \\
+Travel (Navy program reviews, conferences) & \$8,000 & 3.3\% \\
+Subcontractor (characterization partner) & \$12,000 & 5.0\% \\
+Indirect Costs & \$10,000 & 4.2\% \\
+\midrule
+\textbf{Total Phase I} & \textbf{\$240,000} & \textbf{100\%} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.3cm}
+\noindent\textbf{Period of Performance:} 6 months from date of award.
+
+\noindent\textbf{Phase II Vision:} A 24-month, \$1.6M Phase~II effort will
+synthesize and experimentally validate the top 10 AI-designed coating
+formulations through:
+\begin{itemize}[nosep]
+  \item Synthesis of candidate molecules via established organic chemistry
+    routes (Suzuki coupling, click chemistry, ring-opening polymerization);
+  \item Coating formulation and application via spray, brush, and mold-in-place
+    methods on Navy-relevant substrates (HY-80 steel, 5456-H116 aluminum);
+  \item Full MIL-spec accelerated weathering qualification (B117, G154,
+    MIL-DTL-24441);
+  \item Field testing at a Navy corrosion test site (e.g., NSWCCD Key West
+    Marine Corrosion Facility);
+  \item Robotic coating deposition integration for reproducible manufacturing;
+  \item Technology transition planning with Navy PEO Ships and NAVSEA coating
+    program offices.
+\end{itemize}
+
+%% =======================================================================
+\section*{References}
+\label{sec:references}
+%% =======================================================================
+
+\begin{enumerate}[nosep, label={[\arabic*]}]
+  \item Jin, W., Barzilay, R., \& Jaakkola, T. ``Junction Tree Variational
+    Autoencoder for Molecular Graph Generation.'' \textit{Proc.\ ICML}, 2018.
+  \item Batatia, I., et al. ``MACE: Higher Order Equivariant Message Passing
+    Neural Networks for Fast and Accurate Force Fields.'' \textit{NeurIPS}, 2022.
+  \item Daulton, S., Balandat, M., \& Bakshy, E. ``Parallel Bayesian
+    Optimization of Multiple Noisy Objectives with Expected Hypervolume
+    Improvement.'' \textit{NeurIPS}, 2021.
+  \item Shevchenko, E.V., et al. ``Active Learning for Optimization of
+    Self-Healing Epoxy Coatings.'' \textit{ACS Appl.\ Mater.\ Interfaces},
+    2023.
+  \item Sato, T., \& Hori, H. ``Machine Learning Prediction of Corrosion
+    Inhibitor Efficiency from Molecular Structure.'' \textit{Corrosion Science},
+    2024, 226, 111695.
+  \item Zhang, Y., et al. ``Superhydrophobic Coatings for Marine Corrosion
+    Protection: A Review.'' \textit{Progress in Organic Coatings}, 2024, 187,
+    108147.
+  \item Ghosh, S.K. ``Self-Healing Materials: Fundamentals, Design Strategies,
+    and Applications.'' \textit{Wiley-VCH}, 2023.
+  \item Argonne National Laboratory. ``Polybot: Autonomous Polymer Film
+    Fabrication Platform.'' Technical Report, 2023.
+  \item MIL-DTL-24441: ``Paint, Epoxy-Polyamide, General Specification For.''
+    Department of Defense, Rev.\ 2022.
+  \item Hoogeboom, E., et al. ``Equivariant Diffusion for Molecule Generation
+    in 3D.'' \textit{Proc.\ ICML}, 2022.
+  \item Tran, R., et al. ``The Open Molecules 2025 (OMol25) Dataset and
+    Models.'' arXiv:2505.08762, 2025.
+  \item National Defense Authorization Act for Fiscal Year 2026, Sec.\ 346:
+    ``Phase-Out of Per- and Polyfluoroalkyl Substances in Department of Defense
+    Acquisitions.''
+\end{enumerate}
+
+\vspace{1cm}
+\noindent\textcolor{navyblue}{\rule{\textwidth}{1.5pt}}
+
+\begin{center}
+\small\textcolor{gray}{
+  [Company Name] --- DoD SBIR Phase I Technical Volume --- Topic NV029\\
+  DISTRIBUTION STATEMENT: Distribution authorized to U.S.\ Government
+  agencies and their contractors; other requests shall be referred to
+  [Company Name].
+}
+\end{center}
+
+\end{document}

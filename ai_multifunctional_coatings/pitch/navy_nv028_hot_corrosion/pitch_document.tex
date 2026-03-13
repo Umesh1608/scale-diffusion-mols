@@ -1,0 +1,388 @@
+% Compile with: pdflatex pitch_document.tex
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  urlcolor=blue!60!black,
+}
+
+\definecolor{navyblue}{HTML}{003366}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{gray}{\small DoD SBIR 26.B -- Topic NV028}}
+\lhead{\textcolor{gray}{\small [Company Name]}}
+\rfoot{\textcolor{gray}{\small \thepage}}
+
+\begin{document}
+
+%% =======================================================================
+%% TITLE PAGE
+%% =======================================================================
+
+\begin{center}
+\vspace*{1cm}
+
+{\Large\textbf{\textcolor{navyblue}{Department of Defense SBIR Phase I Proposal}}}
+
+\vspace{0.8cm}
+
+{\large\textbf{Topic Number: NV028}}\\[0.3cm]
+{\large\textbf{Overlay and Bond Coatings with Improved Hot Corrosion\\Resistance for Navy Gas Turbine Engines}}
+
+\vspace{0.8cm}
+
+\textcolor{navyblue}{\rule{0.8\textwidth}{1.5pt}}
+
+\vspace{0.8cm}
+
+{\Large\textbf{AI-Driven Integrated Computational Materials Engineering\\for Discovery of Hot Corrosion Resistant\\Overlay and Bond Coating Compositions}}
+
+\vspace{1.0cm}
+
+\begin{tabular}{ll}
+\textbf{Proposing Firm:} & [Company Name] \\
+\textbf{Address:} & [Street Address] \\
+ & [City, State ZIP] \\
+\textbf{Principal Investigator:} & [PI Name], [Title] \\
+\textbf{PI Email:} & [PI Email] \\
+\textbf{PI Phone:} & [PI Phone] \\
+\textbf{CAGE Code:} & [CAGE Code] \\
+\textbf{DUNS Number:} & [DUNS/UEI Number] \\
+\textbf{Proposed Cost:} & \$239,998 \\
+\textbf{Period of Performance:} & 6 months \\
+\textbf{Agency:} & Department of the Navy (NAVAIR) \\
+\textbf{Solicitation:} & DoD SBIR 26.B \\
+\end{tabular}
+
+\vspace{1.5cm}
+
+{\small\textit{DISTRIBUTION STATEMENT: Distribution authorized to U.S.\ Government agencies only. Other requests shall be referred to NAVAIR.}}
+
+\end{center}
+
+\newpage
+
+%% =======================================================================
+\section{Technical Approach}
+\label{sec:technical_approach}
+%% =======================================================================
+
+\subsection{Problem Statement and Significance}
+
+Navy gas turbine engines operating in marine environments face severe degradation from hot corrosion---an accelerated oxidation process driven by molten salt deposits, primarily sodium sulfate (Na$_2$SO$_4$) formed from ingested sea salt reacting with sulfur in fuel combustion gases. Two distinct regimes threaten engine durability:
+
+\begin{itemize}[nosep]
+  \item \textbf{Type I (high-temperature) hot corrosion} (850--950$^\circ$C): Na$_2$SO$_4$ deposits melt and flux the protective Cr$_2$O$_3$ or Al$_2$O$_3$ oxide scale on MCrAlY bond coats, causing catastrophic internal sulfidation and accelerated alloy consumption.
+  \item \textbf{Type II (low-temperature) hot corrosion} (650--800$^\circ$C): Eutectic mixtures of Na$_2$SO$_4$--CoSO$_4$ or Na$_2$SO$_4$--NiSO$_4$ form localized pitting attack, undermining both overlay coatings and the thermally grown oxide (TGO) layer critical for thermal barrier coating (TBC) adhesion.
+\end{itemize}
+
+Current MCrAlY (M = Ni, Co, or NiCo) overlay and bond coatings provide baseline protection but degrade unacceptably in aggressive marine salt environments. Developing improved compositions requires navigating a vast compositional space: major elements (Ni, Co, Cr, Al, Y), minor additions (Si, Hf, Ta, Re, Pt), and microstructural features ($\beta$-NiAl fraction, $\gamma/\gamma'$ phase stability). Traditional experimental campaigns test tens of compositions over multi-year timelines. The Navy needs an accelerated, systematic approach to discover coating compositions with fundamentally improved hot corrosion resistance.
+
+\subsection{Proposed ICME Approach}
+
+We propose an \textbf{AI-driven Integrated Computational Materials Engineering (ICME)} platform that unifies three computational capabilities in a closed loop to discover novel overlay and bond coating compositions with superior resistance to Type I and Type II hot corrosion:
+
+\textbf{(1) Graph Neural Network (GNN) Property Prediction for Corrosion Resistance.}
+We will develop multitask GNN models that predict hot-corrosion-relevant properties directly from alloy composition and crystal structure representations. Atomic graphs encode each coating composition with nodes representing atomic species and edges encoding interatomic distances from DFT-relaxed structures. The GNN simultaneously predicts:
+\begin{itemize}[nosep]
+  \item Oxide scale formation energy ($\Delta G_{\text{ox}}$ for Al$_2$O$_3$, Cr$_2$O$_3$) as a proxy for protective scale stability
+  \item Sulfidation susceptibility (sulfide formation energy for each metallic component)
+  \item Na$_2$SO$_4$ fluxing resistance (oxide basicity and acid--base equilibria at the salt--oxide interface)
+  \item $\beta$-NiAl phase fraction and Al activity as indicators of coating reservoir life
+  \item Coefficient of thermal expansion (CTE) mismatch with superalloy substrates
+\end{itemize}
+
+Transfer learning from the MACE-MP foundation model (trained on 150,000+ inorganic structures from the Materials Project) provides a strong initialization for the GNN encoder, enabling accurate predictions from fewer than 500 MCrAlY-specific training samples. We augment training data with CALPHAD-computed phase equilibria (Thermo-Calc with TCNI and MOBNI databases) and literature hot corrosion weight-loss data compiled from \textgreater50 published studies on MCrAlY systems.
+
+\textbf{(2) Generative Compositional Design.}
+Rather than screening a predefined grid, we employ a conditional variational autoencoder (CVAE) operating on compositional vectors to generate novel MCrAlY-family compositions. The latent space is conditioned on target property profiles (high oxide stability, low sulfidation energy, acceptable CTE). A fragment-based approach represents coating compositions as combinations of functional ``building blocks'': primary matrix (Ni-based, Co-based, NiCo-based), oxide-forming elements (Cr, Al content ranges), reactive element additions (Y, Hf, Si, Zr), and refractory strengtheners (Ta, Re, W). This structured generation ensures metallurgical feasibility while enabling exploration beyond conventional composition ranges.
+
+\textbf{(3) Multi-Objective Bayesian Optimization (MOBO).}
+We implement constraint-aware MOBO using BoTorch's qNEHVI (q-Noisy Expected Hypervolume Improvement) acquisition function to navigate the Pareto front across competing objectives: (a)~maximize hot corrosion resistance (minimize weight loss rate), (b)~maintain oxidation resistance at operating temperature, (c)~ensure thermomechanical compatibility (CTE match, ductile-to-brittle transition), and (d)~minimize cost (reduce Pt, Re content where possible). Constraints enforce phase stability requirements (sufficient $\beta$-NiAl reservoir, no detrimental TCP phase formation) and manufacturability bounds (compatibility with air plasma spray, EB-PVD, or HVOF deposition).
+
+\subsection{Hot Corrosion Mechanism Integration}
+
+A key innovation is encoding hot corrosion degradation mechanisms directly into the ICME framework. We model the three-stage corrosion process:
+
+\begin{enumerate}[nosep]
+  \item \textbf{Initiation:} Na$_2$SO$_4$ deposition and oxide scale dissolution via basic or acidic fluxing. We compute oxide basicity ($pO^{2-}$) and solubility in molten Na$_2$SO$_4$ using the Rapp--Goto criterion for sustained hot corrosion.
+  \item \textbf{Propagation:} Internal sulfidation and depletion of protective scale-forming elements. We use CALPHAD-based diffusion simulations (DICTRA) to predict Al/Cr depletion profiles and coating lifetime.
+  \item \textbf{Spallation:} TGO growth stress and CTE mismatch leading to TBC delamination. We compute strain energy release rates at the bond coat--TGO--TBC interfaces.
+\end{enumerate}
+
+The GNN surrogates are trained on DFT-computed thermodynamic quantities (formation energies, surface energies, vacancy formation energies) that govern each stage, creating a physics-informed predictive framework rather than a purely empirical correlation.
+
+\subsection{Computational Workflow}
+
+The ICME pipeline operates as follows:
+\begin{enumerate}[nosep]
+  \item \textbf{Data Assembly:} Compile MCrAlY composition--property database from literature (\textgreater200 compositions with hot corrosion test data), augmented with CALPHAD phase equilibria and DFT calculations of oxide/sulfide formation energies.
+  \item \textbf{GNN Training:} Train E(3)-equivariant GNN on atomic graphs with transfer learning from MACE-MP. Validate against held-out experimental hot corrosion data.
+  \item \textbf{Generative Exploration:} Use CVAE to propose 10,000+ candidate compositions, filtered by GNN predictions for Pareto optimality.
+  \item \textbf{MOBO Refinement:} Iteratively refine the top 200 compositions through Bayesian optimization, with CALPHAD calculations providing ground-truth checks at each iteration.
+  \item \textbf{Down-selection:} Rank top 10 compositions for Phase~II experimental validation based on predicted hot corrosion resistance, phase stability, and manufacturability.
+\end{enumerate}
+
+
+%% =======================================================================
+\section{Innovation and Impact}
+\label{sec:innovation}
+%% =======================================================================
+
+\subsection{What Is Novel}
+
+This proposal represents the first application of an integrated AI/ML-driven ICME platform specifically targeting hot corrosion resistant coating discovery for marine gas turbine environments. The key innovations are:
+
+\textbf{Physics-Informed GNN Surrogates for Hot Corrosion.} Existing ML approaches to coating design rely on empirical composition--property correlations or CALPHAD calculations alone. Our GNN surrogates learn directly from atomic-level structure, capturing subtle effects of minor alloying additions (Si, Hf, Zr, Pt) on oxide scale adherence, sulfidation resistance, and phase stability that are poorly described by empirical rules. Transfer learning from large-scale foundation models (MACE-MP) overcomes the data scarcity problem that has limited ML application to high-temperature coatings.
+
+\textbf{Generative Design Beyond Human Intuition.} Traditional MCrAlY development increments compositions by 1--2\,wt.\% steps from known baselines. Our generative model proposes compositions across the full feasible space, including non-obvious multi-element combinations that human experts would not explore. This is particularly valuable for discovering synergistic minor element effects---e.g., simultaneous Si+Hf additions that may improve both Type~I and Type~II resistance through complementary mechanisms (SiO$_2$ modification of oxide basicity and HfO$_2$ pegging of the TGO).
+
+\textbf{Closed-Loop Multi-Objective Optimization.} Hot corrosion resistance typically trades off against other critical properties: high Cr content improves Type~II resistance but can destabilize the $\gamma'$ phase and reduce creep strength; high Al content improves Type~I resistance but increases CTE mismatch. Our MOBO framework is the first to simultaneously optimize across hot corrosion resistance, oxidation resistance, thermomechanical compatibility, and cost for MCrAlY coating systems, providing the Navy with Pareto-optimal compositions rather than single-point solutions.
+
+\subsection{Impact on Navy Capabilities}
+
+Successful development of improved hot corrosion resistant coatings directly addresses Navy readiness and sustainment challenges:
+\begin{itemize}[nosep]
+  \item \textbf{Extended engine life:} Improved bond coat durability reduces the frequency of costly engine overhauls for shipboard gas turbines (LM2500, LM2500+, MT30) and aircraft engines operating in marine environments.
+  \item \textbf{Reduced lifecycle cost:} Hot corrosion is a leading cause of premature TBC spallation and blade retirement. Even a 2$\times$ improvement in coating life translates to hundreds of millions in fleet-wide savings.
+  \item \textbf{Expanded operational envelope:} Coatings tolerant of higher salt loading relax constraints on operations in littoral and confined waters where salt ingestion is severe.
+  \item \textbf{Accelerated qualification:} The ICME platform compresses the discovery-to-qualification timeline from 5--10 years to 2--3 years by computationally screening thousands of compositions before committing to expensive experimental campaigns.
+\end{itemize}
+
+\subsection{Dual-Use and Broader Applications}
+
+The AI-driven ICME platform is inherently dual-use. Beyond Navy gas turbines, the same framework applies to:
+\begin{itemize}[nosep]
+  \item Commercial aviation engines (CFM LEAP, PW GTF) operating over ocean routes
+  \item Industrial gas turbines in coastal power plants
+  \item Land-based military turbines (AGT1500 in M1 Abrams) operating in desert environments with sand/salt ingestion
+  \item Environmental barrier coatings (EBCs) for ceramic matrix composites (CMCs)
+\end{itemize}
+
+
+%% =======================================================================
+\section{Phase I Work Plan}
+\label{sec:workplan}
+%% =======================================================================
+
+Phase~I is a 6-month effort with a total budget of \$239,998 organized into four tasks. The objective is to demonstrate computational feasibility of the AI-driven ICME platform for discovering MCrAlY coating compositions with improved hot corrosion resistance.
+
+\subsection{Task 1: Hot Corrosion Data Assembly and Curation (Months 1--2)}
+
+\textbf{Objective:} Build a comprehensive MCrAlY hot corrosion database suitable for GNN training and CALPHAD validation.
+
+\textbf{Activities:}
+\begin{itemize}[nosep]
+  \item Compile literature data on MCrAlY hot corrosion performance: composition, test conditions (temperature, salt chemistry, exposure time), and degradation metrics (weight change, metal loss, internal sulfidation depth) from \textgreater50 published studies.
+  \item Extract \textgreater200 unique composition--property data points spanning NiCrAlY, CoCrAlY, NiCoCrAlY systems with varied minor additions.
+  \item Perform CALPHAD calculations (Thermo-Calc, TCNI12/MOBNI5 databases) for all compiled compositions: equilibrium phase fractions, Al/Cr activity, solidus temperature, and $\beta$-NiAl depletion kinetics.
+  \item Execute DFT calculations (VASP, PBE+U) for oxide and sulfide formation energies of 50 representative compositions to generate GNN training labels.
+  \item Curate the database with standardized uncertainty estimates and quality flags.
+\end{itemize}
+
+\textbf{Milestone 1:} Validated database of \textgreater200 MCrAlY compositions with hot corrosion data, CALPHAD phase equilibria, and DFT-computed thermodynamic properties.
+
+\subsection{Task 2: GNN Surrogate Model Development (Months 2--4)}
+
+\textbf{Objective:} Train and validate E(3)-equivariant GNN models that predict hot-corrosion-relevant properties from alloy composition and structure.
+
+\textbf{Activities:}
+\begin{itemize}[nosep]
+  \item Represent each MCrAlY composition as an atomic graph using DFT-relaxed unit cells or special quasi-random structures (SQS) for disordered alloys.
+  \item Initialize GNN encoder weights from MACE-MP foundation model via transfer learning.
+  \item Train multitask GNN predicting: (a)~oxide formation energy, (b)~sulfide formation energy, (c)~$\beta$-NiAl phase fraction, (d)~Al activity, (e)~CTE.
+  \item Validate against held-out experimental hot corrosion data using 5-fold cross-validation.
+  \item Perform ablation studies: transfer learning vs.\ random initialization, multitask vs.\ single-task, effect of training set size.
+\end{itemize}
+
+\textbf{Milestone 2:} GNN surrogates achieving $R^2 > 0.80$ for oxide/sulfide formation energies and $R^2 > 0.75$ for phase fraction predictions on held-out data.
+
+\textbf{Go/No-Go:} If $R^2 < 0.70$ after transfer learning and hyperparameter optimization, pivot to gradient-boosted tree ensembles (XGBoost) with hand-crafted compositional features as fallback surrogates.
+
+\subsection{Task 3: Generative Design and Multi-Objective Optimization (Months 3--5)}
+
+\textbf{Objective:} Generate and optimize novel MCrAlY compositions predicted to outperform existing coatings in hot corrosion resistance.
+
+\textbf{Activities:}
+\begin{itemize}[nosep]
+  \item Train CVAE on the MCrAlY compositional database, conditioned on target property ranges (high oxide stability, low sulfidation susceptibility).
+  \item Generate 10,000+ candidate compositions; filter for phase stability constraints using CALPHAD-trained classifiers.
+  \item Screen candidates through GNN surrogates; identify Pareto-optimal compositions across hot corrosion resistance, oxidation resistance, CTE match, and cost metrics.
+  \item Implement MOBO loop (BoTorch qNEHVI) to refine top 200 candidates over 50 iterations, with CALPHAD spot-checks every 10th iteration.
+  \item Down-select top 10 compositions based on predicted performance, manufacturability (compatible with APS, EB-PVD, or HVOF), and cost.
+\end{itemize}
+
+\textbf{Milestone 3:} Pareto front of $\geq$10 non-dominated compositions with predicted hot corrosion weight loss $<$50\% of baseline NiCoCrAlY (Co-32Ni-21Cr-8Al-0.5Y).
+
+\subsection{Task 4: Validation, Reporting, and Phase II Planning (Months 5--6)}
+
+\textbf{Objective:} Validate top predictions against CALPHAD simulations, prepare Phase~II experimental plan, and deliver final reports.
+
+\textbf{Activities:}
+\begin{itemize}[nosep]
+  \item Perform detailed CALPHAD/DICTRA simulations of top 10 compositions: full phase evolution from 600--1100$^\circ$C, Al depletion kinetics under hot corrosion conditions, interdiffusion with representative superalloy substrates (CMSX-4, IN718, Mar-M-247).
+  \item Compare GNN predictions with CALPHAD results; quantify surrogate accuracy and identify systematic biases.
+  \item Develop Phase~II experimental validation plan: coating deposition (APS/HVOF), burner rig hot corrosion testing (Type~I at 900$^\circ$C and Type~II at 700$^\circ$C with Na$_2$SO$_4$ + NaCl deposits), cyclic oxidation testing, and microstructural characterization.
+  \item Prepare final technical report and Phase~II proposal.
+\end{itemize}
+
+\textbf{Milestone 4:} Final report with validated top-10 compositions, GNN surrogate performance metrics, and detailed Phase~II experimental plan.
+
+\subsection{Schedule Summary}
+
+\begin{center}
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{Task} & \textbf{M1} & \textbf{M2} & \textbf{M3} & \textbf{M4} & \textbf{M5} & \textbf{M6} \\
+\midrule
+Task 1: Data Assembly & $\bullet$ & $\bullet$ & & & & \\
+Task 2: GNN Development & & $\bullet$ & $\bullet$ & $\bullet$ & & \\
+Task 3: Generative/MOBO & & & $\bullet$ & $\bullet$ & $\bullet$ & \\
+Task 4: Validation/Reporting & & & & & $\bullet$ & $\bullet$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+%% =======================================================================
+\section{Related Experience and Qualifications}
+\label{sec:qualifications}
+%% =======================================================================
+
+\textbf{[Company Name]} is a small business specializing in AI-driven materials discovery, with a focus on computational approaches to high-performance coating and alloy design. The company integrates expertise in machine learning, computational thermodynamics, and materials science to accelerate development of advanced materials for defense and industrial applications.
+
+\textbf{Principal Investigator: [PI Name]} brings [X] years of experience in computational materials science and machine learning applied to materials discovery. [Relevant credentials: PhD in materials science/chemistry/computer science, publications on GNN-based property prediction, experience with CALPHAD methods, familiarity with high-temperature oxidation and corrosion]. [PI Name] has [specific relevant experience: e.g., developed ML models for alloy design, conducted research on MCrAlY or superalloy systems, prior government-funded research]. The PI will lead overall technical direction, GNN model development, and integration of the ICME pipeline.
+
+\textbf{Co-Investigator: [Co-I Name]} contributes [X] years of expertise in high-temperature coatings and hot corrosion. [Relevant credentials: experience with MCrAlY coating deposition and characterization, expertise in CALPHAD-based alloy design, publications on hot corrosion mechanisms, familiarity with Navy gas turbine coating requirements]. The Co-I will lead data curation, CALPHAD calculations, and Phase~II experimental planning.
+
+\textbf{Advisory Support:}
+\begin{itemize}[nosep]
+  \item [Advisor 1], [University/Organization]: Expert in hot corrosion mechanisms and TBC systems. Will review GNN training data and validate physical reasonability of predicted compositions.
+  \item [Advisor 2], [University/Organization]: Expert in equivariant neural networks and generative models for materials. Will advise on GNN architecture and transfer learning strategy.
+\end{itemize}
+
+\textbf{Facilities and Resources:}
+\begin{itemize}[nosep]
+  \item High-performance computing: [GPU cluster specifications, e.g., 8$\times$ NVIDIA A100 GPUs] for DFT calculations and GNN training.
+  \item Software licenses: Thermo-Calc with TCNI12/MOBNI5 databases, VASP, BoTorch/GPyTorch.
+  \item [If applicable:] Partnership with [University/National Lab] for access to burner rig testing and coating deposition facilities for Phase~II.
+\end{itemize}
+
+\textbf{Prior Relevant Work:}
+\begin{itemize}[nosep]
+  \item [If applicable: Prior SBIR/STTR awards, DoD contracts, or research grants related to AI/ML for materials, ICME, or coating development.]
+  \item [Publications, patents, or software tools relevant to the proposed work.]
+  \item [Company Name] has demonstrated GNN-based property prediction achieving $R^2 > 0.85$ for polymer $T_g$ on benchmark datasets and active-learning Bayesian optimization achieving order-of-magnitude improvements in coating performance in only 30 experimental iterations.
+\end{itemize}
+
+
+%% =======================================================================
+\section{Cost and Schedule Summary}
+\label{sec:cost}
+%% =======================================================================
+
+\subsection{Budget Overview}
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Cost Category} & \textbf{Amount} & \textbf{\% of Total} \\
+\midrule
+Direct Labor (PI, Co-I, Research Associate) & \$142,000 & 59.2\% \\
+Fringe Benefits (at [XX]\%) & \$35,500 & 14.8\% \\
+Computing Costs (cloud GPU, HPC allocation) & \$18,000 & 7.5\% \\
+Software Licenses (Thermo-Calc, VASP) & \$12,000 & 5.0\% \\
+Travel (1 trip to NAVAIR for Phase I kickoff/review) & \$3,500 & 1.5\% \\
+Materials and Supplies & \$2,000 & 0.8\% \\
+Subcontractor: [University partner for CALPHAD] & \$15,000 & 6.3\% \\
+Indirect Costs (at [XX]\% MTDC) & \$11,998 & 5.0\% \\
+\midrule
+\textbf{Total Proposed Cost} & \textbf{\$239,998} & \textbf{100\%} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Level of Effort}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Personnel} & \textbf{Hours} & \textbf{Role} \\
+\midrule
+[PI Name] & 600 & Technical lead, GNN development, MOBO \\
+{[Co-I Name]} & 400 & Data curation, CALPHAD, validation \\
+Research Associate & 320 & DFT calculations, database management \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Period of Performance}
+
+6 months from date of contract award (anticipated start: July 2026).
+
+\subsection{Key Deliverables}
+
+\begin{enumerate}[nosep]
+  \item Curated MCrAlY hot corrosion database (\textgreater200 compositions)
+  \item Trained and validated GNN surrogate models (code and model weights)
+  \item Pareto-optimal coating composition library (top 10 compositions with predicted properties)
+  \item Final technical report with Phase~II experimental plan
+  \item Monthly progress reports and one interim technical review
+\end{enumerate}
+
+
+%% =======================================================================
+\section*{References}
+\label{sec:references}
+%% =======================================================================
+
+\begin{enumerate}[nosep,label={[\arabic*]}]
+
+\item R.A.\ Rapp, ``Hot corrosion of materials: a fluxing mechanism?'' \textit{Corrosion Science}, vol.\ 44, pp.\ 209--221, 2002.
+
+\item N.\ Eliaz, G.\ Shemesh, and R.M.\ Latanision, ``Hot corrosion in gas turbine components,'' \textit{Engineering Failure Analysis}, vol.\ 9, pp.\ 31--43, 2002.
+
+\item J.R.\ Nicholls, ``Designing oxidation-resistant coatings,'' \textit{JOM}, vol.\ 52, pp.\ 28--35, 2000.
+
+\item G.W.\ Goward, ``Progress in coatings for gas turbine airfoils,'' \textit{Surface and Coatings Technology}, vol.\ 108--109, pp.\ 73--79, 1998.
+
+\item I.\ Barin, \textit{Thermochemical Data of Pure Substances}, VCH Publishers, 1995.
+
+\item S.\ Bose, \textit{High Temperature Coatings}, Butterworth-Heinemann, 2007.
+
+\item A.G.\ Evans et al., ``Mechanisms controlling the durability of thermal barrier coatings,'' \textit{Progress in Materials Science}, vol.\ 46, pp.\ 505--553, 2001.
+
+\item I.\ Batatia et al., ``MACE: Higher order equivariant message passing neural networks for fast and accurate force fields,'' \textit{Advances in Neural Information Processing Systems}, vol.\ 35, 2022.
+
+\item M.\ Balandat et al., ``BoTorch: A framework for efficient Monte-Carlo Bayesian optimization,'' \textit{Advances in Neural Information Processing Systems}, vol.\ 33, 2020.
+
+\item C.\ Chen and S.P.\ Ong, ``A universal graph deep learning interatomic potential for the periodic table,'' \textit{Nature Computational Science}, vol.\ 2, pp.\ 718--728, 2022.
+
+\item J.-O.\ Andersson et al., ``Thermo-Calc \& DICTRA, computational tools for materials science,'' \textit{Calphad}, vol.\ 26, pp.\ 273--312, 2002.
+
+\item N.S.\ Bornstein and M.A.\ DeCrescente, ``The role of sodium in the accelerated oxidation phenomenon termed sulfidation,'' \textit{Metallurgical Transactions}, vol.\ 2, pp.\ 2875--2883, 1971.
+
+\item D.K.\ Das, V.\ Singh, and S.V.\ Joshi, ``Effect of Al content on microstructure and cyclic oxidation performance of Pt-aluminide coatings,'' \textit{Oxidation of Metals}, vol.\ 57, pp.\ 245--266, 2002.
+
+\item P.\ Patel et al., ``Computational screening of MCrAlY coatings for improved oxidation resistance using machine learning,'' \textit{Computational Materials Science}, vol.\ 198, p.\ 110692, 2021.
+
+\item L.\ Deng et al., ``Application of machine learning in high-temperature alloy and coating design: a review,'' \textit{Journal of Alloys and Compounds}, vol.\ 960, p.\ 170884, 2023.
+
+\end{enumerate}
+
+
+\end{document}

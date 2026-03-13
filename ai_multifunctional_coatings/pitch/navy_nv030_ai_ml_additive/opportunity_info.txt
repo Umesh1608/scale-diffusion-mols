@@ -1,0 +1,165 @@
+================================================================================
+Navy SBIR Topic NV030 — Opportunity Information
+================================================================================
+
+TOPIC NUMBER:       NV030
+TOPIC TITLE:        AI/ML-Enabled Process Optimization for Additive
+                    Manufacturing of Protective Coatings
+
+AGENCY:             Department of the Navy (DoN)
+COMPONENT:          Naval Air Systems Command (NAVAIR) / Naval Sea Systems
+                    Command (NAVSEA)
+PROGRAM:            Small Business Innovation Research (SBIR)
+
+SOLICITATION:       DON SBIR 26.B (FY2026 Batch 1) [verify exact batch number]
+
+BUDGET:             ~$240,000 (Phase I)
+                    ~$1,600,000 (Phase II, if awarded)
+PHASE I DURATION:   6 months
+PHASE II DURATION:  24 months
+
+================================================================================
+DEADLINE INFORMATION
+================================================================================
+
+Pre-release date:       [Check dodsbirsttr.mil for exact dates]
+Open date:              [Check dodsbirsttr.mil for exact dates]
+Close date:             [Check dodsbirsttr.mil for exact dates]
+
+IMPORTANT: DoD SBIR solicitations typically have a 30-60 day open window.
+Monitor the DSIP portal for exact dates. Register early in DSIP if not
+already registered.
+
+Submission portal:      https://www.dodsbirsttr.mil/submissions/
+                        (Defense SBIR/STTR Innovation Portal — DSIP)
+
+================================================================================
+SOLICITATION LINKS
+================================================================================
+
+Topic search:           https://www.dodsbirsttr.mil/topics-app/
+                        (search "NV030")
+
+BWCO topic summary:     https://www.bwcoconsulting.com/fod/don26bz01-nv030
+
+Full solicitation:      https://www.dodsbirsttr.mil/
+                        (navigate to current open solicitations)
+
+SAM.gov registration:   https://sam.gov/
+                        (required for all DoD SBIR submissions)
+
+================================================================================
+TOPIC DESCRIPTION SUMMARY
+================================================================================
+
+NV030 seeks AI/ML solutions to optimize additive manufacturing (AM) processes
+for depositing protective coatings on Navy platforms. Key areas of interest:
+
+  - Process parameter optimization for coating quality (porosity, adhesion,
+    microhardness, oxide content)
+  - Physics-informed digital twins for spray/deposition processes (APS, HVOF,
+    cold spray, LPPS, directed energy deposition)
+  - In-situ monitoring and real-time process control using sensor data
+    (particle diagnostics, pyrometry, acoustic emission)
+  - Defect prediction and prevention during coating buildup
+  - Surrogate models that accelerate virtual experimentation
+  - Closed-loop optimization that reduces experimental campaigns
+
+Navy applications include:
+  - Thermal barrier coatings for gas turbine engines
+  - Wear-resistant coatings for hydraulic and mechanical components
+  - Corrosion-resistant coatings for shipboard and hull structures
+  - Cold spray repair of aluminum and magnesium components
+
+================================================================================
+TECHNOLOGY MAPPING — How Our Platform Addresses NV030
+================================================================================
+
+Our core AI platform for multifunctional coatings (developed for the NSF SBIR
+pitch) maps directly to NV030 requirements through three adapted modules:
+
+1. GNN SURROGATE MODELS → COATING MICROSTRUCTURE PREDICTION
+   Base technology: Graph neural network property predictors trained on
+   molecular graphs with transfer learning from MACE-MP foundation model.
+   NV030 adaptation: Apply GNN architecture to coating microstructure graphs
+   where nodes = splats/pores/oxide stringers and edges = spatial adjacency.
+   Predict process-parameter → coating-property relationships for APS, HVOF,
+   and cold spray processes. Multitask heads predict porosity, adhesion,
+   hardness, and thermal conductivity simultaneously.
+
+2. GENERATIVE MODELS → PHYSICS-INFORMED DIGITAL TWINS
+   Base technology: Junction Tree VAE and diffusion models for molecular
+   generation with physics-based constraints.
+   NV030 adaptation: Replace molecular generation with neural-ODE digital
+   twin of coating deposition physics — in-flight particle dynamics, splat
+   formation, residual stress evolution. PINN architecture embeds
+   Navier-Stokes, heat transfer, and solid mechanics PDEs as soft constraints.
+   Enables 500x faster virtual experiments compared to CFD.
+
+3. BAYESIAN OPTIMIZATION → CLOSED-LOOP PROCESS TUNING
+   Base technology: BoTorch qNEHVI multi-objective optimization with
+   constraint handling for coating formulations.
+   NV030 adaptation: Optimize spray process parameters (spray distance,
+   powder feed rate, gas flow, raster velocity) across multiple coating
+   quality objectives. Two modes: offline optimization against digital twin,
+   and online closed-loop with in-situ sensor feedback.
+
+KEY ADVANTAGE: Our platform uniquely integrates all three capabilities
+(microstructure-aware ML, physics-informed digital twins, and closed-loop BO)
+in a single system — no existing competitor offers this combination for
+thermal spray coating optimization.
+
+================================================================================
+SBIR REAUTHORIZATION STATUS
+================================================================================
+
+NOTE ON SBIR PROGRAM STATUS (as of March 2026):
+
+The SBIR/STTR program was reauthorized through the National Defense
+Authorization Act (NDAA). Proposers should verify:
+
+  - Current reauthorization status and any program modifications
+  - Whether Phase I award amounts have been adjusted (historically $240K
+    for DoN, but amounts may change with new authorization)
+  - Any new requirements for cybersecurity, data rights, or foreign
+    ownership restrictions (FOCI)
+  - Updated DSIP portal requirements and registration procedures
+
+Check the following for the latest program status:
+  - https://www.sbir.gov/ (SBA SBIR/STTR program page)
+  - https://www.dodsbirsttr.mil/ (DoD-specific portal)
+  - SBA SBIR Policy Directives (latest revision)
+
+The NDAA has historically included provisions affecting SBIR:
+  - Phase III preference and sole-source authority
+  - Commercialization benchmarks
+  - Foreign ownership/control/influence (FOCI) restrictions
+  - Technology protection requirements
+
+Confirm all program parameters before submission.
+
+================================================================================
+SUBMISSION CHECKLIST
+================================================================================
+
+[ ] Register in SAM.gov (allow 2+ weeks)
+[ ] Register in DSIP (https://www.dodsbirsttr.mil)
+[ ] Obtain CAGE code
+[ ] Verify SBC eligibility (< 500 employees, majority U.S. owned)
+[ ] Prepare technical volume (5 pages max, specific formatting)
+[ ] Prepare cost volume (use DoD cost template)
+[ ] Prepare company commercialization report (via DSIP)
+[ ] PI must have primary employment with proposing firm
+[ ] Verify no ITAR/EAR restrictions on proposed work
+[ ] Complete fraud/waste/abuse training (if required)
+[ ] Submit via DSIP before deadline (no late submissions accepted)
+
+================================================================================
+CONTACT
+================================================================================
+
+Topic author / TPOC:   [Check dodsbirsttr.mil for Topic Point of Contact]
+DSIP help desk:         dodsbirsupport@reisystems.com
+Navy SBIR program:      navysbir@us.navy.mil
+
+================================================================================

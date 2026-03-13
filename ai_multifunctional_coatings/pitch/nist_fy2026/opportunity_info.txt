@@ -1,0 +1,154 @@
+NIST SBIR FY2026 Opportunity Information
+=========================================
+
+Program Title:    NIST Small Business Innovation Research (SBIR) Program FY2026
+NOFO Number:      2026-NIST-SBIR-01
+Agency:           National Institute of Standards and Technology (NIST)
+                  U.S. Department of Commerce
+Budget Range:     $100,000 - $200,000 (Phase I, varies by subtopic)
+                  $400,000 - $500,000 (Phase II, typical)
+
+STATUS NOTE: The SBIR/STTR reauthorization lapsed in September 2025. While NIST
+has published the FY2026 NOFO, the program timeline and award schedule may be
+affected by ongoing reauthorization negotiations in Congress. Proposers should
+monitor the NIST SBIR website and SBA.gov for updates on program status and any
+modified deadlines.
+
+Direct Links:
+  - NIST SBIR Program:     https://www.nist.gov/tpo/small-business-innovation-research-program-sbir
+  - NOFO on Grants.gov:    Search "2026-NIST-SBIR-01" at https://www.grants.gov
+  - NIST TPO:              https://www.nist.gov/tpo
+  - SBA SBIR/STTR Portal:  https://www.sbir.gov
+
+=========================================
+RELEVANT NIST RESEARCH AREAS
+=========================================
+
+The NIST FY2026 SBIR solicitation covers 8 research areas. Our AI-driven
+coating measurement science platform maps to three:
+
+1. ADVANCED MANUFACTURING
+   - AI-driven formulation optimization compresses coating development from
+     3-5 years to 6-12 months
+   - Digital twin models for coating performance prediction enable virtual
+     qualification and predictive maintenance
+   - Closed-loop AI pipeline (generative design + property prediction + MOBO)
+     supports smart manufacturing for coatings
+   - Alignment: NIST Manufacturing Extension Partnership (MEP) priorities,
+     Smart Manufacturing framework
+
+2. MATERIALS MEASUREMENT SCIENCE
+   - Uncertainty-calibrated GNN property predictors as computational reference
+     standards for coating characterization
+   - AI-assisted EIS measurement protocol to reduce inter-laboratory variance
+     from 30-50% to below 10%
+   - FAIR-compliant reference database of coating formulation-property
+     relationships compatible with NIST MDCS schema
+   - Standardized accelerated weathering correlation via chemistry-specific
+     digital twin models
+   - Alignment: Materials Genome Initiative (MGI), NIST Standard Reference
+     Data Program, Materials Data Facility
+
+3. AI/ML FOR MEASUREMENT
+   - Machine learning models that improve measurement reproducibility through
+     physics-informed priors
+   - Anomaly detection for real-time measurement quality assessment (flagging
+     instrument drift, protocol deviations)
+   - Conformal prediction for calibrated uncertainty quantification on
+     property predictions
+   - Automated equivalent circuit fitting for EIS using Bayesian information
+     criteria
+   - Alignment: NIST AI measurement science initiatives, NIST AI Risk
+     Management Framework (applied to measurement contexts)
+
+=========================================
+TECHNOLOGY-TO-NIST MAPPING
+=========================================
+
+Core Technology Component          | NIST Measurement Science Application
+-----------------------------------|----------------------------------------------
+Junction Tree VAE generative model | Molecules anchored to NIST reference data
+                                   | spaces; generates characterizable compounds
+Multitask GNN property predictors  | Digital reference standards with calibrated
+                                   | uncertainty; benchmark against NIST SRMs
+Multi-objective Bayesian optim.    | Measurement-cost-aware optimization; prefers
+                                   | formulations with reproducible characterization
+Coating property database          | FAIR-compliant reference data in NIST MDCS
+                                   | schema; public API for coating properties
+Digital twin degradation models    | Physics-informed extrapolation from accelerated
+                                   | tests; virtual round-robin testing capability
+AI-assisted EIS analysis           | Automated equivalent circuit selection;
+                                   | anomaly detection vs. reference spectra
+
+=========================================
+SPECIFIC NIST-RELEVANT DELIVERABLES
+=========================================
+
+Phase I Deliverables (12 months):
+  1. Uncertainty-calibrated GNN models for 4 coating properties (Tg, |Z|,
+     lambda_max, adhesion) with conformal prediction intervals benchmarked
+     against NIST SRMs
+  2. Generative model producing 1,000 novel coating molecules within
+     calibrated measurement domains
+  3. AI-assisted EIS analysis protocol reducing inter-analyst variance >50%
+     on benchmark round-robin datasets
+  4. FAIR reference database (5,000+ entries) in NIST MDCS-compatible JSON
+  5. Proof-of-concept digital twin for epoxy coating degradation
+
+Phase II Targets:
+  - Experimental validation of top AI-generated formulations
+  - Formal inter-laboratory round-robin study (3-5 labs)
+  - Database expansion to 50,000+ entries
+  - NIST-hosted public API for coating property prediction
+  - Integration with NIST Materials Data Facility
+
+=========================================
+KEY STANDARDS AND PROTOCOLS ADDRESSED
+=========================================
+
+  - ASTM D1186  - Dry film thickness measurement
+  - ASTM B117   - Salt spray (fog) testing
+  - ASTM G154   - Fluorescent UV lamp exposure
+  - ASTM G155   - Xenon arc exposure
+  - ISO 16773   - EIS on coated/uncoated specimens
+  - NIST SRMs   - Polymer thermal properties, spectral data
+  - FAIR principles for materials data
+  - NIST Materials Data Curation System (MDCS) schema
+
+=========================================
+COMPETITIVE POSITIONING FOR NIST
+=========================================
+
+Competitor          | Gap vs. NIST Mission
+--------------------|------------------------------------------------------
+Citrine Informatics | General materials AI; no measurement science focus,
+                    | no uncertainty calibration against reference standards
+Uncountable         | Formulation management tool; no generative design,
+                    | no measurement protocol standardization
+Schrodinger         | Physics-based simulation; no AI-assisted measurement
+                    | protocols, no FAIR reference databases
+In-house NIST tools | Focused on specific measurement domains; no integrated
+                    | coating design + measurement science platform
+
+Our differentiator: Integration of AI-driven molecular design with
+measurement science -- calibrated predictions, standardized protocols,
+reference databases, and digital twins -- directly aligned with NIST's
+unique mission at the intersection of standards and innovation.
+
+=========================================
+NOTES FOR PROPOSAL PREPARATION
+=========================================
+
+  - Emphasize measurement science language: "traceability," "reproducibility,"
+    "reference standards," "calibrated uncertainty," "inter-laboratory
+    agreement," "FAIR data"
+  - Reference NIST-specific programs: MGI, MDCS, SRD, MEP, Smart Manufacturing
+  - Highlight any existing use of NIST data (Chemistry WebBook, SRMs) in
+    training data
+  - If possible, identify a NIST collaborator in Materials Science and
+    Engineering Division or Materials Measurement Laboratory
+  - Check exact page limits and formatting requirements in the full NOFO
+  - Monitor SBIR reauthorization status before investing significant
+    proposal preparation effort
+
+Last updated: March 2026

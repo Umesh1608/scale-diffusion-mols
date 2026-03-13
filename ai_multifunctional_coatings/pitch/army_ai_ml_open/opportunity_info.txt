@@ -1,0 +1,170 @@
+================================================================================
+ARMY SBIR OPPORTUNITY: AI/ML-FOCUSED OPEN TOPIC
+================================================================================
+
+TOPIC INFORMATION
+-----------------
+Topic Title:        AI/ML-Focused Open Topic
+Agency:             U.S. Army (DEVCOM / Army Research Laboratory)
+Program:            Small Business Innovation Research (SBIR)
+Sub-area:           Materials Informatics / Predictive Analytics
+
+BUDGET
+------
+Phase I:            $250,000 (6 months)
+Direct-to-Phase-II: Up to $2,000,000 (24 months)
+Phase III:          Production contracts / technology transition (no SBIR funding)
+
+Note: The Direct-to-Phase-II (D2P2) pathway allows proposers with sufficient
+preliminary data to bypass Phase I and receive up to $2M for accelerated
+development. This is relevant if the team has already demonstrated the core
+AI platform components with preliminary coating property prediction results.
+
+SOLICITATION LINKS
+------------------
+Primary:            https://armysbir.army.mil/topics/ai-ml-focused-open-topic/
+Army SBIR Portal:   https://www.armysbir.army.mil/
+DSIP Submission:    https://www.dodsbirsttr.mil/submissions/
+SAM.gov:            https://sam.gov/ (registration required for all proposers)
+
+DEADLINE INFORMATION
+--------------------
+Status:             CHECK CURRENT OPEN/CLOSE DATES ON ARMY SBIR PORTAL
+                    Army SBIR topics typically open in rolling cycles or
+                    as part of annual solicitation batches (e.g., 25.1, 25.2, 25.3).
+                    The AI/ML Open Topic may accept proposals on a rolling basis.
+
+Action Required:    1. Check https://www.armysbir.army.mil/ for the current
+                       solicitation cycle and submission window.
+                    2. Verify whether this is a standing open topic or
+                       cycle-specific.
+                    3. Confirm D2P2 eligibility requirements for this topic.
+
+SBIR REAUTHORIZATION STATUS
+----------------------------
+The SBIR/STTR program was reauthorized through September 30, 2025 under the
+SBIR/STTR Extension Act of 2022 (part of NDAA FY2023). As of March 2026:
+
+- Congress was expected to pass a further reauthorization or extension.
+- CHECK CURRENT STATUS: The program may be operating under a continuing
+  resolution, short-term extension, or new reauthorization legislation.
+- Verify at: https://www.sbir.gov/ and https://www.congress.gov/
+- Even during lapsed authorization periods, agencies have historically
+  continued to fund existing awards and process new solicitations under
+  appropriated funds.
+
+Action Required:    Confirm the current reauthorization status before investing
+                    significant proposal preparation effort. Contact the Army
+                    SBIR helpdesk at armysbir@army.mil for the latest guidance.
+
+TOPIC DESCRIPTION AND RELEVANCE
+---------------------------------
+The Army AI/ML Open Topic accepts proposals across six AI/ML sub-fields
+relevant to Army modernization:
+
+  1. Computer Vision
+  2. Natural Language Processing (NLP)
+  3. Autonomous Systems
+  4. Predictive Analytics
+  5. Materials Informatics
+  6. Decision Support Systems
+
+Our proposal maps to sub-fields 4 (Predictive Analytics) and 5 (Materials
+Informatics), which are explicitly listed as valid areas for this open topic.
+
+HOW OUR TECHNOLOGY MAPS TO THIS TOPIC
+--------------------------------------
+Core Technology: AI-Driven Platform for Discovery of Novel Multifunctional
+Coating Formulations
+
+The platform integrates three AI/ML capabilities:
+
+  (a) Generative Molecular Design — Junction Tree VAE trained on military-
+      relevant molecular fragments to propose novel coating molecules de novo.
+      This is a direct application of generative AI to materials science.
+
+  (b) Graph Neural Network Property Prediction — Multitask E(3)-equivariant
+      GNNs that predict military-critical coating properties (corrosion
+      resistance, IR signature, CARC compliance, mechanical durability)
+      from molecular structure. Transfer learning from large-scale materials
+      databases addresses the data scarcity problem in military coating R&D.
+
+  (c) Multi-Objective Bayesian Optimization — Constraint-aware optimization
+      (BoTorch qNEHVI) that navigates Pareto fronts across 5+ competing
+      military performance objectives while enforcing MIL-spec compliance
+      as hard constraints.
+
+Army-Specific Applications:
+
+  - CARC (Chemical Agent Resistant Coating) reformulation: AI-driven
+    discovery of next-generation CARC formulations per MIL-DTL-53072 and
+    MIL-DTL-64159, with improved decontaminant resistance and durability.
+
+  - Infrared Signature Management: Coatings with tailored emissivity across
+    SWIR/MWIR/LWIR bands for vehicle thermal signature reduction on
+    platforms including Stryker, Bradley, JLTV, and NGCV.
+
+  - Corrosion Protection: AI-optimized anti-corrosion coatings for military
+    vehicles and infrastructure operating in extreme environments. DoD
+    spends ~$20B/year on corrosion; even incremental improvements have
+    massive cost impact.
+
+  - CBRN Protective Coatings: Self-decontaminating surfaces with catalytic
+    decomposition of chemical warfare agents (VX, GB, HD).
+
+  - Radar-Absorbing Materials: Polymer matrix materials with controlled
+    electromagnetic loss for reduced radar cross-section.
+
+  - Multi-Climate Durability: Coatings performing across -46C to +71C
+    per AR 70-38, covering all Army operational environments.
+
+Army Modernization Alignment:
+
+  - Next-Generation Combat Vehicle (NGCV): Coatings for new substrates
+  - Future Vertical Lift (FVL): Multi-environment rotorcraft coatings
+  - Soldier Lethality: Self-decontaminating equipment coatings
+  - Network/C3I: Low-observable coatings for communications infrastructure
+  - Sustainment: Corrosion cost reduction across the vehicle fleet
+
+COMPETITIVE POSITIONING
+------------------------
+Key Differentiators vs. Existing Solutions:
+
+  - Citrine Informatics: General materials AI platform; does not generate
+    novel molecules, no military coating focus, no MIL-spec constraints.
+  - Uncountable: Formulation management tool; no generative molecular
+    design, no multi-objective optimization under military constraints.
+  - Schrodinger: Physics-based simulation; computationally expensive,
+    not integrated with generative design or Bayesian optimization.
+
+Our platform is the only end-to-end AI pipeline that generates novel
+molecules, predicts military-relevant properties, and optimizes
+formulations under MIL-spec constraints in a closed loop.
+
+PROPOSAL PREPARATION CHECKLIST
+-------------------------------
+[ ] Verify current solicitation cycle dates on Army SBIR portal
+[ ] Confirm SBIR reauthorization status
+[ ] Register/update SAM.gov and DSIP profiles
+[ ] Verify DUNS/UEI, CAGE code, and SBA company registry
+[ ] Review full topic description for any updated requirements
+[ ] Prepare budget justification per Army SBIR Phase I guidelines
+[ ] Identify TPOC (Technical Point of Contact) for topic
+[ ] Review Army SBIR proposal format requirements (page limits, sections)
+[ ] Prepare quad chart (often required for Army SBIR)
+[ ] Check D2P2 eligibility and additional requirements
+[ ] Prepare data rights assertions (DFARS 252.227-7018)
+[ ] Review ITAR/EAR considerations for coating technology
+[ ] Prepare OCI (Organizational Conflict of Interest) statement
+[ ] Identify potential Phase III transition partners in Army programs
+
+CONTACT INFORMATION
+--------------------
+Army SBIR Help Desk:    armysbir@army.mil
+DSIP Help Desk:         DoDSBIRSupport@reisystems.com
+SBA SBIR/STTR:          sbir@sba.gov
+Army SBIR Portal:       https://www.armysbir.army.mil/
+
+================================================================================
+Last Updated: March 2026
+================================================================================

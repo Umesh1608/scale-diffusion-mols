@@ -1,0 +1,173 @@
+================================================================================
+SBIR OPPORTUNITY: Navy NV028 — Hot Corrosion Resistant Coatings
+================================================================================
+
+TOPIC NUMBER:     NV028
+TOPIC TITLE:      Overlay and Bond Coatings with Improved Hot Corrosion
+                  Resistance for Navy Gas Turbine Engines
+AGENCY:           Department of the Navy (NAVAIR)
+SOLICITATION:     DoD SBIR 26.B
+BUDGET:           ~$240,000 (Phase I)
+PHASE I DURATION: 6 months
+
+--------------------------------------------------------------------------------
+DEADLINE AND SCHEDULE
+--------------------------------------------------------------------------------
+
+Expected Deadline:    Approximately April 29, 2026 (DoD SBIR 26.B cycle)
+                      ** CONFIRM EXACT DATE at solicitation link below **
+                      DoD SBIR typically opens ~60 days before close
+
+Phase I Award:        Anticipated July-September 2026
+Phase II (if awarded): ~$1.6M over 24 months (typical Navy SBIR Phase II)
+
+NOTE ON SBIR REAUTHORIZATION:
+The SBIR/STTR program was reauthorized through the NDAA process. As of early
+2026, the program continues to operate under its existing authorization.
+Proposers should verify current program status and any changes to submission
+requirements at the DoD SBIR/STTR website before submission. The 26.B
+solicitation cycle is expected to proceed on the normal schedule, but confirm
+with the Contracting Officer if any delays arise from continuing resolution
+or appropriations issues.
+
+--------------------------------------------------------------------------------
+SOLICITATION LINKS
+--------------------------------------------------------------------------------
+
+Primary DoD SBIR/STTR Portal (search for topic NV028):
+  https://www.dodsbirsttr.mil/topics-app/
+
+Topic-specific analysis and details:
+  https://www.bwcoconsulting.com/fod/don26bz01-nv028
+
+DoD SBIR/STTR main site:
+  https://www.dodsbirsttr.mil/
+
+DSIP (Defense SBIR/STTR Innovation Portal) for submission:
+  https://www.dodsbirsttr.mil/submissions/
+
+--------------------------------------------------------------------------------
+TOPIC SUMMARY
+--------------------------------------------------------------------------------
+
+NV028 seeks ICME (Integrated Computational Materials Engineering) approaches
+to develop overlay and bond coatings with improved resistance to hot corrosion
+in Navy gas turbine engines operating in marine environments.
+
+Key technical elements from the topic:
+  - Type I hot corrosion (850-950C): molten Na2SO4 fluxing of protective
+    oxide scales, leading to catastrophic sulfidation
+  - Type II hot corrosion (650-800C): eutectic salt mixtures causing
+    localized pitting attack on MCrAlY coatings
+  - Marine environment challenges: sea salt ingestion, sulfur in fuel,
+    combined salt + temperature cycling
+  - Current MCrAlY (M = Ni, Co, NiCo) bond coats degrade unacceptably
+    in aggressive marine salt environments
+  - Topic explicitly calls for ICME methodologies — computational
+    approaches to screen and optimize coating compositions
+  - Interest in novel compositions beyond incremental modifications
+    to existing MCrAlY systems
+
+Target applications:
+  - Shipboard gas turbines: LM2500, LM2500+, MT30
+  - Aircraft engines operating in marine/littoral environments
+  - TBC bond coats and overlay coatings for hot-section components
+    (blades, vanes, combustor liners)
+
+--------------------------------------------------------------------------------
+TECHNOLOGY MAPPING: Core AI Platform → NV028
+--------------------------------------------------------------------------------
+
+Our AI-driven multifunctional coating platform maps to this topic as follows:
+
+1. GNN PROPERTY PREDICTION → HOT CORROSION RESISTANCE
+   - Base capability: Multitask GNN predicting coating properties from
+     molecular/atomic graphs
+   - Adaptation: Train on MCrAlY composition-property data; predict oxide
+     formation energy, sulfidation susceptibility, Al/Cr activity, CTE,
+     and beta-NiAl phase fraction
+   - Transfer learning from MACE-MP foundation model enables training with
+     limited MCrAlY-specific data (<500 compositions)
+
+2. GENERATIVE DESIGN → NOVEL COATING COMPOSITIONS
+   - Base capability: Conditional VAE generating novel molecular structures
+   - Adaptation: Operate on compositional vectors rather than molecular
+     graphs; generate MCrAlY-family compositions conditioned on target
+     hot corrosion resistance, phase stability, and CTE match
+   - Fragment-based approach: matrix (Ni/Co/NiCo), oxide formers (Cr, Al),
+     reactive elements (Y, Hf, Si), strengtheners (Ta, Re, W)
+
+3. MULTI-OBJECTIVE BAYESIAN OPTIMIZATION → PARETO-OPTIMAL COMPOSITIONS
+   - Base capability: BoTorch qNEHVI for multi-objective optimization
+   - Adaptation: Optimize hot corrosion resistance vs. oxidation resistance
+     vs. thermomechanical compatibility vs. cost
+   - Constraints: phase stability (no TCP phases, sufficient beta-NiAl),
+     manufacturability (APS/EB-PVD/HVOF compatible)
+
+4. CALPHAD INTEGRATION → PHYSICS-BASED VALIDATION
+   - Additional capability specific to this topic: Thermo-Calc with
+     TCNI/MOBNI databases for phase equilibria and diffusion simulations
+   - Provides ground-truth validation of GNN predictions
+   - DICTRA simulations for coating lifetime prediction
+
+KEY DIFFERENTIATOR:
+The topic explicitly requests ICME approaches. Our platform provides a
+complete ICME pipeline: AI-driven exploration (generative model + MOBO)
+with physics-based grounding (GNN surrogates trained on DFT + CALPHAD
+validation). This is not just a database search or conventional CALPHAD
+study — it is a closed-loop discovery engine that generates and evaluates
+compositions beyond human intuition.
+
+--------------------------------------------------------------------------------
+PROPOSAL PREPARATION NOTES
+--------------------------------------------------------------------------------
+
+DoD SBIR Phase I Technical Volume format (5 pages max):
+  1. Technical Approach (most weight in evaluation)
+  2. Innovation and Impact
+  3. Phase I Work Plan with milestones
+  4. Related Experience and Qualifications
+  5. Cost and Schedule Summary
+  + References (do not count toward page limit)
+
+Evaluation criteria (typical DoD SBIR weighting):
+  1. Technical Merit and Innovation (most important)
+  2. Qualifications of PI and team
+  3. Potential for commercialization and transition
+  4. Price reasonableness
+
+Key items to prepare beyond the technical volume:
+  - Cost volume (separate, detailed budget with justification)
+  - Company commercialization report (from SBIR.gov)
+  - Fraud/waste/abuse certification
+  - ITAR/EAR compliance statement
+  - Subcontractor information (if applicable)
+  - Data rights assertions
+  - Foreign nationals disclosure
+
+Registration requirements (must be completed BEFORE submission):
+  - SAM.gov registration (active, not expired)
+  - SBA company registry
+  - DSIP account
+  - CAGE code
+
+--------------------------------------------------------------------------------
+COMPETITIVE LANDSCAPE
+--------------------------------------------------------------------------------
+
+Likely competitors in the ICME/coatings space:
+  - QuesTek Innovations (ICME for alloys, strong CALPHAD expertise)
+  - Citrine Informatics (general materials AI platform)
+  - Materials Design Inc. (MedeA platform for atomistic simulation)
+  - University-affiliated small businesses with hot corrosion expertise
+
+Our competitive advantage:
+  - Generative AI (not just screening known compositions)
+  - GNN surrogates (faster than DFT, more generalizable than CALPHAD alone)
+  - Closed-loop MOBO (systematic optimization, not ad hoc exploration)
+  - Foundation model transfer learning (works with limited training data)
+
+================================================================================
+File created: March 2026
+Status: DRAFT — Verify all dates and links before submission
+================================================================================

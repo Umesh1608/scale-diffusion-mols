@@ -1,0 +1,292 @@
+% Compile with: pdflatex pitch_document.tex
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{booktabs}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  urlcolor=blue!60!black,
+}
+
+\definecolor{nistblue}{HTML}{003B5C}
+\definecolor{nistgray}{HTML}{4D4D4D}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{gray}{\small NIST SBIR FY2026 -- NOFO 2026-NIST-SBIR-01}}
+\lhead{\textcolor{gray}{\small [Company Name]}}
+\rfoot{\textcolor{gray}{\small \thepage}}
+
+\title{%
+  \vspace{-1cm}
+  \textcolor{nistblue}{\Large\textbf{NIST SBIR Phase I Proposal}}\\[0.3cm]
+  \textbf{AI-Driven Measurement Science Platform for\\Standardized Characterization and Quality Control\\of Multifunctional Protective Coatings}\\[0.3cm]
+  \large [Company Name]\\[0.2cm]
+  \normalsize NOFO 2026-NIST-SBIR-01\\
+  \normalsize Research Areas: Advanced Manufacturing; Materials Measurement Science; AI/ML for Measurement
+}
+\author{}
+\date{March 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\noindent\textcolor{nistblue}{\rule{\textwidth}{1.5pt}}
+
+\vspace{0.3cm}
+\noindent\textit{Placeholders marked with [brackets] must be replaced with actual company, team, and institutional information before submission.}
+
+\vspace{0.3cm}
+
+%% =======================================================================
+\section{Technical Approach}
+\label{sec:technical}
+%% =======================================================================
+
+\subsection{Problem Statement: The Coating Measurement Gap}
+
+Protective coatings for infrastructure, aerospace, and industrial applications must simultaneously deliver corrosion resistance, UV stability, mechanical durability, and regulatory compliance. Yet the measurement science underpinning coating characterization remains fragmented: electrochemical impedance spectroscopy (EIS) protocols vary between laboratories, accelerated weathering tests (ASTM G154, G155) show poor inter-lab reproducibility, and no reference databases link molecular-level coating structure to macroscopic performance metrics. NIST's 2024 Materials Genome Initiative roadmap identified the lack of standardized, machine-readable property data for functional coatings as a critical barrier to advanced manufacturing adoption.
+
+The consequences are tangible. A 2023 NACE International study estimated that the U.S.\ spends \$2.5 trillion annually on corrosion-related costs, with approximately 25--30\% attributable to inadequate coating specification and quality control. Coating manufacturers report that 15--20\% of R\&D effort is consumed by re-measuring properties that should be predictable from formulation data, and inter-laboratory EIS measurements on identical coating specimens routinely show 30--50\% variance in impedance modulus at low frequencies.
+
+\subsection{Proposed Innovation: AI-Driven Coating Measurement Science Platform}
+
+We propose an integrated AI platform that advances NIST's measurement science mission by providing: (1)~standardized, physics-informed property prediction models that serve as \textit{digital reference standards} for coating characterization; (2)~AI-assisted quality control protocols that reduce measurement variability and improve inter-laboratory reproducibility; (3)~a curated reference database of coating formulation--property relationships with FAIR (Findable, Accessible, Interoperable, Reusable) data principles; and (4)~digital twin models that predict coating degradation trajectories from accelerated test data, enabling measurement-informed lifecycle assessment.
+
+The platform rests on three technical pillars:
+
+\textbf{Pillar 1: Coating-specific generative molecular design with measurement-anchored training.}
+We will train a Junction Tree Variational Autoencoder (JT-VAE) with a curated fragment vocabulary of 200+ coating-relevant substructures---benzotriazole and hydroxybenzophenone UV chromophores, epoxide and isocyanate cross-linkers, fluoroalkyl and siloxane hydrophobic groups---using SELFIES encoding for guaranteed chemical validity. Critically, the generative model's latent space will be anchored to NIST Standard Reference Data where available (e.g., NIST Chemistry WebBook spectral data, Standard Reference Materials for polymer characterization), ensuring that generated molecules map to measurable, reproducible property spaces. Fragment-based generation achieves 100\% chemical validity versus approximately 43\% for character-level approaches and reduces graph complexity 5--10$\times$ for coating monomers that can exceed 100 atoms.
+
+\textbf{Pillar 2: Multitask GNN property predictors calibrated against reference measurements.}
+We will develop graph neural network (GNN) models that predict four coating-critical properties simultaneously from molecular structure: glass transition temperature ($T_g$), electrochemical impedance modulus at 0.01\,Hz ($|Z|_{0.01}$), peak UV absorption wavelength ($\lambda_{\max}$), and adhesion energy. The key innovation for measurement science is \textit{uncertainty-calibrated prediction}: each property prediction will include calibrated confidence intervals benchmarked against NIST Standard Reference Data and inter-laboratory round-robin results. We will employ transfer learning from the MACE-MP foundation model (150,000 pre-training structures) to achieve target accuracy ($R^2 > 0.80$ per property) from fewer than 500 coating-specific training samples, and use conformal prediction to ensure that 95\% prediction intervals have correct coverage on held-out data.
+
+\textbf{Pillar 3: Measurement-informed multi-objective Bayesian optimization (MOBO).}
+We will implement constraint-aware MOBO using BoTorch's qNEHVI acquisition function to navigate the Pareto front across competing coating objectives (corrosion resistance, UV absorption, mechanical flexibility) while enforcing VOC $< 250$\,g/L and REACH regulatory constraints. Uniquely, our MOBO loop will incorporate \textit{measurement cost} as an explicit objective: the optimizer will prefer formulations whose critical properties can be characterized with fewer, cheaper, and more reproducible measurements, directly supporting NIST's goal of efficient measurement infrastructure for advanced manufacturing.
+
+\subsection{Alignment with NIST Measurement Science Mission}
+
+This platform directly advances NIST priorities in three research areas:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Advanced Manufacturing:} By providing AI-assisted formulation optimization with uncertainty quantification, the platform enables coating manufacturers to reduce development cycles from 3--5 years to 6--12 months while maintaining measurement traceability. Digital twin models for coating degradation will support predictive maintenance protocols aligned with NIST's Smart Manufacturing framework.
+
+  \item \textbf{Materials Measurement Science:} The calibrated GNN predictors serve as computational reference standards that can identify when experimental measurements deviate from expected values, flagging potential instrument drift or protocol errors. The curated reference database will follow NIST's Materials Data Curation System (MDCS) schema, contributing to the Materials Genome Initiative's data infrastructure.
+
+  \item \textbf{AI/ML for Measurement:} The platform demonstrates how machine learning can improve measurement reproducibility---not by replacing physical measurements, but by providing physics-informed priors that reduce the number of measurements needed for reliable characterization and by detecting anomalous measurements in real time.
+\end{itemize}
+
+\subsection{Coating Characterization Standards and Protocols}
+
+A central deliverable of Phase~I is the development of standardized AI-assisted characterization protocols for protective coatings. These protocols will address known measurement science gaps:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{EIS Measurement Standardization:} Current EIS characterization of coatings follows ASTM D1186 and ISO 16773, but these standards do not specify equivalent circuit model selection criteria, leading to inconsistent impedance parameter extraction across laboratories. Our GNN-predicted impedance spectra will serve as \textit{computational reference spectra} against which experimental data can be validated. We will develop automated equivalent circuit fitting algorithms that select the most parsimonious model using Bayesian information criteria, reducing analyst-dependent variability.
+
+  \item \textbf{Accelerated Weathering Correlation:} ASTM G154 (fluorescent UV) and G155 (xenon arc) accelerated weathering tests produce results that correlate poorly with real-world exposure, partly because the mapping from accelerated to natural weathering depends on coating chemistry in ways that are not captured by current standards. Our digital twin models will learn chemistry-specific acceleration factors from paired accelerated/natural exposure datasets, providing measurement science for more accurate service life prediction.
+
+  \item \textbf{Reference Data for Coating Formulations:} We will compile and curate a FAIR-compliant reference database of coating formulation--property relationships, with uncertainty metadata for each entry. This database will follow NIST's JSON Schema for materials data and will be compatible with the Materials Data Facility (MDF) for public dissemination. Initial scope: 5,000+ coating molecules with computed and experimental properties cross-referenced to NIST Standard Reference Data numbers where applicable.
+\end{itemize}
+
+%% =======================================================================
+\section{Innovation and Impact}
+\label{sec:innovation}
+%% =======================================================================
+
+\subsection{Technical Innovation}
+
+The proposed platform introduces four innovations that advance measurement science for protective coatings:
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Uncertainty-calibrated molecular property prediction as digital reference standards.} Existing GNN property predictors provide point estimates without calibrated uncertainty. Our conformal prediction approach guarantees finite-sample coverage, enabling these models to serve as reference standards for measurement validation. When an experimental EIS measurement of a known coating falls outside the model's 95\% prediction interval, the system flags the measurement for review---identifying instrument drift, sample preparation errors, or protocol deviations.
+
+  \item \textbf{Measurement-cost-aware optimization.} No existing Bayesian optimization framework for materials design includes measurement cost or reproducibility as optimization objectives. By encoding measurement difficulty (e.g., EIS at 0.01\,Hz requires 100\,s per spectrum; salt spray testing requires 1,000+ hours) into the MOBO objective space, the platform discovers formulations that are not only high-performing but also efficiently characterizable---a direct contribution to NIST's goal of reducing measurement burden on industry.
+
+  \item \textbf{Digital twin coating degradation models.} We will develop physics-informed neural network models that predict coating impedance degradation trajectories from initial formulation and accelerated test data. These models embed Fick's law of diffusion and Butler--Volmer electrochemistry as inductive biases, ensuring physically meaningful extrapolation. The digital twin approach enables virtual round-robin testing---laboratories can compare their experimental degradation curves against the digital twin prediction to assess measurement quality.
+
+  \item \textbf{Generative molecular design anchored to measurement standards.} By training the generative model's latent space against NIST reference data, we ensure that AI-generated coating molecules occupy regions of chemical space where reliable measurement protocols exist. This prevents the common failure mode of generative models proposing molecules whose properties cannot be accurately characterized with existing analytical infrastructure.
+\end{enumerate}
+
+\subsection{Impact on Manufacturing Quality and Measurement Reproducibility}
+
+Successful deployment of this platform will deliver measurable improvements to coating measurement science and manufacturing quality:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Reduced inter-laboratory variability:} AI-assisted EIS analysis with automated equivalent circuit selection is projected to reduce inter-laboratory impedance variance from 30--50\% to below 10\%, based on preliminary benchmarking against published round-robin data.
+
+  \item \textbf{Accelerated qualification:} Digital twin degradation models will reduce the time required for coating qualification from 12--18 months of salt spray/weathering exposure to 2--3 months of accelerated testing plus model-predicted long-term performance, with quantified prediction uncertainty.
+
+  \item \textbf{FAIR reference data:} The curated database will provide the first publicly available, machine-readable reference dataset linking coating molecular structure to standardized performance metrics, supporting data-driven coating design across the industry.
+
+  \item \textbf{Manufacturing process control:} Real-time GNN property predictions from in-line spectroscopic measurements (FTIR, Raman) will enable closed-loop quality control during coating manufacturing, detecting batch-to-batch formulation drift before it propagates to finished products.
+\end{itemize}
+
+%% =======================================================================
+\section{Phase I Work Plan}
+\label{sec:workplan}
+%% =======================================================================
+
+Phase~I (12 months, \$[Budget]\footnote{Typical NIST SBIR Phase~I awards range from \$100K to \$200K depending on subtopic.}) will establish feasibility of the AI-driven coating measurement science platform through four objectives aligned with NIST measurement science priorities.
+
+\subsection{Objective 1: Develop Uncertainty-Calibrated GNN Property Predictors (Months 1--5)}
+
+\textbf{Tasks:}
+\begin{itemize}[leftmargin=*]
+  \item Curate a training dataset of 5,000+ coating molecules with properties cross-referenced to NIST Standard Reference Data where available. Data sources: NIST Chemistry WebBook, Polymer Property Predictor and Database (NIST), published EIS studies with raw impedance spectra, and UV-vis spectral databases.
+  \item Train multitask GNN models (SchNet/DimeNet++ architecture) predicting $T_g$, $|Z|_{0.01}$, $\lambda_{\max}$, and adhesion energy simultaneously. Apply transfer learning from MACE-MP foundation model.
+  \item Implement conformal prediction for calibrated uncertainty quantification. Validate coverage on held-out data: target 95\% prediction interval coverage with interval width $<$15\% of property range.
+  \item Benchmark model predictions against NIST Standard Reference Materials (SRMs) for polymer thermal properties and published inter-laboratory round-robin EIS data.
+\end{itemize}
+
+\textbf{Success Criteria:} $R^2 > 0.80$ for each property; calibrated 95\% prediction intervals with correct coverage; prediction uncertainty correlated with known inter-laboratory measurement variability.
+
+\textbf{Go/No-Go:} If $R^2 < 0.70$ for any property after transfer learning, pivot to ensemble random forest models with jackknife+ conformal intervals.
+
+\subsection{Objective 2: Build Coating-Specific Generative Model with Measurement Anchoring (Months 3--7)}
+
+\textbf{Tasks:}
+\begin{itemize}[leftmargin=*]
+  \item Construct a fragment vocabulary of 200+ coating-relevant substructures covering UV chromophores, cross-linkers, and hydrophobic modifiers. Validate fragments against NIST structural databases.
+  \item Train JT-VAE generative model on curated coating molecule dataset using SELFIES encoding.
+  \item Implement latent space anchoring: constrain the generative model to produce molecules whose predicted properties fall within the calibrated measurement range of the GNN predictors from Objective~1.
+  \item Generate 1,000 novel coating molecules and validate: 100\% chemical validity, $>$85\% synthetic accessibility (SA score $< 4.0$), and $>$90\% within the calibrated measurement domain.
+\end{itemize}
+
+\textbf{Success Criteria:} 1,000 valid, synthesizable, measurement-characterizable novel coating molecules.
+
+\subsection{Objective 3: Develop AI-Assisted EIS Measurement Protocol (Months 5--9)}
+
+\textbf{Tasks:}
+\begin{itemize}[leftmargin=*]
+  \item Compile a reference library of 500+ EIS spectra for coated metal substrates from published literature and [Partner Institution] laboratory data, with full metadata (substrate, coating thickness, electrolyte, temperature, frequency range).
+  \item Develop automated equivalent circuit model selection using Bayesian information criteria and physics-based constraints (e.g., enforce Kramers--Kronig consistency, reject non-physical negative resistances).
+  \item Build an anomaly detection module that compares incoming EIS measurements against GNN-predicted reference spectra and flags statistically significant deviations (Mahalanobis distance $> 3\sigma$).
+  \item Validate the protocol by re-analyzing published round-robin EIS datasets: demonstrate that AI-assisted analysis reduces inter-analyst impedance parameter variance by $>$50\%.
+\end{itemize}
+
+\textbf{Success Criteria:} Automated EIS analysis protocol that reduces inter-analyst parameter extraction variance by $>$50\% on benchmark datasets.
+
+\subsection{Objective 4: Reference Database and Digital Twin Prototype (Months 8--12)}
+
+\textbf{Tasks:}
+\begin{itemize}[leftmargin=*]
+  \item Compile FAIR-compliant reference database of 5,000+ coating formulation--property entries in NIST MDCS-compatible JSON schema. Include computed properties (DFT, GNN predictions) with uncertainty metadata and cross-references to experimental sources.
+  \item Develop a proof-of-concept digital twin for epoxy coating degradation: physics-informed neural network predicting impedance evolution over time from initial formulation and accelerated exposure conditions. Embed Fickian diffusion and Randles circuit physics as inductive biases.
+  \item Validate digital twin against published long-term (5+ year) exposure datasets: target mean absolute percentage error (MAPE) $< 20\%$ for impedance at 1,000 hours extrapolated from 200-hour accelerated data.
+  \item Integrate all components (GNN predictors, generative model, EIS protocol, database, digital twin) into a unified software prototype with API access.
+\end{itemize}
+
+\textbf{Success Criteria:} Functional prototype demonstrating end-to-end workflow from molecular design to measurement-validated property prediction with uncertainty quantification.
+
+\subsection{Timeline Summary}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Objective} & \textbf{Months} & \textbf{Key Deliverable} \\
+\midrule
+1. Calibrated GNN predictors & 1--5 & Models with conformal uncertainty \\
+2. Generative model & 3--7 & 1,000 novel coating molecules \\
+3. AI-assisted EIS protocol & 5--9 & Standardized analysis pipeline \\
+4. Database \& digital twin & 8--12 & FAIR database + degradation model \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%% =======================================================================
+\section{Commercial Potential}
+\label{sec:commercial}
+%% =======================================================================
+
+The global protective coatings market reached \$17 billion in 2025, projected to hit \$32.4 billion by 2034 (7.3\% CAGR, Precedence Research). Our directly addressable market includes two segments:
+
+\textbf{Segment 1: Coating manufacturers and formulators.} PPG Industries, Sherwin-Williams, AkzoNobel, and Hempel collectively spend \$2.5+ billion annually on R\&D. AI-driven formulation optimization with measurement-calibrated predictions can compress 3--5 year development cycles to 6--12 months. Business model: SaaS licensing at \$150K--300K per seat annually, with premium tiers for custom model training and digital twin deployment.
+
+\textbf{Segment 2: Testing laboratories and standards organizations.} The \$1.2 billion materials testing market (Intertek, Element Materials Technology, Bureau Veritas) would benefit from AI-assisted measurement protocols that improve reproducibility and throughput. Business model: per-analysis licensing for AI-assisted EIS interpretation and digital twin predictions at \$50--200 per analysis.
+
+\textbf{Segment 3: Government and infrastructure agencies.} The Department of Defense, Federal Highway Administration, and state DOTs require reliable coating qualification data for infrastructure protection. The digital twin approach enables virtual qualification that reduces testing time and cost while maintaining measurement rigor.
+
+\textbf{Competitive landscape.} Citrine Informatics (general materials AI, \$92M raised), Uncountable (formulation management), and Schr\"odinger (physics-based simulation) address adjacent markets but none provides: (a)~coating-specific generative molecular design, (b)~uncertainty-calibrated predictions benchmarked against reference standards, (c)~AI-assisted measurement protocols, or (d)~digital twin degradation models. Our differentiation is the integration of AI-driven design with measurement science---directly aligned with NIST's unique position at the intersection of standards and innovation.
+
+\textbf{Path to Phase II.} A successful Phase~I will support a Phase~II proposal (\$400K--500K) to: (1)~experimentally validate top AI-generated coating formulations using [Partner Institution] characterization facilities (EIS, UV-vis, salt spray, QUV weathering); (2)~conduct a formal inter-laboratory round-robin study of the AI-assisted EIS protocol with 3--5 participating laboratories; (3)~expand the reference database to 50,000+ entries; and (4)~develop a NIST-hosted public API for coating property prediction.
+
+%% =======================================================================
+\section{Related Experience and Qualifications}
+\label{sec:team}
+%% =======================================================================
+
+\textbf{[PI Name], Principal Investigator,} brings [X] years of experience in computational materials science, machine learning for molecular design, and measurement science. [Relevant credentials: PhD in chemistry/materials science/computer science; publications on GNN property prediction, uncertainty quantification, or generative molecular design; experience with NIST reference data or standards development; prior coating materials research experience.]
+
+\textbf{[Co-PI Name], Co-Investigator,} contributes expertise in coating characterization and EIS measurement methodology with [X] years of laboratory and industrial R\&D experience. [Relevant credentials: prior roles at major coating companies or national laboratories; expertise in EIS, accelerated weathering, and coating qualification standards (ASTM, ISO, MIL-spec); publications on coating degradation mechanisms.]
+
+\textbf{[Data Scientist Name], Senior Data Scientist,} provides expertise in Bayesian optimization, conformal prediction, and uncertainty quantification for scientific applications. [Relevant credentials: experience with BoTorch/GPyTorch, calibration methods, anomaly detection.]
+
+The team is supported by:
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Advisory Board:} [Advisor 1], computational chemistry, [University]; [Advisor 2], coating industry veteran, [Company]; [Advisor 3], materials data science, [Institution].
+  \item \textbf{Research Partner:} [Partner Institution] providing access to coating characterization facilities including potentiostat/galvanostat for EIS, UV-vis-NIR spectrophotometer, QUV accelerated weathering tester, salt spray chamber (ASTM B117), nanoindentation, and FTIR/Raman spectroscopy.
+  \item \textbf{NIST Collaboration:} [If applicable: existing or planned collaboration with NIST Materials Measurement Laboratory, Materials Science and Engineering Division, or other relevant NIST division.]
+\end{itemize}
+
+[Company Name], founded [Year] in [City, State], is dedicated to advancing measurement science for materials design through AI-driven platforms. [If applicable: previously received SBIR/STTR funding from NSF/DOE/DOD for related AI-materials or measurement science work. Existing relationships with NIST researchers or use of NIST reference data in prior work.]
+
+%% =======================================================================
+\section{References}
+\label{sec:references}
+%% =======================================================================
+
+\begin{enumerate}[leftmargin=*]
+  \item NIST Materials Genome Initiative Strategic Plan (2024). National Institute of Standards and Technology. \url{https://www.nist.gov/mgi}
+
+  \item de Pablo, J.J., et al. ``New frontiers for the Materials Genome Initiative.'' \textit{npj Computational Materials} \textbf{5}, 41 (2019).
+
+  \item Koch, G.H., et al. ``International Measures of Prevention, Application, and Economics of Corrosion Technologies Study.'' NACE International (2016). Estimated \$2.5 trillion annual global corrosion cost.
+
+  \item Jin, W., Barzilay, R., Jaakkola, T. ``Junction Tree Variational Autoencoder for Molecular Graph Generation.'' \textit{Proc.\ ICML} (2018). Fragment-based molecular generation achieving 100\% validity.
+
+  \item Batatia, I., et al. ``MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields.'' \textit{NeurIPS} (2022). Foundation model for transfer learning.
+
+  \item Daulton, S., Balandat, M., Bakshy, E. ``Parallel Bayesian Optimization of Multiple Noisy Objectives with Expected Hypervolume Improvement.'' \textit{NeurIPS} (2021). qNEHVI acquisition function for multi-objective optimization.
+
+  \item Vovk, V., Gammerman, A., Shafer, G. \textit{Algorithmic Learning in a Random World.} Springer (2005). Conformal prediction for calibrated uncertainty.
+
+  \item ASTM D1186-22. ``Standard Test Methods for Nondestructive Measurement of Dry Film Thickness of Nonmagnetic Coatings Applied to Ferrous Metals.'' ASTM International.
+
+  \item ISO 16773:2016. ``Electrochemical impedance spectroscopy (EIS) on coated and uncoated metallic specimens.'' International Organization for Standardization.
+
+  \item ASTM G154-23. ``Standard Practice for Operating Fluorescent Ultraviolet (UV) Lamp Apparatus for Exposure of Materials.'' ASTM International.
+
+  \item ASTM B117-19. ``Standard Practice for Operating Salt Spray (Fog) Apparatus.'' ASTM International.
+
+  \item Blaiszik, B., et al. ``The Materials Data Facility: Data Services to Advance Materials Science Research.'' \textit{JOM} \textbf{68}, 2045--2052 (2016). FAIR data infrastructure.
+
+  \item Raissi, M., Perdikaris, P., Karniadakis, G.E. ``Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations.'' \textit{J.\ Comput.\ Phys.} \textbf{378}, 686--707 (2019).
+
+  \item Argonne National Laboratory. ``Polybot: Autonomous Polymer Discovery Platform.'' Documented $\sim$1 million possible fabrication combinations for a single polymer film.
+
+  \item NIST Standard Reference Data Program. \url{https://www.nist.gov/srd}
+\end{enumerate}
+
+\vspace{1cm}
+\noindent\textcolor{nistblue}{\rule{\textwidth}{1.5pt}}
+
+\begin{center}
+\small\textcolor{nistgray}{
+  NIST SBIR FY2026 --- NOFO 2026-NIST-SBIR-01\\
+  Research Areas: Advanced Manufacturing $\cdot$ Materials Measurement Science $\cdot$ AI/ML for Measurement\\[0.2cm]
+  [Company Name] $\cdot$ [City, State] $\cdot$ [Contact Email]
+}
+\end{center}
+
+\end{document}

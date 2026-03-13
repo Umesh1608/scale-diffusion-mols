@@ -1,0 +1,173 @@
+================================================================================
+DoD SBIR OPPORTUNITY — NAVY TOPIC NV029
+Low-Cost Moldable Metastructure Materials for Maritime Protective Applications
+================================================================================
+
+TOPIC NUMBER:       NV029
+TOPIC TITLE:        Low-Cost Moldable Metastructure Materials for Maritime
+                    Protective Applications
+AGENCY:             Department of the Navy (DoN)
+BRANCH:             Navy
+COMPONENT:          Naval Surface Warfare / Naval Research
+SOLICITATION:       DON 26.B (FY2026 SBIR Phase I)
+PHASE I BUDGET:     ~$240,000
+PHASE I DURATION:   6 months
+PHASE II BUDGET:    Up to ~$1,600,000 (typical Navy SBIR Phase II)
+PHASE II DURATION:  24 months
+
+================================================================================
+SOLICITATION LINKS
+================================================================================
+
+Primary DoD SBIR/STTR Portal:
+  https://www.dodsbirsttr.mil/topics-app/
+  (Search for topic "NV029")
+
+Topic Detail / Consulting Reference:
+  https://www.bwcoconsulting.com/fod/don26bz01-nv029
+
+DSIP Submission Portal:
+  https://www.dodsbirsttr.mil/submissions/
+  (All proposals submitted through DSIP)
+
+DoD SBIR/STTR Program Information:
+  https://www.dodsbirsttr.mil/
+
+================================================================================
+DEADLINE INFORMATION
+================================================================================
+
+NOTE: Verify exact dates on the DSIP portal — deadlines shift and this
+information may be outdated.
+
+Typical DON 26.B cycle:
+  - Pre-release / Topics Posted:     Check dodsbirsttr.mil
+  - Open Window for Submissions:     Check dodsbirsttr.mil
+  - Proposal Due Date:               Check dodsbirsttr.mil (typically 30-60 day
+                                     open window after topics post)
+  - Phase I Awards:                  Typically 3-5 months after close
+
+ACTION: Confirm the current submission window on the DSIP portal before
+preparing final submission. DoD SBIR deadlines are firm — late submissions
+are not accepted.
+
+================================================================================
+SBIR REAUTHORIZATION STATUS
+================================================================================
+
+The SBIR/STTR program was reauthorized through September 30, 2025 under the
+SBIR/STTR Extension Act of 2022 (Public Law 117-183). As of March 2026:
+
+  - Congress has historically reauthorized the program through continuing
+    resolutions or standalone legislation when the formal authorization lapses.
+  - DoD SBIR solicitations (including DON 26.B) continue to be released under
+    existing appropriations authority.
+  - The FY2026 NDAA includes provisions for SBIR program continuation.
+
+ACTION: Verify current reauthorization status at https://www.sbir.gov before
+investing significant proposal preparation effort. Monitor SBA and DoD
+announcements for any changes to program authority or funding levels.
+
+NOTE: Even during past authorization gaps (2017, 2022), DoD continued to
+release and fund SBIR solicitations under existing appropriations. The program
+enjoys strong bipartisan support and has never been permanently discontinued.
+
+================================================================================
+TECHNOLOGY MAPPING — HOW OUR PLATFORM ADDRESSES NV029
+================================================================================
+
+TOPIC REQUIREMENT                  OUR CAPABILITY
+---------------------------------  ---------------------------------------------
+UV resistance for maritime         AI-designed UV-absorbing chromophores
+assets                             (benzotriazole, hydroxybenzophenone, triazine)
+                                   optimized for 290-400 nm maritime solar
+                                   spectrum; generative model creates novel
+                                   UV absorber structures beyond known chemistry
+
+Salt/water resistance              GNN-predicted corrosion inhibition via
+                                   nitrogen heterocycle chelation of metal ions;
+                                   AI-optimized hydrophobic/superhydrophobic
+                                   surface chemistry (contact angle >150 deg)
+                                   for chloride ion barrier
+
+Environmental protection           Multitask property prediction covers thermal
+(combined stressors)               cycling (-10 to +70C), humidity, and
+                                   combined UV + salt spray degradation;
+                                   MOBO simultaneously optimizes ALL properties
+                                   rather than addressing stressors in isolation
+
+Low-cost, moldable materials       Fragment-based generation targets
+                                   synthesizable molecules (SA score < 4.0);
+                                   coatings designed for spray, brush, and
+                                   mold-in-place application; cost-aware
+                                   optimization includes raw material pricing
+
+Metastructure / metamaterial       Multi-layer metastructure architecture with
+concepts                           AI-optimized layer composition: adhesion
+                                   primer + corrosion-inhibiting interlayer +
+                                   UV/hydrophobic topcoat; nanocontainer-loaded
+                                   self-healing matrix for autonomous repair
+
+Conformal protection for           Coatings designed for complex geometry
+complex geometries                 application (antenna housings, sensor domes,
+                                   UAV airframes); rheology-aware formulation
+                                   optimization for spray/mold processability
+
+PFAS-free alternatives             MOBO enforces PFAS-free constraint per NDAA
+(emerging DoD requirement)         2026 Sec. 346; AI discovers non-fluorinated
+                                   hydrophobic alternatives achieving equivalent
+                                   water repellency
+
+================================================================================
+KEY DIFFERENTIATORS FOR THIS TOPIC
+================================================================================
+
+1. GENERATIVE (not just optimization): Our platform creates NOVEL molecules
+   that do not exist in any database, accessing unexplored chemistry space
+   for maritime protective materials.
+
+2. MULTIFUNCTIONAL BY DESIGN: Unlike current approaches that layer independent
+   solutions, our AI co-optimizes UV, corrosion, hydrophobicity, self-healing,
+   and mechanical properties in a single molecular/formulation design step.
+
+3. CONSTRAINT-AWARE: DoD-specific constraints (PFAS-free, MIL-spec performance
+   floors, VOC limits, processing temperature) are enforced DURING optimization,
+   not filtered post hoc.
+
+4. NAVY-RELEVANT VALIDATION: Computational validation against Navy-standard
+   protocols (ASTM B117, G154, MIL-DTL-24441) with Phase II path to NSWCCD
+   Key West Marine Corrosion Facility testing.
+
+5. DUAL-USE POTENTIAL: Same platform applies to commercial marine coatings
+   ($12.3B market), offshore wind, and coastal infrastructure — strong
+   commercialization path beyond Navy applications.
+
+================================================================================
+PROPOSAL PREPARATION NOTES
+================================================================================
+
+- DoD SBIR Phase I technical volume is limited to approximately 20 pages
+  (check specific solicitation for exact page limit)
+- Cost volume submitted separately through DSIP
+- Required sections: Technical Approach, Innovation, Work Plan, Related
+  Experience, Cost Summary
+- Company must be registered in SAM.gov with active CAGE code
+- PI must be primarily employed by the small business (>51% effort)
+- Foreign nationals: check restrictions for Navy topics (ITAR/EAR)
+- Data rights assertions required if proposing proprietary methods
+- Encourage inclusion of letters of support from potential Navy transition
+  partners (PEO Ships, NAVSEA, NSWCCD)
+
+================================================================================
+CONTACT AND NEXT STEPS
+================================================================================
+
+1. Verify solicitation dates on DSIP portal
+2. Register in SAM.gov if not already registered (allow 2-4 weeks)
+3. Obtain CAGE code if not already assigned
+4. Review full solicitation instructions on dodsbirsttr.mil
+5. Contact TPOC (Technical Point of Contact) listed in topic description
+   for any technical clarifications (questions typically have a cutoff date)
+6. Prepare and submit through DSIP before deadline
+
+================================================================================

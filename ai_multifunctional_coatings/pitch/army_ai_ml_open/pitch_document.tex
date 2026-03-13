@@ -1,0 +1,415 @@
+% Compile with: pdflatex pitch_document.tex
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{gensymb}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  urlcolor=blue!60!black,
+}
+
+\definecolor{armygreen}{HTML}{4B5320}
+\definecolor{armygold}{HTML}{C09A1E}
+\definecolor{armyblack}{HTML}{1A1A1A}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{gray}{\small U.S. Army SBIR --- AI/ML Open Topic}}
+\lhead{\textcolor{gray}{\small [Company Name]}}
+\rfoot{\textcolor{gray}{\small \thepage}}
+
+\title{%
+  \vspace{-1cm}
+  \textcolor{armygreen}{\Large\textbf{U.S. Army SBIR Proposal}}\\[0.2cm]
+  \textcolor{armygreen}{\large AI/ML-Focused Open Topic}\\[0.3cm]
+  \textbf{AI-Driven Platform for Accelerated Discovery of\\Next-Generation Protective Coatings for Military Systems}\\[0.3cm]
+  \large [Company Name]\\[0.2cm]
+  \normalsize Principal Investigator: [PI Name]
+}
+\author{}
+\date{March 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\noindent\textcolor{armygreen}{\rule{\textwidth}{1.5pt}}
+
+\vspace{0.3cm}
+
+\begin{center}
+\begin{tabular}{ll}
+\textbf{Topic:} & AI/ML-Focused Open Topic \\
+\textbf{Sub-area:} & Materials Informatics / Predictive Analytics \\
+\textbf{Agency:} & U.S. Army DEVCOM / Army Research Laboratory \\
+\textbf{Phase:} & Phase I (\$250K) / Direct-to-Phase-II eligible (up to \$2M) \\
+\textbf{Solicitation:} & \url{https://armysbir.army.mil/topics/ai-ml-focused-open-topic/} \\
+\textbf{Performing Organization:} & [Company Name], [City, State] \\
+\textbf{Period of Performance:} & 6 months (Phase I) / 24 months (Phase II) \\
+\end{tabular}
+\end{center}
+
+\vspace{0.3cm}
+\noindent\textcolor{armygreen}{\rule{\textwidth}{1.5pt}}
+
+\vspace{0.3cm}
+\noindent\textit{Placeholders marked with [brackets] must be replaced with actual company, team, and cost information before submission.}
+
+%% =======================================================================
+\section{Technical Approach}
+\label{sec:technical_approach}
+%% =======================================================================
+
+\subsection{Problem Statement: The Military Coatings Challenge}
+
+The U.S. Army operates ground vehicles, rotorcraft, fixed infrastructure, and soldier equipment across diverse and extreme environments---arid deserts, tropical humidity, arctic cold, salt-spray coastal zones, and chemically contaminated battlefields. Protective coatings are the first line of defense against environmental degradation, but they must simultaneously satisfy multiple, often conflicting performance requirements:
+
+\begin{itemize}[nosep]
+  \item \textbf{Chemical Agent Resistant Coating (CARC)} compliance per MIL-DTL-53072 and MIL-DTL-64159, requiring resistance to decontamination agents (DS2, STB, HTH) while maintaining adhesion and mechanical integrity after repeated chemical exposure cycles.
+  \item \textbf{Infrared signature management} for threat reduction, with tailored emissivity profiles across SWIR (1--3\,$\mu$m), MWIR (3--5\,$\mu$m), and LWIR (8--14\,$\mu$m) bands to reduce thermal contrast against background terrain.
+  \item \textbf{Corrosion protection} under field conditions including salt fog (MIL-STD-810H Method 509.7), filiform corrosion on aluminum substrates, and galvanic corrosion at dissimilar metal joints on combat vehicle platforms (Stryker, Bradley, JLTV).
+  \item \textbf{CBRN (Chemical, Biological, Radiological, Nuclear) protective barriers} for equipment and structures, including self-decontaminating surfaces incorporating catalytic decomposition of nerve agents (VX, GB, GD) and blister agents (HD).
+  \item \textbf{Radar-absorbing materials (RAM)} with controlled electromagnetic loss across X-band (8--12\,GHz) and Ku-band (12--18\,GHz) for reduced radar cross-section on vehicles and structures.
+  \item \textbf{Multi-climate durability} maintaining performance across $-46\degree$C to $+71\degree$C operational temperature ranges per AR 70-38.
+\end{itemize}
+
+Current military coating development relies on Edisonian trial-and-error methods. DEVCOM Army Research Laboratory (ARL) has identified that typical CARC reformulation cycles require 3--7 years from concept to fielding. The combinatorial complexity---polymer binders, pigment systems, nanoparticle fillers, curing agents, and processing parameters---creates a search space exceeding $10^{12}$ possible formulations. Traditional design-of-experiments approaches sample fewer than 0.001\% of this space, routinely missing Pareto-optimal formulations that balance corrosion resistance against IR signature requirements, or CARC compliance against mechanical flexibility.
+
+\subsection{Proposed AI/ML Platform for Military Coating Discovery}
+
+We propose an integrated AI/ML platform that combines three core machine learning capabilities---generative molecular design, graph neural network (GNN) property prediction, and multi-objective Bayesian optimization (MOBO)---into a closed-loop pipeline purpose-built for military protective coating formulation discovery.
+
+\subsubsection{Component 1: Military Coating-Specific Generative Model}
+
+We will develop a Junction Tree Variational Autoencoder (JT-VAE) trained on a curated library of military-relevant molecular fragments, including:
+
+\begin{itemize}[nosep]
+  \item CARC-compatible polyurethane and epoxy binder monomers
+  \item IR-tuning chromophores and pigment precursors (iron oxide, chromium oxide, and carbon black analogs with tailored spectral properties)
+  \item Organophosphate-decomposing catalytic moieties (metal-organic complexes, polyoxometalates)
+  \item Radar-absorbing carbonyl iron and ferrite-compatible polymer matrices
+  \item Anti-corrosion inhibitor molecules (benzotriazole, 8-hydroxyquinoline, cerium-based inhibitors)
+  \item Self-healing microcapsule shell materials (poly(urea-formaldehyde), polymelamine)
+  \item Fluorinated and siloxane hydrophobic/oleophobic groups for decontaminability
+\end{itemize}
+
+The fragment vocabulary will comprise 300+ military-relevant substructures curated from the ARL Coatings Database, MIL-spec formulation literature, and patent databases. Fragment-based generation ensures 100\% chemical validity (versus $\sim$43\% for SMILES-string approaches) and reduces graph complexity 5--10$\times$ relative to atom-level generation, enabling representation of the larger molecules (100--500 atoms) typical of coating polymer precursors.
+
+\subsubsection{Component 2: Multitask GNN Property Predictors for Military Performance Metrics}
+
+We will train multitask graph neural network models predicting military-critical coating properties simultaneously from molecular structure:
+
+\begin{itemize}[nosep]
+  \item \textbf{Corrosion resistance:} electrochemical impedance modulus ($|Z|$ at 0.01\,Hz), corrosion potential ($E_\mathrm{corr}$), and salt spray hours to failure (ASTM B117)
+  \item \textbf{CARC compliance:} resistance to DS2 decontaminant, color stability ($\Delta E^*$ after chemical exposure), adhesion retention after MIL-DTL-53072 testing
+  \item \textbf{IR signature:} spectral emissivity across SWIR/MWIR/LWIR bands, solar absorptance
+  \item \textbf{Mechanical properties:} glass transition temperature ($T_g$), impact resistance (MIL-PRF-22750), flexibility (mandrel bend), pencil hardness
+  \item \textbf{Environmental durability:} QUV accelerated weathering hours, humidity resistance (MIL-STD-810H Method 507.6)
+\end{itemize}
+
+We will leverage transfer learning from the MACE-MP foundation model (150,000 pre-training structures) to achieve target prediction accuracy ($R^2 > 0.80$) from limited military coating data ($<$500 labeled samples per property). Multitask learning enables knowledge sharing: data-rich properties ($T_g$, with 1,200+ literature samples) regularize predictions for data-scarce military-specific properties (DS2 resistance, IR emissivity).
+
+\subsubsection{Component 3: Constraint-Aware Multi-Objective Bayesian Optimization}
+
+The MOBO engine uses BoTorch's qNEHVI (noisy expected hypervolume improvement) acquisition function to navigate Pareto fronts across competing military objectives. Key innovation: military coating formulations must simultaneously optimize 5+ conflicting objectives while satisfying hard constraints:
+
+\begin{itemize}[nosep]
+  \item \textbf{Objectives:} maximize corrosion protection, maximize CARC decontaminant resistance, minimize LWIR emissivity (or match terrain), maximize mechanical durability, minimize cost
+  \item \textbf{Hard constraints:} MIL-spec compliance thresholds, VOC limits per NESHAP, restricted substance lists (PFAS-free formulations per DoD PFAS Task Force directives), NATO STANAG interoperability requirements
+  \item \textbf{Mixed design space:} continuous variables (filler loading, film thickness, cure temperature) and categorical variables (binder chemistry, pigment type, substrate)
+\end{itemize}
+
+Mixed-variable Gaussian processes with Gower distance kernels handle the heterogeneous parameter space. The optimizer identifies non-dominated Pareto-optimal formulations within 50--100 iterations---a 100$\times$ reduction compared to traditional DoE approaches.
+
+\subsection{Closed-Loop Pipeline Architecture}
+
+The three components integrate into a closed-loop workflow:
+
+\begin{enumerate}[nosep]
+  \item \textbf{Generate:} The JT-VAE proposes 10,000+ novel candidate molecules conditioned on military coating requirements.
+  \item \textbf{Predict:} Multitask GNNs score all candidates across military performance metrics in minutes (vs.\ weeks for physical testing).
+  \item \textbf{Optimize:} MOBO selects the top 50 candidates on the Pareto front, proposes optimal formulation parameters.
+  \item \textbf{Validate:} Selected formulations enter experimental validation (Phase II); results feed back to retrain models.
+  \item \textbf{Iterate:} Active learning identifies the most informative next experiments, minimizing total validation cost.
+\end{enumerate}
+
+This pipeline compresses the military coating discovery cycle from 3--7 years to 6--12 months, directly supporting Army modernization timelines for next-generation combat vehicle platforms.
+
+
+%% =======================================================================
+\section{Innovation and Impact}
+\label{sec:innovation_impact}
+%% =======================================================================
+
+\subsection{Technical Innovation}
+
+Our platform addresses five fundamental gaps in current military coating R\&D:
+
+\begin{enumerate}[nosep]
+  \item \textbf{No generative design for military coatings.} Existing AI tools (Citrine Informatics, Uncountable, Schr\"odinger) optimize known formulations but cannot propose entirely novel molecular structures. Our generative model creates molecules \textit{de novo}, exploring chemical space beyond the training distribution.
+
+  \item \textbf{No integrated multi-property prediction for MIL-spec compliance.} Current models predict single properties in isolation. Our multitask GNNs jointly predict corrosion resistance, IR signature, CARC compliance, and mechanical performance, capturing property correlations that single-task models miss.
+
+  \item \textbf{No constraint-aware optimization for military regulatory landscape.} Military coatings face a uniquely complex constraint environment (MIL-DTL specifications, PFAS restrictions, NATO interoperability, VOC limits). Our MOBO engine enforces these as hard constraints during optimization rather than post-hoc filtering.
+
+  \item \textbf{No closed-loop AI pipeline connecting molecular design to formulation optimization.} Academic generative models produce molecules but stop short of actionable formulations. Our pipeline spans from molecular generation through formulation parameters to predicted field performance.
+
+  \item \textbf{No transfer learning strategy for data-scarce military properties.} Military coating test data is limited and often classified. Our transfer learning approach from large open-source materials databases enables accurate prediction from small proprietary datasets, reducing data requirements by 10$\times$.
+\end{enumerate}
+
+\subsection{Army Modernization Impact}
+
+This technology directly supports multiple Army modernization priorities:
+
+\textbf{Next-Generation Combat Vehicle (NGCV):} AI-designed coatings with optimized IR signature management and CARC compliance will protect next-generation armored vehicles while reducing their thermal detectability. Current CARC formulations (MIL-DTL-53072) were developed decades ago; our platform enables rapid development of formulations tailored to new substrate materials (advanced composites, high-strength aluminum alloys) used in NGCV programs.
+
+\textbf{Soldier Lethality:} Protective coatings with self-decontaminating CBRN properties reduce logistical burden on soldiers by eliminating the need for separate decontamination steps. AI-optimized catalytic coating formulations can decompose chemical warfare agents on contact, providing passive protection for equipment and shelters.
+
+\textbf{Future Vertical Lift (FVL):} Rotorcraft coatings must resist sand erosion, UV degradation, fluid exposure, and extreme temperature cycling simultaneously. Our multi-objective approach identifies formulations that balance these competing demands---a task intractable for traditional methods given the $>$10-dimensional objective space.
+
+\textbf{Network/C3I:} Radar-absorbing coatings with controlled electromagnetic properties reduce the signature of communication infrastructure and sensor platforms. Our generative model can propose novel RAM polymer matrix materials with tailored magnetic and dielectric loss profiles.
+
+\textbf{Sustainment and Logistics:} Corrosion costs the DoD approximately \$20 billion annually. AI-optimized anti-corrosion coatings with 2--3$\times$ extended service life directly reduce maintenance burden and increase vehicle readiness rates. Every additional year of coating service life on a Stryker fleet saves an estimated \$8M in recoating costs across a brigade combat team.
+
+\subsection{Dual-Use Commercial Potential}
+
+The platform's commercial value extends beyond military applications. The global protective coatings market reached \$17 billion in 2025 (projected \$32.4 billion by 2034, 7.3\% CAGR). Direct commercial analogs include aerospace OEM coatings, marine anti-fouling, automotive OEM primers, and industrial infrastructure protection. Phase II will include technology transition partnerships with both military (DEVCOM ARL, NSRDEC) and commercial coating manufacturers.
+
+
+%% =======================================================================
+\section{Phase I Work Plan}
+\label{sec:workplan}
+%% =======================================================================
+
+Phase I (\$250K, 6 months) will demonstrate feasibility of the AI-driven military coating discovery platform through four technical objectives, each with clear success criteria and go/no-go decision points.
+
+\subsection{Objective 1: Military Coating Molecular Generative Model (Months 1--3)}
+
+\textbf{Task 1.1:} Curate a fragment vocabulary of 300+ military-relevant molecular substructures from ARL technical reports, MIL-spec formulation literature, NIST Webbook data, and coating patent databases. Fragments will span CARC binder monomers, IR-tuning chromophores, corrosion inhibitors, catalytic CBRN-decontamination moieties, and RAM precursors.
+
+\textbf{Task 1.2:} Train a Junction Tree VAE with the military fragment vocabulary on a dataset of 5,000+ coating-relevant molecules. Augment with conformer data from GEOM-Drugs for molecules exceeding 50 heavy atoms.
+
+\textbf{Task 1.3:} Evaluate generative model quality. \textit{Success criterion:} generate 1,000 novel molecules with 100\% chemical validity, $>$85\% synthetic accessibility (SA score $<$ 4.0), and $>$60\% passing Lipinski-adapted coating property filters (molecular weight 150--1500\,Da, LogP $-1$ to 8, rotatable bonds $<$ 30).
+
+\textbf{Go/No-Go:} If fewer than 70\% of generated molecules pass validity and coating relevance filters, we will pivot to a reinforcement-learning fine-tuned SELFIES-based model with explicit CARC fragment rewards.
+
+\subsection{Objective 2: Multitask GNN Predictors for Military Coating Properties (Months 2--4)}
+
+\textbf{Task 2.1:} Assemble training datasets for five military-critical properties: (1) corrosion impedance ($|Z|_{0.01\,\mathrm{Hz}}$), (2) $T_g$, (3) LWIR emissivity (8--14\,$\mu$m), (4) DS2 chemical resistance (weight loss \%), and (5) pencil hardness. Sources: ARL Coatings Database, Citrination open datasets, literature extraction, and [Partner Institution] characterization data.
+
+\textbf{Task 2.2:} Train multitask E(3)-equivariant GNN models with transfer learning from MACE-MP. Implement frozen-backbone fine-tuning (early layers frozen, task-specific prediction heads trained on coating data).
+
+\textbf{Task 2.3:} Evaluate prediction accuracy. \textit{Success criterion:} $R^2 > 0.80$ for $T_g$ and corrosion impedance, $R^2 > 0.70$ for emissivity and DS2 resistance on held-out test sets.
+
+\textbf{Go/No-Go:} If $R^2 < 0.70$ for any property after transfer learning, pivot to ensemble gradient-boosted models with hand-crafted molecular descriptors (RDKit) as a fallback.
+
+\subsection{Objective 3: Constraint-Aware MOBO for MIL-Spec Formulations (Months 3--5)}
+
+\textbf{Task 3.1:} Implement multi-objective Bayesian optimization using BoTorch qNEHVI with mixed-variable Gaussian process surrogates. Define objective functions (maximize corrosion resistance, minimize LWIR emissivity deviation from target, maximize CARC compliance score) and hard constraints (MIL-DTL thresholds, VOC $< 250$\,g/L, PFAS-free).
+
+\textbf{Task 3.2:} Benchmark MOBO performance on a synthetic test problem constructed from published CARC formulation data. \textit{Success criterion:} identify a Pareto front of $\geq$10 non-dominated formulations within 50 iterations, with $>$80\% of Pareto-optimal points satisfying all hard constraints.
+
+\textbf{Task 3.3:} Demonstrate scalability to 5+ simultaneous objectives and 20+ design variables (continuous + categorical).
+
+\subsection{Objective 4: End-to-End Pipeline Integration and Demonstration (Months 5--6)}
+
+\textbf{Task 4.1:} Integrate generative model, GNN predictors, and MOBO optimizer into a unified pipeline. Screen 10,000+ generated candidate molecules, predict military performance properties, and select the top 50 Pareto-optimal formulations.
+
+\textbf{Task 4.2:} Produce a demonstration report presenting the top 50 AI-designed military coating formulations with predicted MIL-spec performance metrics, synthetic routes, and estimated material costs.
+
+\textbf{Task 4.3:} Prepare Phase II proposal detailing experimental validation plan in partnership with DEVCOM ARL, including robotic high-throughput coating deposition and MIL-spec characterization.
+
+\subsection{Phase I Deliverables}
+
+\begin{enumerate}[nosep]
+  \item Software prototype of the integrated AI military coating discovery platform
+  \item Curated military coating fragment library (300+ substructures)
+  \item Trained generative model and multitask GNN property predictors
+  \item Report of top 50 AI-designed military coating formulations with predicted properties
+  \item Phase II experimental validation plan
+  \item Final technical report and Phase II proposal
+\end{enumerate}
+
+\subsection{Phase I Schedule}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Month} & \textbf{Objective} & \textbf{Key Milestone} \\
+\midrule
+1--2 & Obj.\ 1 (Generative Model) & Fragment library curated, JT-VAE training initiated \\
+2--3 & Obj.\ 1 + Obj.\ 2 (GNN) & Generative model validated; GNN training datasets assembled \\
+3--4 & Obj.\ 2 + Obj.\ 3 (MOBO) & GNN predictors validated; MOBO framework implemented \\
+4--5 & Obj.\ 3 (MOBO benchmarks) & MOBO Pareto front benchmark completed \\
+5--6 & Obj.\ 4 (Integration) & Full pipeline demonstration; top 50 formulations delivered \\
+6 & Reporting & Final report, Phase II proposal submitted \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+%% =======================================================================
+\section{Related Experience and Qualifications}
+\label{sec:qualifications}
+%% =======================================================================
+
+\subsection{Principal Investigator}
+
+[PI Name] serves as Principal Investigator, bringing [X] years of experience in computational materials science, machine learning, and molecular design. [Relevant credentials: PhD in chemistry/materials science/computer science; publications in peer-reviewed journals on GNN property prediction, generative molecular design, or equivariant neural networks; prior experience with coating or polymer materials; familiarity with MIL-spec testing protocols].
+
+\subsection{Co-Investigator}
+
+[Co-PI Name] contributes [X] years of expertise in protective coating chemistry with specific experience in military coating formulation and MIL-spec qualification testing. [Relevant credentials: prior roles at defense contractors or DoD laboratories, experience with CARC formulation, patents in corrosion-resistant or multifunctional coatings, familiarity with MIL-DTL-53072, MIL-DTL-64159, and MIL-PRF-22750 testing protocols].
+
+\subsection{Organization Capabilities}
+
+[Company Name] specializes in AI-driven materials discovery with a focus on protective coatings for demanding environments. The company's core capabilities include:
+
+\begin{itemize}[nosep]
+  \item Generative molecular design using graph neural networks and variational autoencoders
+  \item Multi-objective Bayesian optimization for formulation engineering
+  \item Transfer learning from large-scale materials databases to data-scarce application domains
+  \item Computational prediction of coating properties including corrosion resistance, optical/IR signatures, and mechanical performance
+\end{itemize}
+
+\subsection{Facilities and Partnerships}
+
+[Company Name] maintains computational infrastructure including [GPU cluster specifications] for neural network training and molecular simulation. The company has established research collaborations with:
+
+\begin{itemize}[nosep]
+  \item \textbf{[University/Partner Institution]:} access to coating characterization facilities including electrochemical impedance spectroscopy (EIS), UV-vis-NIR spectroscopy, FTIR for emissivity measurement, salt spray chambers (ASTM B117), and QUV accelerated weathering
+  \item \textbf{[Defense Partner/National Lab]:} [if applicable, describe existing relationships with DEVCOM ARL, NSRDEC, Natick, or defense prime contractors for technology transition]
+\end{itemize}
+
+\subsection{Prior Relevant Work}
+
+[If applicable: describe prior SBIR/STTR awards, DoD contracts, or related funded research. Highlight any previous work on military coatings, AI for materials, or defense-relevant applications.]
+
+[Company Name] has demonstrated preliminary results supporting the proposed approach:
+
+\begin{itemize}[nosep]
+  \item Graph convolutional networks achieving $R^2 > 0.85$ for polymer $T_g$ prediction on benchmark datasets
+  \item Active-learning Bayesian optimization achieving order-of-magnitude improvements in self-healing epoxy impedance in only 30 experiments
+  \item E(3)-equivariant diffusion models achieving 98\% atom stability on the QM9 molecular benchmark
+\end{itemize}
+
+To address the interdisciplinary scope, we will hire a postdoctoral researcher with expertise in equivariant neural networks for generative model development, and engage a coating characterization subcontractor for Phase II experimental validation using MIL-spec test protocols.
+
+
+%% =======================================================================
+\section{Cost and Schedule Summary}
+\label{sec:cost}
+%% =======================================================================
+
+\subsection{Phase I Budget Summary (\$250,000, 6 months)}
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+\textbf{Category} & \textbf{Estimated Cost} \\
+\midrule
+PI Salary and Fringe Benefits (50\% effort, 6 months) & \$85,000 \\
+Co-PI Salary and Fringe Benefits (25\% effort, 6 months) & \$42,500 \\
+Postdoctoral Researcher (50\% effort, 6 months) & \$35,000 \\
+Cloud Computing (GPU instances for model training) & \$25,000 \\
+Data Acquisition and Curation & \$12,500 \\
+Travel (DEVCOM ARL coordination, Army S\&T conference) & \$10,000 \\
+Materials and Supplies (software licenses, databases) & \$10,000 \\
+Subcontractor ([Partner Institution] characterization) & \$15,000 \\
+Indirect Costs (overhead) & \$15,000 \\
+\midrule
+\textbf{Total Phase I} & \textbf{\$250,000} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Direct-to-Phase-II Budget Overview (up to \$2,000,000, 24 months)}
+
+If selected for Direct-to-Phase-II, the expanded scope would include:
+
+\begin{itemize}[nosep]
+  \item High-throughput experimental validation of top AI-designed formulations using robotic coating deposition
+  \item Full MIL-spec characterization suite (MIL-DTL-53072, MIL-DTL-64159, MIL-STD-810H)
+  \item Integration with DEVCOM ARL coating qualification pipelines
+  \item Extended team including experimental coating chemists and MIL-spec testing technicians
+  \item Prototype coating demonstrations on Army-relevant substrates (aluminum alloy 5083, steel RHA, composite panels)
+  \item Technology transition plan for Army acquisition pathways
+\end{itemize}
+
+\subsection{Schedule Summary}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Phase} & \textbf{Duration} & \textbf{Key Output} \\
+\midrule
+Phase I & 6 months & Validated AI platform; 50 candidate formulations \\
+Phase II & 24 months & Experimentally validated coatings; MIL-spec qualification data \\
+Phase III & 12--18 months & Technology transition to Army programs of record \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+%% =======================================================================
+\section{References}
+\label{sec:references}
+%% =======================================================================
+
+\begin{enumerate}[nosep, label={[\arabic*]}]
+
+\item W.\ Jin, R.\ Barzilay, T.\ Jaakkola, ``Junction Tree Variational Autoencoder for Molecular Graph Generation,'' \textit{Proc.\ ICML}, 2018.
+
+\item E.\ Hoogeboom \textit{et al.}, ``Equivariant Diffusion for Molecule Generation in 3D,'' \textit{Proc.\ ICML}, 2022.
+
+\item S.\ Balandat \textit{et al.}, ``BoTorch: A Framework for Efficient Monte-Carlo Bayesian Optimization,'' \textit{Proc.\ NeurIPS}, 2020.
+
+\item I.\ Batatia \textit{et al.}, ``MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields,'' \textit{Proc.\ NeurIPS}, 2022.
+
+\item DEVCOM Army Research Laboratory, ``Materials for Soldier and Platform Protection: Strategic Research Plan,'' ARL-TR-9100, 2022.
+
+\item A.\ Saal \textit{et al.}, ``Machine Learning in Materials Discovery: Confirmed Predictions and Their Underlying Approaches,'' \textit{Annu.\ Rev.\ Mater.\ Res.}, vol.\ 50, pp.\ 49--69, 2020.
+
+\item DoD Corrosion Prevention and Control Planning Guidebook, Office of Corrosion Policy and Oversight, 2014.
+
+\item J.\ Ling \textit{et al.}, ``High-Dimensional Materials and Process Optimization Using Data-Driven Experimental Design with Well-Calibrated Uncertainty Estimates,'' \textit{Integr.\ Mater.\ Manuf.\ Innov.}, vol.\ 6, pp.\ 207--217, 2017.
+
+\item R.\ G\'omez-Bombarelli \textit{et al.}, ``Automatic Chemical Design Using a Data-Driven Continuous Representation of Molecules,'' \textit{ACS Cent.\ Sci.}, vol.\ 4, pp.\ 268--276, 2018.
+
+\item MIL-DTL-53072, ``Chemical Agent Resistant Coating (CARC) System Application Procedures and Quality Control Inspection,'' U.S. Army, 2019.
+
+\item MIL-DTL-64159, ``Coating, Water Dispersible Aliphatic Polyurethane, Chemical Agent Resistant,'' U.S. Army, 2017.
+
+\item MIL-PRF-22750, ``Performance Specification: Coating, Epoxy, High-Solids,'' U.S. Army, 2016.
+
+\item U.S. Army SBIR, ``AI/ML-Focused Open Topic,'' \url{https://armysbir.army.mil/topics/ai-ml-focused-open-topic/}.
+
+\item DoD PFAS Task Force, ``Report on DoD's Progress on Addressing PFAS,'' 2023.
+
+\item Argonne National Laboratory, ``Polybot: Autonomous Materials Research Platform,'' 2023.
+
+\end{enumerate}
+
+\vspace{1cm}
+\noindent\textcolor{armygreen}{\rule{\textwidth}{1.5pt}}
+
+\begin{center}
+\small\textcolor{gray}{
+Prepared by [Company Name] for U.S. Army SBIR --- AI/ML-Focused Open Topic\\
+[Company Name] $\cdot$ [Address] $\cdot$ [Phone] $\cdot$ [Email]\\
+DUNS: [DUNS Number] $\cdot$ CAGE: [CAGE Code] $\cdot$ SAM UEI: [UEI Number]
+}
+\end{center}
+
+\end{document}

@@ -1,0 +1,189 @@
+================================================================================
+DOE FY2026 SBIR/STTR — Advanced Materials Discovery Using Machine Learning
+Opportunity Information Summary
+================================================================================
+
+PROGRAM TITLE
+  DOE Office of Science SBIR/STTR Program, FY 2026
+  Topic Area: Advanced Materials Discovery Using Machine Learning
+
+AGENCY
+  U.S. Department of Energy (DOE), Office of Science
+
+BUDGET
+  Phase I: ~$200,000 (12 months)
+  Phase II: ~$1,500,000 (24 months, contingent on Phase I success)
+
+STATUS (as of March 2026)
+  DELAYED — The SBIR/STTR program authorization lapsed on September 30, 2025,
+  due to the SBIR Reauthorization Act not being renewed by Congress before
+  expiration. The DOE FY2026 SBIR solicitation has been delayed pending
+  legislative reauthorization. Monitor the following for updates:
+    - DOE SBIR/STTR portal: https://science.osti.gov/sbir
+    - SBIR.gov: https://www.sbir.gov
+    - Congressional action on SBIR reauthorization bills
+
+  Action items:
+    - Subscribe to DOE Office of Science SBIR email alerts
+    - Monitor Federal Register for solicitation announcements
+    - Track reauthorization legislation (likely attached to NDAA or
+      appropriations bill)
+    - Prepare proposal materials now so submission is ready when
+      solicitation reopens
+
+DIRECT LINKS
+  DOE SBIR/STTR Funding Opportunities:
+    https://science.osti.gov/sbir/Funding-Opportunities/FY-2026
+  DOE SBIR/STTR Program Page:
+    https://science.osti.gov/sbir
+  DOE Office of Science:
+    https://science.osti.gov/
+  SBIR.gov (cross-agency portal):
+    https://www.sbir.gov
+  DOE Small Business Programs:
+    https://www.energy.gov/osdbu/small-business-programs
+
+================================================================================
+TECHNOLOGY MAPPING — How the Core AI Coating Platform Fits DOE Priorities
+================================================================================
+
+The AI-driven multifunctional coating platform (generative molecular design +
+GNN property prediction + multi-objective Bayesian optimization) maps directly
+to DOE's materials science and clean energy missions:
+
+1. SOLAR ENERGY COATINGS
+   - UV-protective encapsulant coatings for photovoltaic modules
+   - Anti-reflective coatings with enhanced durability (25+ year lifetime)
+   - Anti-soiling coatings reducing O&M costs
+   - AI platform designs novel UV-absorber molecules and optimizes
+     encapsulant formulations for UV blocking + visible transmittance +
+     hydrolysis resistance simultaneously
+
+2. WIND ENERGY COATINGS
+   - Leading-edge erosion protection coatings for turbine blades
+   - Anti-icing coatings for cold-climate wind farms
+   - Anti-corrosion coatings for offshore wind foundations and towers
+   - AI platform optimizes for impact resistance + flexibility + adhesion +
+     rain erosion resistance in a single formulation
+
+3. HYDROGEN INFRASTRUCTURE COATINGS
+   - Hydrogen permeation barrier coatings for pipelines and storage vessels
+   - Embrittlement-resistant coatings for steel infrastructure
+   - Coatings for high-pressure hydrogen compressor components
+   - AI platform designs novel barrier molecules with low H2 diffusivity +
+     mechanical flexibility + adhesion on steel substrates
+   - Directly supports DOE Hydrogen Shot ($1/kg clean hydrogen by 2031)
+
+4. NUCLEAR ENERGY COATINGS
+   - Decontaminable coatings for reactor containment (ASTM D5144)
+   - Radiation-resistant coatings for spent fuel storage
+   - Thermal barrier coatings for advanced reactor components
+   - AI platform optimizes for radiation stability + decontamination
+     efficiency + chemical resistance + thermal cycling performance
+
+5. GEOTHERMAL ENERGY COATINGS
+   - High-temperature anti-corrosion coatings for downhole equipment
+   - Coatings resistant to acidic brines (pH < 3) and abrasive particulates
+   - Thermal barrier coatings for geothermal heat exchangers
+   - AI platform designs thermally stable (>250C) polymer architectures
+     with corrosion resistance + thermal cycling stability
+
+6. GRID INFRASTRUCTURE COATINGS
+   - Anti-corrosion coatings for transmission towers and substations
+   - Protective coatings for underground/subsea cables
+   - Anti-icing coatings for power lines
+   - AI platform addresses the $13.6B annual corrosion cost to U.S. utilities
+     by designing long-lifetime protective formulations
+
+7. ENERGY STORAGE COATINGS
+   - Electrode coatings for advanced batteries (solid-state, flow batteries)
+   - Protective coatings for battery enclosures and thermal management
+   - Anti-corrosion coatings for pumped hydro storage infrastructure
+
+================================================================================
+RELEVANT DOE SUBTOPICS AND PROGRAM AREAS
+================================================================================
+
+The following DOE Office of Science program areas and subtopics are most
+relevant to this proposal:
+
+BASIC ENERGY SCIENCES (BES)
+  - Materials Sciences and Engineering Division
+    * Synthesis and Processing Science
+    * Materials Discovery and Design
+    * Computational Materials Sciences
+  - Chemical Sciences, Geosciences, and Biosciences Division
+    * Catalysis Science (surface coatings for catalytic applications)
+
+ADVANCED SCIENTIFIC COMPUTING RESEARCH (ASCR)
+  - Applied Mathematics (ML/AI for scientific discovery)
+  - Computer Science (scalable ML frameworks for materials)
+  - DOE AI for Science initiatives
+
+ENERGY EFFICIENCY AND RENEWABLE ENERGY (EERE)
+  - Solar Energy Technologies Office (SETO)
+    * Photovoltaic reliability and durability
+  - Wind Energy Technologies Office (WETO)
+    * Blade materials and coatings
+  - Hydrogen and Fuel Cell Technologies Office (HFTO)
+    * Infrastructure materials
+  - Advanced Manufacturing Office (AMO)
+    * Materials for manufacturing
+
+OFFICE OF NUCLEAR ENERGY (NE)
+  - Advanced reactor materials
+  - Nuclear facility protective coatings
+
+CROSS-CUTTING DOE PRIORITIES
+  - Materials Genome Initiative (MGI) — accelerating materials discovery
+  - AI for Science — DOE-wide initiative for ML in scientific research
+  - Clean Energy Manufacturing — domestic supply chain resilience
+  - Environmental sustainability — PFAS-free and low-VOC coatings
+
+================================================================================
+KEY DIFFERENTIATORS FOR DOE REVIEWERS
+================================================================================
+
+1. COMPUTATIONAL EFFICIENCY: The AI platform reduces computational cost of
+   coating material screening by 100-1000x compared to brute-force DFT
+   screening, aligning with DOE's computational materials science priorities.
+
+2. CLEAN ENERGY ALIGNMENT: Every application domain directly supports DOE's
+   net-zero-by-2050 and 100%-clean-electricity-by-2035 goals.
+
+3. OPEN SCIENCE: Commitment to publishing datasets, model architectures, and
+   benchmark results in open repositories (Materials Cloud, NOMAD), consistent
+   with DOE open science policies.
+
+4. NATIONAL LABORATORY SYNERGY: Platform designed to integrate with DOE
+   national lab capabilities — Argonne (Polybot autonomous synthesis), NREL
+   (PV reliability testing), Sandia (corrosion science), ORNL (neutron
+   scattering for coating characterization).
+
+5. SUSTAINABILITY: All formulations constrained to be PFAS-free and VOC-
+   compliant, supporting DOE environmental stewardship mission.
+
+6. COMMERCIALIZATION PATH: Clear SaaS revenue model with identified customer
+   segments (coating manufacturers, energy companies, utilities) and a
+   multi-billion dollar addressable market.
+
+================================================================================
+PREPARATION CHECKLIST
+================================================================================
+
+[ ] Monitor SBIR reauthorization status
+[ ] Register in DOE SBIR/STTR submission system (PAMS)
+[ ] Obtain/verify DUNS number and SAM.gov registration
+[ ] Confirm PI eligibility (U.S. citizen/permanent resident at small business)
+[ ] Identify DOE national laboratory collaboration partner
+[ ] Secure letters of intent from industry partners
+[ ] Prepare budget justification aligned with $200K Phase I ceiling
+[ ] Identify relevant DOE program manager for pre-submission inquiry
+[ ] Review prior DOE SBIR awards in materials science/ML for positioning
+[ ] Prepare data management plan (DOE requirement)
+[ ] Draft commercialization plan (DOE places heavy emphasis on this)
+[ ] Compile PI and co-PI biosketches in DOE format
+
+================================================================================
+Last updated: March 2026
+================================================================================
