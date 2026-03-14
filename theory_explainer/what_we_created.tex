@@ -246,6 +246,65 @@ where the eigenvectors $\bm{U}$ define a ``frequency decomposition'' of the mole
   \item \textbf{High-frequency eigenvectors} ($\lambda$ large): capture local detail --- individual atoms, bond angles, substituent positions.
 \end{itemize}
 
+% =============================================
+% WHAT'S KNOWN vs. WHAT'S NEW — clear breakdown
+% =============================================
+
+\begin{tcolorbox}[
+  colback=gray!5, colframe=gray!60!black,
+  fonttitle=\bfseries\large, title={What is NOT new (established prior work)},
+  top=3mm, bottom=3mm
+]
+The graph Laplacian $\bm{L} = \bm{D} - \bm{A}$ and everything above is \textbf{textbook mathematics}. None of the following is our invention:
+
+\begin{enumerate}[leftmargin=*, itemsep=4pt]
+  \item \textbf{The graph Laplacian itself} --- defined by Fiedler (1973), formalised by Chung (1997). Standard spectral graph theory, taught in graduate courses for decades.
+
+  \item \textbf{Graph Laplacian on molecular graphs} --- Laplacian eigenvalues have been used as molecular descriptors/fingerprints since the 1990s (Todeschini \& Consonni, ``Molecular Descriptors for Chemoinformatics''). The eigenvalue spectrum encodes molecular topology and has been used for similarity search, QSAR models, and molecular classification.
+
+  \item \textbf{Spectral clustering on molecules} --- people have used Laplacian eigenvectors to cluster atoms within molecules for scaffold identification, substructure detection, and property prediction.
+
+  \item \textbf{Heat equation on graphs} --- the connection $\frac{\partial f}{\partial t} = -\bm{L}f$ (diffusion on a graph is governed by the graph Laplacian) is textbook material (von Luxburg 2007 tutorial, Belkin \& Niyogi 2003).
+
+  \item \textbf{GNNs and the Laplacian} --- every message-passing GNN (GCN, GAT, SchNet) implicitly operates with polynomials of $\bm{L}$. The graph convolution $\bm{H}' = \sigma(\tilde{\bm{D}}^{-1/2}\tilde{\bm{A}}\tilde{\bm{D}}^{-1/2}\bm{H}\bm{W})$ is a first-order Chebyshev approximation of a spectral graph filter.
+\end{enumerate}
+
+\textbf{Bottom line:} If a reviewer says ``the graph Laplacian on molecules is known'' --- they are correct. We do not claim otherwise.
+\end{tcolorbox}
+
+\vspace{0.8em}
+
+\begin{tcolorbox}[
+  colback=novelty!5, colframe=novelty!80!black,
+  fonttitle=\bfseries\large, title={What IS new (MolSSD's actual contribution)},
+  top=3mm, bottom=3mm
+]
+The novelty is \textbf{not} the graph Laplacian on molecules. It is using spectral coarsening as the \textbf{blurring operator inside a generative diffusion model's forward process}. Specifically:
+
+\begin{enumerate}[leftmargin=*, itemsep=4pt]
+  \item \textbf{The analogy: Gaussian blur $\leftrightarrow$ spectral graph coarsening.} SSD (Chaudhari \& Achille, 2025) connected scale-space blurring to diffusion forward processes for \emph{images} (regular pixel grids). We asked: \emph{``What is the equivalent of Gaussian blur on a molecular graph?''} The graph Laplacian is the known mathematical answer --- but \textbf{nobody had used it as the degradation operator $\bm{M}_t$ inside a generative diffusion forward process for molecules}.
+
+  The forward process becomes:
+  \[
+  \bm{x}_t = \bar{a}_t \underbrace{\bm{C}^{(r(t))}}_{\substack{\text{spectral coarsening} \\ \text{(our ``blur'')}}} \bm{x}_0 + \sigma_t \bm{\epsilon}
+  \]
+  This is what is new: treating molecular coarsening as the graph equivalent of image blurring \emph{within a generative model}.
+
+  \item \textbf{Spectral coarsening for multi-resolution generation.} Prior uses of spectral clustering on molecules were for \emph{analysis} (descriptors, similarity). We use it to build a \textbf{generative hierarchy}: atoms $\to$ functional groups $\to$ fragments $\to$ skeleton $\to$ centroid. The model then \emph{generates} molecules coarse-to-fine through this hierarchy. This specific application --- spectral coarsening driving a multi-resolution generative process --- is new.
+
+  \item \textbf{Replacing BRICS/Murcko with a principled, adaptive alternative.} Prior molecular generation models that use any fragmentation (HierDiff, PS-VAE, MiCaM) all use chemistry-rule-based decomposition:
+  \begin{itemize}
+    \item \textbf{BRICS}: 16 fixed bond-breaking rules (``break amide bonds, break ester bonds, \ldots'')
+    \item \textbf{Murcko scaffolds}: heuristic that strips side chains to find a ``scaffold''
+  \end{itemize}
+  Both are \emph{fixed recipes} that do not adapt to the molecule's actual topology. Our spectral coarsening adapts to each molecule: the Fiedler vector finds the natural partition, higher eigenvectors refine it, and the number of clusters at each level is determined by the eigenvalue gap. \textbf{No hand-coded chemistry rules needed.}
+\end{enumerate}
+
+\textbf{Analogy:} Nobody invented convolutions for ResNet --- convolutions existed for decades. The innovation was composing them into a deep residual learning framework. Similarly, the graph Laplacian is our building block; the innovation is the generative diffusion framework built on top of it.
+\end{tcolorbox}
+
+\vspace{0.5em}
+
 The following diagram illustrates this on a simple ring molecule. The eigenvector value at each atom is shown as a color (blue = negative, red = positive). Low-frequency modes vary slowly across the graph; high-frequency modes oscillate rapidly:
 
 \begin{center}
@@ -674,6 +733,60 @@ Every QM9 molecule yields a 3-level deep hierarchy with approximately 3-fold red
 \begin{noveltybox}[What's New]
 When the diffusion process transitions between resolution levels, the reverse-process posterior distribution becomes \textbf{non-isotropic} (different directions have different variances). We derive the exact form of this posterior and implement efficient sampling via the Lanczos algorithm. No existing molecular diffusion model handles this correctly.
 \end{noveltybox}
+
+% =============================================
+% WHAT'S KNOWN vs. WHAT'S NEW — Contribution 2
+% =============================================
+
+\begin{tcolorbox}[
+  colback=gray!5, colframe=gray!60!black,
+  fonttitle=\bfseries\large, title={What is NOT new (established prior work)},
+  top=3mm, bottom=3mm
+]
+The following mathematical ingredients are \textbf{well-known} and not our invention:
+
+\begin{enumerate}[leftmargin=*, itemsep=4pt]
+  \item \textbf{Bayesian posterior in linear-Gaussian models} --- the formula $p(\bm{x}|\bm{y}) = \cN(\bm{\mu}_{\text{post}}, \bm{\Sigma}_{\text{post}})$ where $\bm{\Sigma}_{\text{post}}^{-1} = \bm{\Sigma}_{\text{prior}}^{-1} + \bm{A}^\top \bm{\Sigma}_{\text{obs}}^{-1} \bm{A}$ is textbook (Bishop 2006, Chapter 2.3). The math we use is a direct application of this standard result.
+
+  \item \textbf{DDPM reverse-process posterior} --- Ho, Jain, \& Abbeel (2020) derived the isotropic posterior $q(\bm{x}_{t-1}|\bm{x}_t, \bm{x}_0) = \cN(\bm{\mu}, \sigma^2 \bm{I})$ for standard diffusion. This is the baseline we build on.
+
+  \item \textbf{Non-isotropic noise in diffusion} --- Bao et al.\ (2023) showed that non-isotropic noise schedules improve multi-modal generation. The general \emph{idea} that not all directions should be treated equally is known.
+
+  \item \textbf{The Lanczos algorithm} --- a 1950 algorithm for finding extremal eigenvalues of large matrices (Golub \& Van Loan, ``Matrix Computations,'' 4th ed.). Standard numerical linear algebra, not our invention.
+
+  \item \textbf{Score-based generative modeling} --- Song \& Ermon (2019) established that the score $\nabla_{\bm{x}} \log p(\bm{x})$ determines the reverse-time drift. This connection underlies all diffusion model posteriors.
+\end{enumerate}
+
+\textbf{Bottom line:} The individual mathematical tools (Bayesian inference, Lanczos, score matching) are all known. We do not claim to have invented any of them.
+\end{tcolorbox}
+
+\vspace{0.8em}
+
+\begin{tcolorbox}[
+  colback=novelty!5, colframe=novelty!80!black,
+  fonttitle=\bfseries\large, title={What IS new (MolSSD's actual contribution)},
+  top=3mm, bottom=3mm
+]
+The novelty is \textbf{recognising that resolution-changing steps in multi-scale diffusion require a non-isotropic posterior}, deriving its exact form, and showing that every existing molecular diffusion model gets this wrong:
+
+\begin{enumerate}[leftmargin=*, itemsep=4pt]
+  \item \textbf{The specific posterior formula for resolution-changing steps.} SSD (Chaudhari \& Achille 2025) derived this for images. We are the first to instantiate it for molecular graphs:
+  \[
+  \bm{\Sigma}_{t-1|t} = \sigma_{t-1}^2 \bm{I} - \frac{\sigma_{t-1}^4}{\sigma_t^2} \bm{M}_t^\top \bm{M}_t
+  \]
+  where $\bm{M}_t$ is the coarsening matrix. \textbf{Nobody had written down this formula for molecular generation.}
+
+  \item \textbf{The insight that all existing molecular diffusion models are wrong at resolution transitions.} EDM, GeoDiff, CDGS, MolDiff --- every molecular diffusion model uses $\sigma^2 \bm{I}$ everywhere. This is correct at same-resolution steps, but \textbf{provably incorrect} when the number of atoms changes. We quantified the error: 62$\times$ worse variance, $\sim$7 directions per molecule affected (on QM9).
+
+  \item \textbf{This applies beyond molecules.} The non-isotropic posterior arises \emph{whenever} a diffusion model changes resolution --- images, point clouds, audio, video. Any multi-scale diffusion model that uses isotropic noise at resolution transitions has the same bug. This is a \textbf{domain-general theoretical insight} that we discovered through the molecular application.
+
+  \item \textbf{Practical Lanczos sampling for molecular posteriors.} While Lanczos is a known algorithm, \emph{applying} it to efficiently sample from $\bm{\Sigma}_{t-1|t}$ in a molecular diffusion model is new. We show it reduces $O(n^3)$ exact eigendecomposition to $O(kn^2)$ with $k = N_{\text{coarse}} \ll n$, making non-isotropic sampling practical for large molecules.
+\end{enumerate}
+
+\textbf{Analogy:} Newton's laws of motion were known for centuries. But someone had to realise they applied to orbital mechanics and work out the specific equations. Similarly, Bayesian posterior formulas are known --- but recognising that multi-scale diffusion needs them \emph{and} deriving the exact form for molecular coarsening is the contribution.
+\end{tcolorbox}
+
+\vspace{0.5em}
 
 \subsection{What Does ``Non-Isotropic'' Mean?}
 
