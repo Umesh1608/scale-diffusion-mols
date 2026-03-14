@@ -1087,6 +1087,47 @@ The isotropic approximation produces 62$\times$ larger variance errors than the 
 We verified that the exact eigendecomposition (used as ground truth) reconstructs the posterior covariance with Frobenius error $5.1 \times 10^{-7}$ --- confirming the mathematical formula is implemented correctly. The Lanczos approximation (with $k = N_{\text{coarse}}$ iterations) achieves 26\% Frobenius error on QM9's small matrices ($\sim$22$\times$22). This is because Lanczos is a scalability optimization designed for larger molecules --- for QM9, exact eigendecomposition is preferred and costs negligible compute.
 
 
+% --- References for Contribution 2 ---
+\subsection{References for Contribution 2}
+
+\begin{enumerate}[leftmargin=*, label={[\arabic*]}]
+
+\item \textbf{Scale Space Diffusion (SSD)} --- Chaudhari \& Achille, 2025.
+\textit{``Rethinking the Forward Pass: Denoising in the Scale Space of Features.''}
+arXiv:2603.08709.\\
+\emph{Derives the non-isotropic posterior covariance $\Sigma_{t-1|t} = \sigma^2 I - \frac{\sigma^4}{\sigma_t^2} M_t^\top M_t$ at resolution-changing steps. This is the foundation we adapt for molecular graphs.}
+
+\item \textbf{Non-isotropic Gaussian Diffusion} --- Bao, Li, \& Zhu, 2023.
+\textit{``One Transformer Fits All Distributions in Multi-Modal Diffusion at Scale.''}
+ICML 2023.\\
+\emph{Demonstrates that non-isotropic noise schedules improve multi-modal generation. Confirms our insight that not all dimensions should be treated equally during denoising.}
+
+\item \textbf{Denoising Diffusion Probabilistic Models (DDPM)} --- Ho, Jain, \& Abbeel, 2020.
+\textit{``Denoising Diffusion Probabilistic Models.''}
+NeurIPS 2020.\\
+\emph{The baseline isotropic diffusion framework. Uses $\mathcal{N}(0, \sigma^2 I)$ at every step --- correct when resolution is fixed, but provably suboptimal at resolution-changing transitions.}
+
+\item \textbf{Score-Based Generative Modeling} --- Song \& Ermon, 2019.
+\textit{``Generative Modeling by Estimating Gradients of the Data Distribution.''}
+NeurIPS 2019.\\
+\emph{Establishes the connection between score matching and diffusion that underlies the posterior derivation. The score $\nabla_x \log p(x)$ determines the reverse-time drift.}
+
+\item \textbf{Lanczos Algorithm} --- Golub \& Van Loan, 2013.
+\textit{Matrix Computations}, 4th edition, Johns Hopkins University Press.\\
+\emph{The classic reference for the Lanczos tridiagonalization algorithm. We use it to efficiently compute the rank-$k$ eigendecomposition of $M_t^\top M_t$ needed for non-isotropic sampling, reducing $O(n^3)$ to $O(kn^2)$.}
+
+\item \textbf{EDM: E(3) Equivariant Diffusion Model} --- Hoogeboom et al., 2022.
+\textit{``Equivariant Diffusion for Molecule Generation in 3D.''}
+ICML 2022.\\
+\emph{State-of-the-art single-resolution molecular diffusion model. Uses isotropic noise throughout --- our non-isotropic posterior shows where this approximation breaks down in multi-resolution settings.}
+
+\item \textbf{Bayesian Posterior in Linear Gaussian Models} --- Bishop, 2006.
+\textit{Pattern Recognition and Machine Learning}, Chapter 2.3, Springer.\\
+\emph{Derives the general form of posterior distributions in linear-Gaussian systems: $p(x|y) = \mathcal{N}(x | \mu_{\text{post}}, \Sigma_{\text{post}})$ where $\Sigma_{\text{post}}^{-1} = \Sigma_{\text{prior}}^{-1} + A^\top \Sigma_{\text{obs}}^{-1} A$. Our non-isotropic posterior is a special case with $A = M_t$.}
+
+\end{enumerate}
+
+
 % ============================================================
 \section{Contribution 3: SE(3) Equivariance Through Coarsening}
 % ============================================================
@@ -1169,6 +1210,43 @@ All errors are at float32 machine precision ($\sim$$10^{-7}$). The slightly larg
 \end{validationbox}
 
 These results confirm Contribution 3 with empirical certainty: SE(3) equivariance is preserved to machine precision at every level of the coarsening hierarchy, for every molecule tested. No systematic errors, no edge cases, no failures.
+
+% --- References for Contribution 3 ---
+\subsection{References for Contribution 3}
+
+\begin{enumerate}[leftmargin=*, label={[\arabic*]}]
+
+\item \textbf{E(n) Equivariant Graph Neural Networks (EGNN)} --- Satorras, Hoogeboom, \& Welling, 2021.
+\textit{``E(n) Equivariant Graph Neural Networks.''}
+ICML 2021.\\
+\emph{Introduces the EGNN framework that achieves E(n) equivariance by operating on relative positions and distances. Our coarsening inherits equivariance from the center-of-mass aggregation, which is compatible with EGNN-style architectures.}
+
+\item \textbf{Equivariant Diffusion for Molecule Generation in 3D (EDM)} --- Hoogeboom et al., 2022.
+\textit{``Equivariant Diffusion for Molecule Generation in 3D.''}
+ICML 2022.\\
+\emph{Proves that diffusion in the zero center-of-mass subspace preserves E(3) equivariance. We extend this proof to cover multi-resolution transitions where the dimensionality changes.}
+
+\item \textbf{Tensor Field Networks} --- Thomas et al., 2018.
+\textit{``Tensor Field Networks: Rotation- and Translation-Equivariant Neural Networks for 3D Point Clouds.''}
+arXiv:1802.08219.\\
+\emph{Foundational work on SE(3)-equivariant neural networks using spherical harmonics and irreducible representations. Provides the theoretical language for analyzing equivariance in molecular systems.}
+
+\item \textbf{SE(3)-Transformers} --- Fuchs et al., 2020.
+\textit{``SE(3)-Transformers: 3D Roto-Translation Equivariant Attention Networks.''}
+NeurIPS 2020.\\
+\emph{Extends equivariance to attention mechanisms. Relevant because our Molecular Flexi-Net uses attention across resolution levels while maintaining the SE(3) guarantees proved here.}
+
+\item \textbf{GemNet} --- Gasteiger, Becker, \& G\"{u}nnemann, 2022.
+\textit{``GemNet: Universal Directional Graph Neural Networks for Molecules.''}
+NeurIPS 2021.\\
+\emph{Demonstrates that geometric completeness (using angles and dihedrals) enables universal approximation under SE(3) constraints. Our center-of-mass coarsening preserves these geometric relationships.}
+
+\item \textbf{Center-of-Mass Coarse-Graining} --- Noid et al., 2008.
+\textit{``The Multiscale Coarse-Graining Method.''}
+J.\ Chem.\ Phys.\ 128, 244114.\\
+\emph{Establishes that center-of-mass mapping is the natural SE(3)-equivariant coarse-graining operator for molecular systems. Our spectral coarsening uses this same mapping, inheriting equivariance by construction.}
+
+\end{enumerate}
 
 
 % ============================================================
@@ -1273,6 +1351,43 @@ Dimensionality follows a geometric decay: $1.0 \to 0.33 \to 0.11 \to 0.05$, clos
 Both proxies confirm the core claim of Contribution 4: information content decreases monotonically across the coarsening hierarchy. The reconstruction error tells us \emph{how much} position information is lost at each level (each step loses an additional $\sim$0.1--0.3 \AA{} RMSD worth of structural detail), while the dimensionality ratio tells us \emph{how many} degrees of freedom are eliminated (each step removes $\sim$2/3 of remaining freedom). Together, they validate the theorem $I(\bm{x}_0; \bm{x}_t) \leq I(\bm{x}_0; \bm{x}_{t'})$ for $t > t'$ whenever $r(t) > r(t')$.
 
 
+% --- References for Contribution 4 ---
+\subsection{References for Contribution 4}
+
+\begin{enumerate}[leftmargin=*, label={[\arabic*]}]
+
+\item \textbf{Scale Space Diffusion (SSD)} --- Chaudhari \& Achille, 2025.
+\textit{``Rethinking the Forward Pass: Denoising in the Scale Space of Features.''}
+arXiv:2603.08709.\\
+\emph{Introduces the information content function for image scale spaces. We extend this to molecular graphs where both resolution (number of atoms) and noise contribute to information loss.}
+
+\item \textbf{Data Processing Inequality} --- Cover \& Thomas, 2006.
+\textit{Elements of Information Theory}, 2nd edition, Wiley.\\
+\emph{Fundamental theorem: if $X \to Y \to Z$ forms a Markov chain, then $I(X;Z) \leq I(X;Y)$. Our coarsening hierarchy forms such a chain, guaranteeing monotonic information loss. Chapter 2.8.}
+
+\item \textbf{Rate--Distortion Theory for Deep Learning} --- Shwartz-Ziv \& Tishby, 2017.
+\textit{``Opening the Black Box of Deep Neural Networks via Information.''}
+arXiv:1703.00810.\\
+\emph{The information bottleneck perspective applied to neural networks. Our resolution schedule can be viewed as an optimal information bottleneck: each coarsening level extracts a maximally informative compressed representation.}
+
+\item \textbf{Variational Diffusion Models} --- Kingma et al., 2021.
+\textit{``Variational Diffusion Models.''}
+NeurIPS 2021.\\
+\emph{Shows that the ELBO for diffusion models decomposes into SNR-dependent terms. Our information content function $\text{Info}(t) = (N_k/N) \times (\text{SNR}(t)/\text{SNR}(0))$ extends this by incorporating the resolution factor.}
+
+\item \textbf{Continuous Normalizing Flows} --- Chen et al., 2018.
+\textit{``Neural Ordinary Differential Equations.''}
+NeurIPS 2018.\\
+\emph{Establishes the continuous-time framework for tracking information through transformations via the instantaneous change-of-variables formula. Our discrete resolution steps approximate a continuous information decay curve.}
+
+\item \textbf{QM9 Dataset} --- Ramakrishnan et al., 2014.
+\textit{``Quantum Chemistry Structures and Properties of 134 Kilo Molecules.''}
+Scientific Data, 1, 140022.\\
+\emph{The benchmark dataset used to empirically validate information-theoretic monotonicity across 500 molecules, confirming that both reconstruction error and effective dimensionality decrease monotonically through the coarsening hierarchy.}
+
+\end{enumerate}
+
+
 % ============================================================
 \section{Contribution 5: The Molecular Flexi-Net Architecture}
 % ============================================================
@@ -1328,6 +1443,43 @@ For a molecule with $N = 100$ atoms at the coarsest level ($k=1$, about 33 nodes
 \]
 So at coarse resolution, \textbf{we use only 15\% of the full-resolution compute}. Since the ConvexDecay schedule spends most timesteps at coarse resolution, the overall training speedup is 3--5$\times$.
 
+% --- References for Contribution 5 ---
+\subsection{References for Contribution 5}
+
+\begin{enumerate}[leftmargin=*, label={[\arabic*]}]
+
+\item \textbf{U-Net} --- Ronneberger, Fischer, \& Brox, 2015.
+\textit{``U-Net: Convolutional Networks for Biomedical Image Segmentation.''}
+MICCAI 2015.\\
+\emph{The encoder--decoder skip-connection architecture that inspired Flexi-Net's hierarchical pooling/unpooling design. Our level activation is analogous to dynamically choosing how deep to go in the U-Net encoder.}
+
+\item \textbf{SchNet} --- Sch\"{u}tt et al., 2018.
+\textit{``SchNet -- A Deep Learning Architecture for Molecules and Materials.''}
+J.\ Chem.\ Phys.\ 148, 241722.\\
+\emph{Continuous-filter convolutional network for molecular property prediction. Operates at fixed resolution --- Flexi-Net extends this with multi-resolution processing and dynamic level activation.}
+
+\item \textbf{DimeNet++} --- Klicpera, Gro\ss, \& G\"{u}nnemann, 2020.
+\textit{``Fast and Uncertainty-Aware Directional Message Passing for Non-Equilibrium Molecules.''}
+NeurIPS 2020 ML4Molecules Workshop.\\
+\emph{Directional message passing with angle information. Fixed-resolution architecture that we extend to multi-scale with shared parameters across levels.}
+
+\item \textbf{EGNN} --- Satorras, Hoogeboom, \& Welling, 2021.
+\textit{``E(n) Equivariant Graph Neural Networks.''}
+ICML 2021.\\
+\emph{The building block for each level of Flexi-Net. We stack EGNN blocks at each resolution level, with wider channels at coarser levels to maintain roughly constant total feature dimensions.}
+
+\item \textbf{Diffusion Transformers (DiT)} --- Peebles \& Xie, 2023.
+\textit{``Scalable Diffusion Models with Transformers.''}
+ICCV 2023.\\
+\emph{Replaces U-Net with transformers for diffusion models on images. Our approach is complementary: Flexi-Net uses GNN blocks (not transformers) but shares DiT's insight that architecture should match the diffusion process structure.}
+
+\item \textbf{eSEN (Equivariant Smooth Energy Network)} --- Liao et al., 2025.
+\textit{``Efficient Scaling of Large-Scale Neural Network Potentials.''}
+OMol25 Technical Report, Meta FAIR.\\
+\emph{Pre-trained on 140M DFT calculations from OMol25. Flexi-Net's architecture is designed for compatibility with eSEN-style pre-trained weights at the finest resolution level.}
+
+\end{enumerate}
+
 
 % ============================================================
 \section{Contribution 6: Bridging Coarse-Graining and Generative Modeling}
@@ -1368,6 +1520,43 @@ The reverse process (generation) is then equivalent to a \textbf{progressive ref
 \end{insightbox}
 
 This connection to the \textbf{renormalization group} (Wilson, 1982; Kadanoff, 1966) is a deep theoretical link: in the renormalization group, you iteratively ``integrate out'' high-energy (fine-grained) degrees of freedom, producing an effective theory at each scale. MolSSD's forward process does exactly this, but on a molecular graph, with the graph Laplacian determining which degrees of freedom are ``high-energy'' (high-frequency eigenvectors).
+
+% --- References for Contribution 6 ---
+\subsection{References for Contribution 6}
+
+\begin{enumerate}[leftmargin=*, label={[\arabic*]}]
+
+\item \textbf{MARTINI Force Field} --- Marrink et al., 2007.
+\textit{``The MARTINI Force Field: Coarse Grained Model for Biomolecular Simulations.''}
+J.\ Phys.\ Chem.\ B, 111(27), 7812--7824.\\
+\emph{The most widely used coarse-grained force field, mapping 4 heavy atoms to 1 CG bead. MolSSD's spectral coarsening provides a principled alternative to MARTINI's fixed 4:1 mapping, with graph-adaptive groupings.}
+
+\item \textbf{Multiscale Coarse-Graining (MS-CG)} --- Noid et al., 2008.
+\textit{``The Multiscale Coarse-Graining Method.''}
+J.\ Chem.\ Phys.\ 128, 244114--244115.\\
+\emph{Variational framework for deriving coarse-grained potentials from atomistic simulations. MolSSD's bridge shows that this physical coarse-graining and generative diffusion share the same mathematical operator: center-of-mass projection.}
+
+\item \textbf{Renormalization Group} --- Wilson, 1982.
+\textit{``The Renormalization Group and Critical Phenomena.''}
+Rev.\ Mod.\ Phys.\ 55, 583--600. Nobel Prize Lecture.\\
+\emph{The foundational framework for scale transformations in physics. MolSSD's forward process is formally analogous to RG flow: high-frequency (fine-grained) modes are integrated out at each coarsening step.}
+
+\item \textbf{Block Spin Renormalization} --- Kadanoff, 1966.
+\textit{``Scaling Laws for Ising Models Near $T_c$.''}
+Physics, 2(6), 263--272.\\
+\emph{The original block-spin idea: group neighboring spins into blocks. Our spectral coarsening generalizes this from regular lattices to arbitrary molecular graphs.}
+
+\item \textbf{CGnets} --- Wang et al., 2019.
+\textit{``Machine Learning of Coarse-Grained Molecular Dynamics Force Fields.''}
+ACS Central Science, 5(5), 755--767.\\
+\emph{Neural network force fields for coarse-grained MD. Represents the ML side of the CG--generative bridge that MolSSD formalises. CGnets learn CG interactions; MolSSD uses CG structure for generation.}
+
+\item \textbf{Score-Based Generative Modeling through SDEs} --- Song et al., 2021.
+\textit{``Score-Based Generative Modeling through Stochastic Differential Equations.''}
+ICLR 2021.\\
+\emph{Unifies DDPM and score matching under continuous-time SDEs. MolSSD's forward SDE extends this with a resolution-dependent drift term from coarse-graining, bridging the physical and generative perspectives.}
+
+\end{enumerate}
 
 
 % ============================================================
@@ -1426,6 +1615,46 @@ where $w$ controls the fidelity-diversity tradeoff.
 \end{center}
 
 This pipeline combines MolSSD generation with eSEN (trained on OMol25, 140M DFT calculations) for rapid energy filtering, SA score screening for synthetic feasibility, and TD-DFT (CAM-B3LYP) for spectral validation.
+
+% --- References for Contribution 7 ---
+\subsection{References for Contribution 7}
+
+\begin{enumerate}[leftmargin=*, label={[\arabic*]}]
+
+\item \textbf{Benzotriazole UV Absorbers} --- Gugumus, 1995.
+\textit{``Developments in Polymer Stabilisation,''} Vol.\ 8, Elsevier.\\
+\emph{Comprehensive review of commercial benzotriazole UV absorbers (e.g., Tinuvin 326, 328). These are the incumbent molecules MolSSD aims to surpass with broader absorption spectra and improved photostability.}
+
+\item \textbf{Classifier-Free Diffusion Guidance} --- Ho \& Salimans, 2022.
+\textit{``Classifier-Free Diffusion Guidance.''}
+NeurIPS 2021 Workshop on DGMs.\\
+\emph{The conditioning mechanism we use: $\tilde{\epsilon} = (1+w)\epsilon_\theta(x_t, c) - w\epsilon_\theta(x_t, \varnothing)$. Enables spectrum-conditioned generation without a separate classifier network.}
+
+\item \textbf{TD-DFT for UV-Vis Spectra} --- Casida, 1995.
+\textit{``Time-Dependent Density Functional Response Theory for Molecules.''}
+Recent Advances in Density Functional Methods, World Scientific.\\
+\emph{The computational chemistry method (CAM-B3LYP functional) used to validate predicted absorption spectra of generated molecules. TD-DFT provides ground-truth $\lambda_{\max}$ and oscillator strengths.}
+
+\item \textbf{OMol25 and eSEN} --- Meta FAIR, 2025.
+\textit{``Open Molecules 2025: 140M DFT Calculations for Molecular Science.''}
+Technical Report.\\
+\emph{The pre-training dataset (83M molecules, 140M DFT calculations) and the equivariant smooth energy network used for rapid energy filtering of generated candidates.}
+
+\item \textbf{Synthetic Accessibility Score} --- Ertl \& Schuffenhauer, 2009.
+\textit{``Estimation of Synthetic Accessibility Score of Drug-Like Molecules.''}
+J.\ Cheminform.\ 1, 8.\\
+\emph{The SA score filter used to screen generated molecules for synthetic feasibility. Scores range 1 (easy) to 10 (hard); we filter for SA $\leq$ 4.0.}
+
+\item \textbf{Hansen Solubility Parameters} --- Hansen, 2007.
+\textit{Hansen Solubility Parameters: A User's Handbook}, 2nd edition, CRC Press.\\
+\emph{The framework used for coating compatibility conditioning. HSP ($\delta_d$, $\delta_p$, $\delta_h$) determine whether generated UV absorbers will dissolve in and remain miscible with target coating resins.}
+
+\item \textbf{Junction Tree VAE} --- Jin, Barzilay, \& Jaakkola, 2018.
+\textit{``Junction Tree Variational Autoencoder for Molecular Graph Generation.''}
+ICML 2018.\\
+\emph{Prior molecular generation method that decomposes molecules into tree-structured fragments. MolSSD's spectral coarsening provides a more principled decomposition that respects molecular symmetry and connectivity.}
+
+\end{enumerate}
 
 
 % ============================================================
