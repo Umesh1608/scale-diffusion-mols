@@ -167,6 +167,65 @@ We replace the Gaussian blurring operator from image-based SSD with a \textbf{sp
 
 In image SSD, blurring is trivial: convolve the image with a Gaussian kernel $G_\sigma$. This smoothly removes high-frequency detail (textures, edges) while preserving low-frequency structure (shapes, objects). But molecules are not images --- they are \emph{graphs} with irregular topology. There is no spatial grid, no pixel neighborhood, no obvious convolution.
 
+\begin{center}
+\begin{tikzpicture}[scale=0.85]
+% --- Image side ---
+\begin{scope}[shift={(-4.5,0)}]
+  \node[font=\bfseries\small, text=blue!70!black] at (0,2.2) {Image: Blurring is Easy};
+
+  % Sharp image (grid)
+  \draw[step=0.4, gray!30, thin] (-1.2,-1.2) grid (1.2,1.2);
+  \fill[blue!40] (-0.8,0.4) rectangle (-0.4,0.8);
+  \fill[blue!40] (-0.4,0.4) rectangle (0,0.8);
+  \fill[blue!60] (0,0) rectangle (0.4,0.4);
+  \fill[blue!60] (0.4,0) rectangle (0.8,0.4);
+  \fill[blue!30] (-0.4,-0.4) rectangle (0,0);
+  \fill[blue!30] (0,-0.8) rectangle (0.4,-0.4);
+
+  \node[font=\tiny, text=gray] at (0,-1.7) {Regular pixel grid};
+  \node[font=\tiny, text=gray] at (0,-2.1) {$\to$ convolve with Gaussian};
+  \node[font=\tiny, text=green!50!black] at (0,-2.5) {\checkmark\ Trivial};
+\end{scope}
+
+% --- Molecule side ---
+\begin{scope}[shift={(4.5,0)}]
+  \node[font=\bfseries\small, text=orange!70!black] at (0,2.2) {Molecule: Blurring is Hard};
+
+  % Irregular molecular graph
+  \fill[orange!60] (0,1) circle (3pt);       % N
+  \fill[gray!60] (-0.8,0.3) circle (3pt);    % C
+  \fill[gray!60] (0.8,0.3) circle (3pt);     % C
+  \fill[gray!60] (-0.5,-0.6) circle (3pt);   % C
+  \fill[gray!60] (0.5,-0.6) circle (3pt);    % C
+  \fill[red!60] (-1.3,-0.3) circle (3pt);    % O
+  \fill[orange!60] (1.3,-0.3) circle (3pt);  % N
+  \fill[gray!40] (0,1.6) circle (2pt);       % H
+  \fill[gray!40] (-1.3,0.7) circle (2pt);    % H
+  \fill[gray!40] (1.3,0.7) circle (2pt);     % H
+
+  % Bonds
+  \draw[thick, gray!60] (0,1) -- (-0.8,0.3);
+  \draw[thick, gray!60] (0,1) -- (0.8,0.3);
+  \draw[thick, gray!60] (-0.8,0.3) -- (-0.5,-0.6);
+  \draw[thick, gray!60] (0.8,0.3) -- (0.5,-0.6);
+  \draw[thick, gray!60] (-0.5,-0.6) -- (0.5,-0.6);
+  \draw[thick, gray!60] (-0.8,0.3) -- (-1.3,-0.3);
+  \draw[thick, gray!60] (0.8,0.3) -- (1.3,-0.3);
+  \draw[thin, gray!40] (0,1) -- (0,1.6);
+  \draw[thin, gray!40] (-0.8,0.3) -- (-1.3,0.7);
+  \draw[thin, gray!40] (0.8,0.3) -- (1.3,0.7);
+
+  \node[font=\tiny, text=gray] at (0,-1.7) {Irregular graph topology};
+  \node[font=\tiny, text=gray] at (0,-2.1) {$\to$ no grid, no convolution};
+  \node[font=\tiny, text=red!60] at (0,-2.5) {$\times$\ How to ``blur''?};
+\end{scope}
+
+% Question mark
+\node[font=\Large, text=novelty!70] at (0,0) {\textbf{?}};
+\end{tikzpicture}
+\captionof{figure}{The fundamental challenge. Images live on regular grids where Gaussian blurring is well-defined. Molecules live on irregular graphs with no natural notion of ``blurring.'' MolSSD solves this using the graph Laplacian.}
+\end{center}
+
 \subsection{Our Solution: The Graph Laplacian}
 
 The key mathematical insight is that Gaussian blurring on a regular grid is equivalent to solving the \textbf{heat equation}:
@@ -187,6 +246,79 @@ where the eigenvectors $\bm{U}$ define a ``frequency decomposition'' of the mole
   \item \textbf{High-frequency eigenvectors} ($\lambda$ large): capture local detail --- individual atoms, bond angles, substituent positions.
 \end{itemize}
 
+The following diagram illustrates this on a simple ring molecule. The eigenvector value at each atom is shown as a color (blue = negative, red = positive). Low-frequency modes vary slowly across the graph; high-frequency modes oscillate rapidly:
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+  % --- Lowest eigenvector (constant) ---
+  \begin{scope}[shift={(-5,0)}]
+    \node[font=\bfseries\footnotesize] at (0,2.3) {$\lambda_1 = 0$ (constant)};
+    \node[font=\tiny, text=gray] at (0,1.8) {All atoms same value};
+    \foreach \a/\i in {90/1, 150/2, 210/3, 270/4, 330/5, 30/6} {
+      \fill[green!50!black] (\a:1.2) circle (5pt);
+      \draw[thick, gray!50] (\a:1.2) -- ({mod(\a+60,360)}:1.2);
+    }
+    \node[font=\tiny, text=gray] at (0,-1.8) {Global structure};
+  \end{scope}
+
+  % --- Second eigenvector (Fiedler: one slow oscillation) ---
+  \begin{scope}[shift={(-1.5,0)}]
+    \node[font=\bfseries\footnotesize] at (0,2.3) {$\lambda_2$ small (Fiedler)};
+    \node[font=\tiny, text=gray] at (0,1.8) {Splits molecule in two halves};
+    % Left half positive, right half negative
+    \fill[red!60] (90:1.2) circle (5pt);
+    \fill[red!40] (150:1.2) circle (5pt);
+    \fill[red!20] (210:1.2) circle (5pt);
+    \fill[blue!20] (270:1.2) circle (5pt);
+    \fill[blue!40] (330:1.2) circle (5pt);
+    \fill[blue!60] (30:1.2) circle (5pt);
+    \foreach \a in {90, 150, 210, 270, 330, 30} {
+      \draw[thick, gray!50] (\a:1.2) -- ({mod(\a+60,360)}:1.2);
+    }
+    % Dividing line
+    \draw[dashed, novelty!60, thick] (0,1.5) -- (0,-1.5);
+    \node[font=\tiny, text=gray] at (0,-1.8) {Backbone topology};
+  \end{scope}
+
+  % --- Middle eigenvector ---
+  \begin{scope}[shift={(2,0)}]
+    \node[font=\bfseries\footnotesize] at (0,2.3) {$\lambda_3$ medium};
+    \node[font=\tiny, text=gray] at (0,1.8) {Two oscillations};
+    \fill[red!50] (90:1.2) circle (5pt);
+    \fill[blue!50] (150:1.2) circle (5pt);
+    \fill[red!30] (210:1.2) circle (5pt);
+    \fill[blue!30] (270:1.2) circle (5pt);
+    \fill[red!50] (330:1.2) circle (5pt);
+    \fill[blue!50] (30:1.2) circle (5pt);
+    \foreach \a in {90, 150, 210, 270, 330, 30} {
+      \draw[thick, gray!50] (\a:1.2) -- ({mod(\a+60,360)}:1.2);
+    }
+    \node[font=\tiny, text=gray] at (0,-1.8) {Branch structure};
+  \end{scope}
+
+  % --- Highest eigenvector (maximum oscillation) ---
+  \begin{scope}[shift={(5.5,0)}]
+    \node[font=\bfseries\footnotesize] at (0,2.3) {$\lambda_6$ large (highest)};
+    \node[font=\tiny, text=gray] at (0,1.8) {Maximum oscillation};
+    \fill[red!70] (90:1.2) circle (5pt);
+    \fill[blue!70] (150:1.2) circle (5pt);
+    \fill[red!70] (210:1.2) circle (5pt);
+    \fill[blue!70] (270:1.2) circle (5pt);
+    \fill[red!70] (330:1.2) circle (5pt);
+    \fill[blue!70] (30:1.2) circle (5pt);
+    \foreach \a in {90, 150, 210, 270, 330, 30} {
+      \draw[thick, gray!50] (\a:1.2) -- ({mod(\a+60,360)}:1.2);
+    }
+    \node[font=\tiny, text=gray] at (0,-1.8) {Individual atoms};
+  \end{scope}
+
+  % Arrow at bottom
+  \draw[-{Stealth}, thick, gray!60] (-5,-2.5) -- (5.5,-2.5);
+  \node[font=\footnotesize, text=gray, anchor=north] at (0,-2.7) {increasing eigenvalue $\lambda$ $\longrightarrow$ increasing frequency $\longrightarrow$ finer detail};
+\end{tikzpicture}
+\captionof{figure}{Graph Laplacian eigenvectors on a 6-atom ring. Color encodes the eigenvector value (red = positive, blue = negative). The lowest eigenvalue ($\lambda_1 = 0$) gives a constant mode (global info only). The Fiedler vector ($\lambda_2$) splits the molecule into two halves --- this determines the first coarsening. Higher modes oscillate faster, capturing increasingly local structural detail. Spectral coarsening retains only the lowest-frequency modes, discarding fine atomic detail like Gaussian blur discards high-frequency textures.}
+\end{center}
+
 \subsection{How Coarsening Works}
 
 To ``blur'' the molecule to resolution level $k$, we:
@@ -204,6 +336,118 @@ To ``blur'' the molecule to resolution level $k$, we:
   where $m_j$ is the atomic mass and $S_I$ is the set of atoms in cluster $I$.
   \item The coarsened positions are: $\bm{X}^{(k)} = \bm{C}^{(k)} \bm{X}$ (center-of-mass of each cluster).
 \end{enumerate}
+
+The following diagram shows a concrete example of spectral coarsening applied to a small molecule. Atoms in the same spectral cluster are shown in the same color. The coarsened representation replaces each cluster with its center of mass:
+
+\begin{center}
+\begin{tikzpicture}[scale=0.85]
+  % === LEVEL 0: Full atoms ===
+  \begin{scope}[shift={(-5.5,0)}]
+    \node[font=\bfseries\small] at (0,3.2) {Level 0: Full Atoms};
+    \node[font=\tiny, text=gray] at (0,2.7) {$N = 12$ atoms};
+
+    % A benzene ring with an -OH and -NH2 group
+    % Ring carbons (cluster A = red)
+    \fill[red!60] (90:1.0) circle (4pt);
+    \fill[red!60] (150:1.0) circle (4pt);
+    \fill[red!60] (210:1.0) circle (4pt);
+    \fill[red!60] (270:1.0) circle (4pt);
+    \fill[red!60] (330:1.0) circle (4pt);
+    \fill[red!60] (30:1.0) circle (4pt);
+
+    % Bond ring
+    \foreach \a in {30, 90, 150, 210, 270, 330} {
+      \draw[thick, gray!60] (\a:1.0) -- ({mod(\a+60,360)}:1.0);
+    }
+
+    % OH group (cluster B = blue)
+    \fill[blue!60] (90:1.8) circle (4pt);
+    \fill[blue!40] (90:2.4) circle (3pt);
+    \draw[thick, gray!60] (90:1.0) -- (90:1.8);
+    \draw[thin, gray!40] (90:1.8) -- (90:2.4);
+
+    % NH2 group (cluster C = green)
+    \fill[green!50!black] (270:1.8) circle (4pt);
+    \fill[green!30!black] (250:2.4) circle (3pt);
+    \fill[green!30!black] (290:2.4) circle (3pt);
+    \draw[thick, gray!60] (270:1.0) -- (270:1.8);
+    \draw[thin, gray!40] (270:1.8) -- (250:2.4);
+    \draw[thin, gray!40] (270:1.8) -- (290:2.4);
+
+    % Labels
+    \node[font=\tiny, text=red!60, anchor=west] at (0.5,0) {ring C$_6$};
+    \node[font=\tiny, text=blue!60, anchor=south] at (0.5,2.2) {--OH};
+    \node[font=\tiny, text=green!50!black, anchor=north] at (0.5,-2.2) {--NH$_2$};
+  \end{scope}
+
+  % Arrow
+  \draw[-{Stealth[length=8pt]}, very thick, gray!50] (-2.8,0) -- (-1.5,0);
+  \node[font=\tiny, text=gray, align=center] at (-2.15,0.6) {spectral\\coarsen};
+
+  % === LEVEL 1: Super-atoms ===
+  \begin{scope}[shift={(0,0)}]
+    \node[font=\bfseries\small] at (0,3.2) {Level 1: Super-atoms};
+    \node[font=\tiny, text=gray] at (0,2.7) {$N_1 = 4$ clusters};
+
+    % Three large super-nodes at centers of mass
+    \fill[red!60] (0,0) circle (10pt);
+    \node[font=\tiny, text=white, font=\bfseries] at (0,0) {C$_6$};
+
+    \fill[blue!60] (0,1.5) circle (8pt);
+    \node[font=\tiny, text=white, font=\bfseries] at (0,1.5) {OH};
+
+    \fill[green!50!black] (0,-1.5) circle (8pt);
+    \node[font=\tiny, text=white, font=\bfseries] at (0,-1.5) {NH$_2$};
+
+    % Edges between super-nodes
+    \draw[thick, gray!50] (0,0.3) -- (0,1.1);
+    \draw[thick, gray!50] (0,-0.3) -- (0,-1.1);
+
+    % Dashed circles showing what each represents
+    \draw[red!30, dashed] (0,0) circle (0.55cm);
+    \draw[blue!30, dashed] (0,1.5) circle (0.4cm);
+    \draw[green!30!black, dashed] (0,-1.5) circle (0.4cm);
+  \end{scope}
+
+  % Arrow
+  \draw[-{Stealth[length=8pt]}, very thick, gray!50] (1.5,0) -- (2.8,0);
+  \node[font=\tiny, text=gray, align=center] at (2.15,0.6) {coarsen\\again};
+
+  % === LEVEL 2: Fragments ===
+  \begin{scope}[shift={(4.5,0)}]
+    \node[font=\bfseries\small] at (0,3.2) {Level 2: Fragments};
+    \node[font=\tiny, text=gray] at (0,2.7) {$N_2 = 2$ pieces};
+
+    % Two fragment nodes
+    \fill[purple!60] (0,0.8) circle (12pt);
+    \node[font=\tiny, text=white, font=\bfseries, align=center] at (0,0.8) {ring\\+OH};
+
+    \fill[teal!60] (0,-0.8) circle (10pt);
+    \node[font=\tiny, text=white, font=\bfseries, align=center] at (0,-0.8) {NH$_2$};
+
+    \draw[thick, gray!50] (0,0.35) -- (0,-0.4);
+  \end{scope}
+
+  % Arrow
+  \draw[-{Stealth[length=8pt]}, very thick, gray!50] (6,0) -- (7.3,0);
+  \node[font=\tiny, text=gray, align=center] at (6.65,0.6) {coarsen\\to 1};
+
+  % === LEVEL 3: Centroid ===
+  \begin{scope}[shift={(8.5,0)}]
+    \node[font=\bfseries\small] at (0,3.2) {Level 3: Centroid};
+    \node[font=\tiny, text=gray] at (0,2.7) {$N_3 = 1$ point};
+
+    \fill[gray!60] (0,0) circle (14pt);
+    \node[font=\tiny, text=white, font=\bfseries] at (0,0) {CoM};
+  \end{scope}
+
+  % Bottom annotation
+  \node[draw, rounded corners, fill=math!5, font=\footnotesize, text=math!80!black, inner sep=5pt, text width=13cm, align=center]
+    at (1.5,-3.5) {Each level is computed automatically from the graph Laplacian eigenvectors --- no hard-coded rules.\\
+    Coarsened positions = mass-weighted center of mass of each cluster (preserves SE(3) equivariance).};
+\end{tikzpicture}
+\captionof{figure}{Spectral coarsening of a substituted benzene (aminophenol). Level 0: all 12 atoms, colored by their spectral cluster assignment. Level 1: 4 super-atoms at the center of mass of each cluster. Level 2: 2 fragments. Level 3: single centroid. This hierarchy emerges automatically from the topology --- the ring carbons cluster together because they are densely bonded, while --OH and --NH$_2$ form separate clusters because they connect to the ring through single bonds (graph bottlenecks that the Fiedler vector identifies).}
+\end{center}
 
 \begin{mathbox}[Why spectral clustering is principled]
 Spectral clustering on the graph Laplacian minimizes the \textbf{normalized cut} --- the number of bonds you have to ``cut'' to separate the clusters, normalized by cluster size. This means the clusters naturally correspond to chemically cohesive groups: atoms that are densely connected to each other but sparsely connected to other groups. In practice, this produces:
@@ -229,6 +473,119 @@ HierDiff & Partially & Yes (2 levels) & Yes & No \\
 \textbf{MolSSD (ours)} & \textbf{Yes (spectral theory)} & \textbf{Yes ($L$ levels)} & \textbf{Yes} & \textbf{Yes} \\
 \bottomrule
 \end{tabular}
+\end{center}
+
+The following diagram shows concretely how each approach fragments the same molecule:
+
+\begin{center}
+\begin{tikzpicture}[scale=0.8]
+  % ======= BRICS (left) =======
+  \begin{scope}[shift={(-5.5,0)}]
+    \node[font=\bfseries\small, text=red!60!black] at (0,3.5) {BRICS Fragmentation};
+    \node[font=\tiny, text=gray] at (0,3.0) {Cuts at predefined bond types};
+
+    % A molecule (biphenyl-like with NH2 and OH)
+    % Left ring
+    \foreach \a in {0,60,120,180,240,300} {
+      \fill[gray!50] ({-1.5+0.7*cos(\a)}, {0.7*sin(\a)}) circle (3pt);
+    }
+    \foreach \a in {0,60,120,180,240,300} {
+      \draw[thick, gray!40] ({-1.5+0.7*cos(\a)}, {0.7*sin(\a)}) -- ({-1.5+0.7*cos(\a+60)}, {0.7*sin(\a+60)});
+    }
+    % Right ring
+    \foreach \a in {0,60,120,180,240,300} {
+      \fill[gray!50] ({1.5+0.7*cos(\a)}, {0.7*sin(\a)}) circle (3pt);
+    }
+    \foreach \a in {0,60,120,180,240,300} {
+      \draw[thick, gray!40] ({1.5+0.7*cos(\a)}, {0.7*sin(\a)}) -- ({1.5+0.7*cos(\a+60)}, {0.7*sin(\a+60)});
+    }
+    % Bridge bond
+    \draw[thick, gray!40] (-0.8,0) -- (0.8,0);
+
+    % BRICS cut (always cuts the ring-ring bond)
+    \draw[red, very thick, dashed] (0,-1) -- (0,1);
+    \node[font=\tiny, text=red!60, fill=white, inner sep=1pt] at (0,1.2) {BRICS cut};
+
+    % Substituents (not cut)
+    \fill[gray!50] (-1.5,1.5) circle (3pt);
+    \draw[thick, gray!40] (-1.5,0.7) -- (-1.5,1.5);
+    \fill[gray!50] (1.5,-1.5) circle (3pt);
+    \draw[thick, gray!40] (1.5,-0.7) -- (1.5,-1.5);
+
+    \node[font=\tiny, text=red!60, text width=3cm, align=center] at (0,-2.5)
+      {16 hard-coded rules\\Only 1 fragmentation level\\Ignores 3D geometry};
+  \end{scope}
+
+  % ======= Murcko (center) =======
+  \begin{scope}[shift={(0,0)}]
+    \node[font=\bfseries\small, text=orange!60!black] at (0,3.5) {Murcko Scaffold};
+    \node[font=\tiny, text=gray] at (0,3.0) {Strips side chains, keeps rings};
+
+    % Left ring (kept = scaffold)
+    \foreach \a in {0,60,120,180,240,300} {
+      \fill[orange!40] ({-1.5+0.7*cos(\a)}, {0.7*sin(\a)}) circle (3pt);
+    }
+    \foreach \a in {0,60,120,180,240,300} {
+      \draw[thick, orange!30] ({-1.5+0.7*cos(\a)}, {0.7*sin(\a)}) -- ({-1.5+0.7*cos(\a+60)}, {0.7*sin(\a+60)});
+    }
+    % Right ring (kept)
+    \foreach \a in {0,60,120,180,240,300} {
+      \fill[orange!40] ({1.5+0.7*cos(\a)}, {0.7*sin(\a)}) circle (3pt);
+    }
+    \foreach \a in {0,60,120,180,240,300} {
+      \draw[thick, orange!30] ({1.5+0.7*cos(\a)}, {0.7*sin(\a)}) -- ({1.5+0.7*cos(\a+60)}, {0.7*sin(\a+60)});
+    }
+    \draw[thick, orange!30] (-0.8,0) -- (0.8,0);
+
+    % Side chains (removed)
+    \fill[gray!20] (-1.5,1.5) circle (3pt);
+    \draw[thin, gray!20, dashed] (-1.5,0.7) -- (-1.5,1.5);
+    \fill[gray!20] (1.5,-1.5) circle (3pt);
+    \draw[thin, gray!20, dashed] (1.5,-0.7) -- (1.5,-1.5);
+
+    \node[font=\tiny, text=orange!60, anchor=east] at (-0.3,1.5) {removed};
+    \node[font=\tiny, text=orange!60, anchor=west] at (0.3,-1.5) {removed};
+
+    \node[font=\tiny, text=orange!60, text width=3cm, align=center] at (0,-2.5)
+      {Heuristic scaffold extraction\\Only 1 level (scaffold vs.\ rest)\\Loses functional group info};
+  \end{scope}
+
+  % ======= MolSSD Spectral (right) =======
+  \begin{scope}[shift={(5.5,0)}]
+    \node[font=\bfseries\small, text=math!80!black] at (0,3.5) {MolSSD Spectral};
+    \node[font=\tiny, text=gray] at (0,3.0) {Clusters by graph Laplacian};
+
+    % Left ring (cluster A = red)
+    \foreach \a in {0,60,120,180,240,300} {
+      \fill[red!50] ({-1.5+0.7*cos(\a)}, {0.7*sin(\a)}) circle (3pt);
+    }
+    \foreach \a in {0,60,120,180,240,300} {
+      \draw[thick, red!25] ({-1.5+0.7*cos(\a)}, {0.7*sin(\a)}) -- ({-1.5+0.7*cos(\a+60)}, {0.7*sin(\a+60)});
+    }
+    % Right ring (cluster B = blue)
+    \foreach \a in {0,60,120,180,240,300} {
+      \fill[blue!50] ({1.5+0.7*cos(\a)}, {0.7*sin(\a)}) circle (3pt);
+    }
+    \foreach \a in {0,60,120,180,240,300} {
+      \draw[thick, blue!25] ({1.5+0.7*cos(\a)}, {0.7*sin(\a)}) -- ({1.5+0.7*cos(\a+60)}, {0.7*sin(\a+60)});
+    }
+    \draw[thick, gray!40] (-0.8,0) -- (0.8,0);
+
+    % Substituent clusters
+    \fill[green!50!black] (-1.5,1.5) circle (3pt);
+    \draw[thick, green!25] (-1.5,0.7) -- (-1.5,1.5);
+    \fill[purple!50] (1.5,-1.5) circle (3pt);
+    \draw[thick, purple!25] (1.5,-0.7) -- (1.5,-1.5);
+
+    % Cluster outlines
+    \draw[red!30, dashed, rounded corners=3pt] (-2.4,-0.9) rectangle (-0.6,0.9);
+    \draw[blue!30, dashed, rounded corners=3pt] (0.6,-0.9) rectangle (2.4,0.9);
+
+    \node[font=\tiny, text=math!70!black, text width=3cm, align=center] at (0,-2.5)
+      {Principled (spectral theory)\\$L$ levels automatically\\Preserves 3D + topology};
+  \end{scope}
+\end{tikzpicture}
+\captionof{figure}{Three fragmentation approaches on the same biphenyl derivative. \textbf{BRICS}: applies 16 predefined bond-cleavage rules, always cutting at the same bond types regardless of context; produces exactly 1 level of fragments. \textbf{Murcko}: strips side chains to extract the ring scaffold; loses functional group positions and produces only 1 level. \textbf{MolSSD spectral}: clusters atoms by graph Laplacian eigenvectors, naturally identifying each ring as a separate cluster and each substituent as its own cluster; produces $L$ levels of progressive coarsening.}
 \end{center}
 
 \subsection{Empirical Validation on QM9}
@@ -280,6 +637,34 @@ Centroid (level 3) & 1.0 & 0.0 & 1--1 \\
 \end{center}
 
 Every QM9 molecule yields a 3-level deep hierarchy with approximately 3-fold reduction at each step: $20.7 \to 6.9 \to 2.2 \to 1.0$, matching the theoretical design.
+
+\subsection{References for Contribution 1}
+
+\begin{itemize}[leftmargin=*, itemsep=3pt]
+  \item \textbf{Scale Space Diffusion (SSD)} --- Sharma et al., ``Scale Space Diffusion,'' arXiv:2603.08709, 2026. \\
+    \textit{The image-domain SSD framework we adapt. Defines the forward process $x_t = M_{1:t} x_0 + \sigma_t \epsilon$ and the ConvexDecay resolution schedule. Our Contribution 1 replaces their Gaussian blur operator with spectral graph coarsening.}
+    \\\texttt{https://github.com/prateksha/ScaleSpaceDiffusion}
+
+  \item \textbf{Spectral clustering theory} --- von Luxburg, ``A Tutorial on Spectral Clustering,'' Statistics and Computing, 17(4):395--416, 2007. \\
+    \textit{The mathematical foundation for using graph Laplacian eigenvectors to cluster nodes. Shows that spectral clustering minimizes the normalized cut, which is why our clusters correspond to chemically bonded groups.}
+
+  \item \textbf{BRICS fragmentation} --- Degen et al., ``On the Art of Compiling and Using `Drug-Like' Chemical Fragment Spaces,'' ChemMedChem, 3(10):1503--1507, 2008. \\
+    \textit{The 16-rule retrosynthetic fragmentation scheme used by RDKit. BRICS fragments molecules at known synthetic bond types (e.g., amide bonds, ester bonds). MolSSD replaces this with topology-adaptive spectral coarsening.}
+    \\\texttt{RDKit: rdkit.Chem.BRICS.BRICSDecompose()}
+
+  \item \textbf{Murcko scaffolds} --- Bemis \& Murcko, ``The Properties That Influence the Design of Molecular Libraries,'' J.\ Med.\ Chem., 39(15):2887--2893, 1996. \\
+    \textit{Extracts the ring scaffold of a molecule by removing side chains. Widely used in medicinal chemistry to analyze scaffold diversity, but limited to a single decomposition level and discards substituent positioning information.}
+
+  \item \textbf{HierDiff} --- Qiang et al., ``Coarse-to-Fine: a Hierarchical Diffusion Model for Molecule Generation in 3D,'' ICML, 2023. \\
+    \textit{The closest prior work: a 2-level hierarchical diffusion using BRICS fragments as the coarse level. Key differences from MolSSD: (a) only 2 levels vs.\ our $L$ levels, (b) uses heuristic BRICS rules vs.\ our spectral coarsening, (c) does not derive or handle the non-isotropic posterior.}
+
+  \item \textbf{EDM} --- Hoogeboom et al., ``Equivariant Diffusion for Molecule Generation in 3D,'' ICML, 2022. \\
+    \textit{The standard E(3)-equivariant molecular diffusion baseline. Operates at full atomic resolution throughout --- no multi-scale structure. Our QM9 experiments use EDM-style train/val/test splits and evaluation metrics.}
+    \\\texttt{https://github.com/ehoogeboom/e3\_diffusion\_for\_molecules}
+
+  \item \textbf{QM9 dataset} --- Ramakrishnan et al., ``Quantum Chemistry Structures and Properties of 134 Kilo Molecules,'' Scientific Data, 1:140022, 2014. \\
+    \textit{134,000 small organic molecules with up to 9 heavy atoms. Used for all our empirical validations (500 test molecules).}
+\end{itemize}
 
 
 % ============================================================
