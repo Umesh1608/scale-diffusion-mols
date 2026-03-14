@@ -1,13 +1,15 @@
 #!/usr/bin/env python
-"""Training entry point for MolSSD on QM9 (unconditional generation).
+"""Training entry point for MolSSD on GEOM-Drugs (unconditional generation).
 
-Parses command-line arguments, builds the dataset / model / diffusion
-pipeline, and launches training via the MolSSDTrainer.
+Handles larger molecules (up to 181 atoms) with 10 atom types and deeper
+coarsening hierarchies. Supports size-aware dynamic batching to maintain
+constant GPU memory usage across varying molecule sizes.
 
 Usage::
 
-    python scripts/train_qm9.py --batch-size 64 --max-steps 300000 --wandb
-    python scripts/train_qm9.py --resume checkpoints/latest.pt
+    python scripts/train_geom_drugs.py --batch-size 32 --max-steps 500000
+    python scripts/train_geom_drugs.py --resume checkpoints_geom/latest.pt
+    python scripts/train_geom_drugs.py --max-atoms 80 --batch-size 64  # smaller subset
 """
 
 from __future__ import annotations
@@ -19,7 +21,6 @@ import random
 import sys
 from pathlib import Path
 
-# Ensure the project root is on sys.path so `molssd` is importable
 _PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
@@ -28,18 +29,16 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-# ---------------------------------------------------------------------------
-# MolSSD imports
-# ---------------------------------------------------------------------------
 from molssd.core.noise_schedules import get_noise_schedule, ResolutionSchedule
 from molssd.core.diffusion import MolSSDDiffusion
-from molssd.data.qm9_loader import (
-    QM9MolSSD,
-    qm9_collate_fn,
+from molssd.data.geom_drugs_loader import (
+    GEOMDrugsMolSSD,
+    geom_drugs_collate_fn,
     RandomRotation,
-    get_qm9_splits,
+    get_geom_drugs_splits,
+    NUM_ATOM_TYPES,
 )
-from molssd.models.flexi_net import MolecularFlexiNet
+from molssd.models.flexi_net import MolecularFlexiNet, DEFAULT_LEVELS
 from molssd.training.losses import MolSSDLoss
 from molssd.training.trainer import MolSSDTrainer
 
@@ -48,105 +47,28 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-logger = logging.getLogger("train_qm9")
+logger = logging.getLogger("train_geom_drugs")
 
 
 # ---------------------------------------------------------------------------
-# Argument parsing
+# 5-level architecture for GEOM-Drugs (deeper than QM9's 4-level)
 # ---------------------------------------------------------------------------
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Train MolSSD on QM9 for unconditional 3D molecule generation.",
-    )
-
-    # Data
-    parser.add_argument("--data-dir", type=str, default="./data",
-                        help="Root directory for QM9 data (default: ./data)")
-
-    # Checkpointing
-    parser.add_argument("--checkpoint-dir", type=str, default="./checkpoints",
-                        help="Directory to save checkpoints (default: ./checkpoints)")
-
-    # Training hyper-parameters
-    parser.add_argument("--max-steps", type=int, default=300_000,
-                        help="Total training steps (default: 300000)")
-    parser.add_argument("--batch-size", type=int, default=64,
-                        help="Training batch size (default: 64)")
-    parser.add_argument("--lr", type=float, default=3e-4,
-                        help="Peak learning rate (default: 3e-4)")
-
-    # Diffusion
-    parser.add_argument("--T", type=int, default=1000,
-                        help="Number of diffusion timesteps (default: 1000)")
-    parser.add_argument("--noise-schedule", type=str, default="cosine",
-                        choices=["cosine", "linear"],
-                        help="Noise schedule type (default: cosine)")
-
-    # Resolution schedule
-    parser.add_argument("--resolution-schedule", type=str, default="convex_decay",
-                        choices=["convex_decay", "equal", "sigmoid"],
-                        help="Resolution schedule type (default: convex_decay)")
-    parser.add_argument("--gamma", type=float, default=0.5,
-                        help="Gamma for convex-decay resolution schedule (default: 0.5)")
-    parser.add_argument("--max-levels", type=int, default=3,
-                        help="Max coarsening levels in the hierarchy (default: 3)")
-
-    # Model
-    parser.add_argument("--num-atom-types", type=int, default=5,
-                        help="Number of atom type classes (default: 5 for QM9)")
-
-    # EMA / optimisation
-    parser.add_argument("--ema-decay", type=float, default=0.9999,
-                        help="EMA decay rate (default: 0.9999)")
-    parser.add_argument("--grad-clip", type=float, default=1.0,
-                        help="Max gradient norm for clipping (default: 1.0)")
-    parser.add_argument("--warmup-steps", type=int, default=5000,
-                        help="LR linear warmup steps (default: 5000)")
-
-    # Logging / evaluation cadence
-    parser.add_argument("--log-every", type=int, default=100,
-                        help="Log training metrics every N steps (default: 100)")
-    parser.add_argument("--eval-every", type=int, default=10_000,
-                        help="Run validation every N steps (default: 10000)")
-    parser.add_argument("--checkpoint-every", type=int, default=10_000,
-                        help="Save checkpoint every N steps (default: 10000)")
-
-    # Reproducibility
-    parser.add_argument("--seed", type=int, default=42,
-                        help="Random seed (default: 42)")
-
-    # Device
-    parser.add_argument("--device", type=str, default=None,
-                        help="Device to train on (default: cuda if available else cpu)")
-    parser.add_argument("--num-workers", type=int, default=2,
-                        help="DataLoader workers (default: 2, keep low to avoid OOM on WSL)")
-    parser.add_argument("--gpu-cache", action="store_true",
-                        help="Pre-load all batches onto GPU (uses ~1-2GB VRAM, eliminates CPU overhead)")
-
-    # Resumption
-    parser.add_argument("--resume", type=str, default=None,
-                        help="Path to checkpoint to resume training from")
-
-    # Weights & Biases
-    parser.add_argument("--wandb", action="store_true",
-                        help="Enable Weights & Biases logging")
-    parser.add_argument("--wandb-project", type=str, default="molssd-qm9",
-                        help="W&B project name (default: molssd-qm9)")
-
-    return parser.parse_args()
+GEOM_DRUGS_LEVELS = [
+    {"num_blocks": 4, "hidden_dim": 128},   # Level 0 (finest, full atomic)
+    {"num_blocks": 3, "hidden_dim": 256},   # Level 1
+    {"num_blocks": 3, "hidden_dim": 384},   # Level 2
+    {"num_blocks": 2, "hidden_dim": 512},   # Level 3
+    {"num_blocks": 2, "hidden_dim": 512},   # Level 4 (coarsest)
+]
 
 
 # ---------------------------------------------------------------------------
-# Seed everything
+# GPU-cached loader (same as train_qm9.py)
 # ---------------------------------------------------------------------------
 
 class GPUCachedLoader:
-    """Pre-collates all batches and caches GPU tensors for zero-overhead iteration.
-
-    On first pass, collates batches normally and moves tensor fields to GPU.
-    Subsequent epochs just shuffle and iterate the cached list.
-    """
+    """Pre-collates all batches and caches GPU tensors."""
 
     def __init__(self, dataset, batch_size, collate_fn, device, shuffle=True):
         self.device = device
@@ -167,15 +89,14 @@ class GPUCachedLoader:
         logger.info("Cached %d batches on GPU (%.0f MB VRAM)", len(self.batches), gpu_mb)
 
     def _to_device(self, batch):
-        """Recursively move tensor values to GPU."""
         out = {}
         for k, v in batch.items():
             if isinstance(v, torch.Tensor):
                 out[k] = v.to(self.device, non_blocking=True)
             elif isinstance(v, list) and len(v) > 0 and isinstance(v[0], dict):
-                # coarsened_levels: list of dicts
                 out[k] = [
-                    {kk: vv.to(self.device, non_blocking=True) if isinstance(vv, torch.Tensor) else vv
+                    {kk: vv.to(self.device, non_blocking=True)
+                     if isinstance(vv, torch.Tensor) else vv
                      for kk, vv in d.items()} if d is not None else None
                     for d in v
                 ]
@@ -194,6 +115,73 @@ class GPUCachedLoader:
         return len(self.batches)
 
 
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        description="Train MolSSD on GEOM-Drugs for unconditional 3D molecule generation.",
+    )
+
+    # Data
+    p.add_argument("--data-dir", type=str, default="./data")
+    p.add_argument("--max-atoms", type=int, default=181,
+                    help="Max atoms per molecule (default: 181)")
+    p.add_argument("--max-molecules", type=int, default=None,
+                    help="Cap dataset size (for dev/debug)")
+
+    # Checkpointing
+    p.add_argument("--checkpoint-dir", type=str, default="./checkpoints_geom")
+
+    # Training
+    p.add_argument("--max-steps", type=int, default=500_000)
+    p.add_argument("--batch-size", type=int, default=32,
+                    help="Batch size (default: 32, smaller for larger molecules)")
+    p.add_argument("--lr", type=float, default=2e-4)
+    p.add_argument("--warmup-steps", type=int, default=5000)
+
+    # Diffusion
+    p.add_argument("--T", type=int, default=1000)
+    p.add_argument("--noise-schedule", type=str, default="cosine",
+                    choices=["cosine", "linear"])
+
+    # Resolution
+    p.add_argument("--resolution-schedule", type=str, default="convex_decay")
+    p.add_argument("--gamma", type=float, default=0.5)
+    p.add_argument("--max-levels", type=int, default=5,
+                    help="Max coarsening levels (default: 5 for drugs)")
+
+    # EMA / optimisation
+    p.add_argument("--ema-decay", type=float, default=0.9999)
+    p.add_argument("--grad-clip", type=float, default=1.0)
+
+    # Logging
+    p.add_argument("--log-every", type=int, default=100)
+    p.add_argument("--eval-every", type=int, default=5000)
+    p.add_argument("--checkpoint-every", type=int, default=5000)
+
+    # Device / workers
+    p.add_argument("--num-workers", type=int, default=0)
+    p.add_argument("--gpu-cache", action="store_true",
+                    help="Pre-load all batches onto GPU")
+    p.add_argument("--device", type=str, default=None)
+    p.add_argument("--seed", type=int, default=42)
+
+    # Resume
+    p.add_argument("--resume", type=str, default=None)
+
+    # Fine-tune from QM9 checkpoint
+    p.add_argument("--pretrained", type=str, default=None,
+                    help="Path to a QM9 checkpoint to initialize from (transfer learning)")
+
+    # W&B
+    p.add_argument("--wandb", action="store_true")
+    p.add_argument("--wandb-project", type=str, default="molssd-geom-drugs")
+
+    return p.parse_args()
+
+
 def seed_everything(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -209,17 +197,12 @@ def seed_everything(seed: int) -> None:
 def main() -> None:
     args = parse_args()
 
-    # Device
-    if args.device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    else:
-        device = torch.device(args.device)
+    device = torch.device(args.device) if args.device else (
+        torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    )
     logger.info("Using device: %s", device)
-
-    # Reproducibility
     seed_everything(args.seed)
 
-    # GPU optimizations
     if device.type == "cuda":
         torch.backends.cudnn.benchmark = True
         torch.backends.cuda.matmul.allow_tf32 = True
@@ -227,47 +210,37 @@ def main() -> None:
         logger.info("Enabled cuDNN benchmark + TF32 for %s", torch.cuda.get_device_name(0))
 
     # ------------------------------------------------------------------
-    # 1. Datasets and data loaders
+    # 1. Datasets
     # ------------------------------------------------------------------
-    logger.info("Loading QM9 datasets from %s ...", args.data_dir)
-    train_ds, val_ds, _ = get_qm9_splits(
+    logger.info("Loading GEOM-Drugs datasets from %s ...", args.data_dir)
+    train_ds, val_ds, _ = get_geom_drugs_splits(
         root=args.data_dir,
         max_levels=args.max_levels,
-        ratio=3,
+        max_atoms=args.max_atoms,
+        max_molecules=args.max_molecules,
         train_transform=RandomRotation(),
     )
 
     use_cuda = device.type == "cuda"
-    num_workers = args.num_workers if use_cuda else 0
-
     if args.gpu_cache and use_cuda:
         train_loader = GPUCachedLoader(
             train_ds, batch_size=args.batch_size,
-            collate_fn=qm9_collate_fn, device=device, shuffle=True,
+            collate_fn=geom_drugs_collate_fn, device=device, shuffle=True,
         )
         val_loader = GPUCachedLoader(
             val_ds, batch_size=args.batch_size,
-            collate_fn=qm9_collate_fn, device=device, shuffle=False,
+            collate_fn=geom_drugs_collate_fn, device=device, shuffle=False,
         )
     else:
         train_loader = DataLoader(
-            train_ds,
-            batch_size=args.batch_size,
-            shuffle=True,
-            num_workers=num_workers,
-            collate_fn=qm9_collate_fn,
-            pin_memory=use_cuda,
-            persistent_workers=(num_workers > 0),
-            drop_last=True,
+            train_ds, batch_size=args.batch_size, shuffle=True,
+            num_workers=args.num_workers, collate_fn=geom_drugs_collate_fn,
+            pin_memory=use_cuda, drop_last=True,
         )
         val_loader = DataLoader(
-            val_ds,
-            batch_size=args.batch_size,
-            shuffle=False,
-            num_workers=max(num_workers // 2, 1) if num_workers > 0 else 0,
-            collate_fn=qm9_collate_fn,
+            val_ds, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.num_workers, collate_fn=geom_drugs_collate_fn,
             pin_memory=use_cuda,
-            persistent_workers=(num_workers > 0),
         )
     logger.info("Train: %d molecules, Val: %d molecules", len(train_ds), len(val_ds))
 
@@ -276,10 +249,9 @@ def main() -> None:
     # ------------------------------------------------------------------
     noise_schedule = get_noise_schedule(name=args.noise_schedule, T=args.T)
 
-    # Representative per-level atom counts for QM9 (max ~29 atoms, 3-fold
-    # reduction per level):  [29, 10, 3, 1]
-    num_atoms_per_level = [29, 10, 3, 1]
-    # Trim to max_levels + 1 (including full-resolution level 0)
+    # Representative per-level atom counts for GEOM-Drugs
+    # ~181 -> ~60 -> ~20 -> ~7 -> ~2 -> 1
+    num_atoms_per_level = [181, 60, 20, 7, 2, 1]
     num_levels = args.max_levels + 1
     num_atoms_per_level = num_atoms_per_level[:num_levels]
 
@@ -295,23 +267,38 @@ def main() -> None:
     # 3. Model
     # ------------------------------------------------------------------
     model = MolecularFlexiNet(
-        level_configs=None,  # use DEFAULT_LEVELS
-        num_atom_types=args.num_atom_types,
+        level_configs=GEOM_DRUGS_LEVELS[:num_levels],
+        num_atom_types=NUM_ATOM_TYPES,
     )
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logger.info("MolecularFlexiNet: %d trainable parameters", num_params)
 
+    # Optional: initialize from a QM9-pretrained checkpoint (transfer learning)
+    if args.pretrained:
+        logger.info("Loading pretrained weights from %s ...", args.pretrained)
+        ckpt = torch.load(args.pretrained, map_location="cpu", weights_only=False)
+        # Load what we can (shapes may differ for atom embeddings, output heads)
+        model_state = model.state_dict()
+        pretrained_state = ckpt["model_state_dict"]
+        loaded = 0
+        for k, v in pretrained_state.items():
+            if k in model_state and model_state[k].shape == v.shape:
+                model_state[k] = v
+                loaded += 1
+        model.load_state_dict(model_state)
+        logger.info("Loaded %d / %d parameters from pretrained checkpoint", loaded, len(model_state))
+
     # ------------------------------------------------------------------
-    # 4. Diffusion process
+    # 4. Diffusion
     # ------------------------------------------------------------------
     diffusion = MolSSDDiffusion(
         noise_schedule=noise_schedule,
         resolution_schedule=resolution_schedule,
-        num_atom_types=args.num_atom_types,
+        num_atom_types=NUM_ATOM_TYPES,
     )
 
     # ------------------------------------------------------------------
-    # 5. Optional W&B initialisation (before trainer so flag is ready)
+    # 5. W&B
     # ------------------------------------------------------------------
     use_wandb = False
     if args.wandb:
@@ -324,7 +311,7 @@ def main() -> None:
             logger.warning("wandb not installed -- logging disabled")
 
     # ------------------------------------------------------------------
-    # 6. Trainer (creates its own optimizer, scheduler, EMA internally)
+    # 6. Trainer
     # ------------------------------------------------------------------
     trainer = MolSSDTrainer(
         model=model,
@@ -346,8 +333,7 @@ def main() -> None:
     )
 
     # ------------------------------------------------------------------
-    # 7. Auto-resume: if no explicit --resume but checkpoint_latest.pt
-    #    exists, resume from it automatically.
+    # 7. Auto-resume
     # ------------------------------------------------------------------
     resume_path = args.resume
     if resume_path is None:
@@ -357,7 +343,7 @@ def main() -> None:
             logger.info("Auto-resuming from %s", latest)
 
     # ------------------------------------------------------------------
-    # 8. Launch training (handles epochs, validation, checkpointing)
+    # 8. Train
     # ------------------------------------------------------------------
     trainer.train(
         train_loader=train_loader,

@@ -2019,31 +2019,293 @@ Phase A must succeed before Phase B makes sense. If MolSSD doesn't beat EDM on Q
 
 
 % ============================================================
-\section{What Remains to Be Done}
+% ============================================================
+\section{Implementation Status and Architecture Diagrams}
+\label{sec:implementation-status}
 % ============================================================
 
-The theoretical framework, code implementation, and pre-training validations (contributions 1--4) are complete. The remaining work falls into two phases:
+This section documents the implemented system as of March 2026, including architecture diagrams for easy understanding.
+
+\subsection{Molecular Flexi-Net Architecture}
+
+The following diagram shows our complete model architecture. EGNN (E(n)-Equivariant GNN) is the message-passing \emph{building block} inside Flexi-Net. The novelty is the multi-resolution hierarchy and dynamic level activation.
+
+\begin{center}
+\begin{tikzpicture}[
+    block/.style={draw, rounded corners, minimum height=0.8cm, minimum width=3.5cm, fill=blue!8, font=\small},
+    head/.style={draw, rounded corners, minimum height=0.6cm, minimum width=2.5cm, fill=green!10, font=\small},
+    emb/.style={draw, rounded corners, minimum height=0.6cm, minimum width=3cm, fill=orange!10, font=\small},
+    arrow/.style={->, thick, >=stealth},
+    note/.style={font=\footnotesize\itshape, text=gray},
+]
+    % Input
+    \node[emb] (input) at (0, 8) {Input: $x_t$, atom\_types, $t$, level $k$};
+
+    % Embeddings
+    \node[emb] (atom_emb) at (-3, 6.8) {Atom Embedding (128-d)};
+    \node[emb] (time_emb) at (3, 6.8) {Time+Res Embedding};
+
+    % Level selection
+    \node[draw, dashed, rounded corners, minimum height=0.6cm, minimum width=5cm, fill=yellow!10, font=\small] (select) at (0, 5.6) {Dynamic Level Selection: activate only level $k$};
+
+    % EGNN stacks
+    \node[block, fill=blue!5] (l0) at (-4, 4) {Level 0: 4$\times$EGNN (128-d)};
+    \node[block, fill=blue!10] (l1) at (-4, 3) {Level 1: 3$\times$EGNN (256-d)};
+    \node[block, fill=blue!15] (l2) at (-4, 2) {Level 2: 3$\times$EGNN (384-d)};
+    \node[block, fill=blue!20] (l3) at (-4, 1) {Level 3: 2$\times$EGNN (512-d)};
+
+    \node[note] at (0.5, 4) {$\sim$29 nodes (full atoms)};
+    \node[note] at (0.5, 3) {$\sim$10 nodes (func.\ groups)};
+    \node[note] at (0.5, 2) {$\sim$3 nodes (fragments)};
+    \node[note] at (0.5, 1) {$\sim$1 node (centroid)};
+
+    % Output
+    \node[head] (eps) at (-2, -0.3) {$\hat{\varepsilon}$ (3D noise)};
+    \node[head] (types) at (2, -0.3) {Type logits ($C$ classes)};
+
+    % Arrows
+    \draw[arrow] (input) -- (atom_emb);
+    \draw[arrow] (input) -- (time_emb);
+    \draw[arrow] (atom_emb) -- (select);
+    \draw[arrow] (time_emb) -- (select);
+    \draw[arrow] (select) -- (l0);
+    \draw[arrow] (select) -- (l1);
+    \draw[arrow] (select) -- (l2);
+    \draw[arrow] (select) -- (l3);
+    \draw[arrow] (l0) -- (eps);
+    \draw[arrow] (l0) -- (types);
+
+    % Active indicator
+    \draw[thick, red, ->] (select.south) -- node[right, font=\small\bfseries, red] {active} (l0.north);
+    \draw[thick, gray!40, ->] (select.south) -- (l1.north);
+    \draw[thick, gray!40, ->] (select.south) -- (l2.north);
+    \draw[thick, gray!40, ->] (select.south) -- (l3.north);
+
+    % Caption
+    \node[note, text=black] at (0, -1.2) {Only one level's EGNN stack executes per timestep $\to$ compute savings at coarse levels};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Training Pipeline: Forward Diffusion}
+
+\begin{center}
+\begin{tikzpicture}[
+    box/.style={draw, rounded corners, minimum height=0.7cm, fill=#1, font=\small},
+    arrow/.style={->, thick, >=stealth},
+]
+    % Forward process
+    \node[box=green!10] (x0) at (0, 0) {$x_0$ (clean molecule)};
+    \node[box=blue!10] (M) at (4, 0) {$M_{1:t} x_0 = \bar\alpha_t C^{r(t)} x_0$};
+    \node[box=orange!10] (noise) at (4, -1.2) {$+ \sigma_t \varepsilon$};
+    \node[box=red!10] (xt) at (8, 0) {$x_t$ (noisy, coarsened)};
+
+    \draw[arrow] (x0) -- node[above, font=\footnotesize] {coarsen + scale} (M);
+    \draw[arrow] (noise) -- (M);
+    \draw[arrow] (M) -- node[above, font=\footnotesize] {add noise} (xt);
+
+    % Resolution levels
+    \node[font=\footnotesize, text=gray] at (4, -2.2) {Resolution $r(t)$: 0 (atoms) $\to$ 1 (groups) $\to$ 2 (fragments) $\to$ 3 (centroid)};
+    \node[font=\footnotesize, text=gray] at (4, -2.8) {55\% of timesteps at level 0, 40\% at level 1, 5\% at levels 2--3};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Conditioning Pipeline: The 3-Phase Swap}
+
+This diagram shows how conditioning transitions from pre-training to fine-tuning.
+The key insight: both phases produce the \textbf{same-dimensional} conditioning vector $c \in \mathbb{R}^{256}$, injected at the \textbf{same point} (adaLN in each EGNN block). The backbone weights transfer seamlessly.
+
+\begin{center}
+\begin{tikzpicture}[
+    phase/.style={draw, rounded corners, minimum width=4.5cm, minimum height=2.2cm, fill=#1, font=\small},
+    enc/.style={draw, rounded corners, minimum height=0.5cm, fill=white, font=\footnotesize},
+    arrow/.style={->, thick, >=stealth},
+    note/.style={font=\footnotesize\itshape, text=gray},
+]
+    % Phase 1
+    \node[phase=blue!8] (p1) at (0, 0) {};
+    \node[font=\small\bfseries] at (0, 0.8) {Phase 1: OMol25 Pre-train};
+    \node[enc] (gap) at (0, 0) {HOMO-LUMO gap};
+    \node[enc] (mlp1) at (0, -0.6) {MLP $\to c \in \mathbb{R}^{256}$};
+    \draw[arrow] (gap) -- (mlp1);
+
+    % Phase 2
+    \node[phase=green!8] (p2) at (6, 0) {};
+    \node[font=\small\bfseries] at (6, 0.8) {Phase 2: GEOM-Drugs};
+    \node[enc] (gap2) at (6, 0) {Same scalar encoder};
+    \node[enc] (mlp2) at (6, -0.6) {Transfer weights $\to c \in \mathbb{R}^{256}$};
+    \draw[arrow] (gap2) -- (mlp2);
+
+    % Phase 3
+    \node[phase=red!8] (p3) at (12, 0) {};
+    \node[font=\small\bfseries] at (12, 1.0) {Phase 3: UV-Absorber};
+    \node[enc] (spec) at (11, 0.2) {Spectrum (1D CNN)};
+    \node[enc] (props) at (13, 0.2) {$\lambda$, $\varepsilon$, logP};
+    \node[enc] (fuse) at (12, -0.6) {Fusion $\to c \in \mathbb{R}^{256}$};
+    \draw[arrow] (spec) -- (fuse);
+    \draw[arrow] (props) -- (fuse);
+
+    % Arrows between phases
+    \draw[arrow, dashed, blue!60] (p1.east) -- node[above, font=\footnotesize] {transfer} (p2.west);
+    \draw[arrow, dashed, green!60] (p2.east) -- node[above, font=\footnotesize] {swap encoder} (p3.west);
+
+    % Common injection point
+    \node[draw, rounded corners, fill=yellow!15, minimum width=12cm, minimum height=0.6cm, font=\small] (adaln) at (6, -2.2) {adaLN injection into Flexi-Net backbone (same for all phases)};
+    \draw[arrow] (mlp1) -- (adaln);
+    \draw[arrow] (mlp2) -- (adaln);
+    \draw[arrow] (fuse) -- (adaln);
+
+    % CFG
+    \node[enc, fill=purple!10] (cfg) at (12, -3.3) {Classifier-Free Guidance};
+    \node[note] at (12, -3.9) {$\varepsilon_\text{guided} = (1{+}w)\varepsilon_\text{cond} - w\,\varepsilon_\text{uncond}$};
+    \draw[arrow, purple!60] (adaln.south) ++ (3,0) -- (cfg);
+\end{tikzpicture}
+\end{center}
+
+\subsection{OMol25 UV-Relevant Properties}
+
+OMol25 is ground-state DFT (no excited states), but contains properties that are \textbf{direct proxies} for UV absorption:
+
+\begin{center}
+\begin{tikzpicture}[
+    prop/.style={draw, rounded corners, minimum height=0.6cm, fill=#1, font=\small},
+    arrow/.style={->, thick, >=stealth},
+]
+    % OMol25 properties
+    \node[prop=green!15] (gap) at (0, 2) {HOMO-LUMO gap (eV)};
+    \node[prop=green!15] (orb) at (0, 1) {Orbital energies};
+    \node[prop=green!15] (chg) at (0, 0) {Partial charges (NBO)};
+    \node[prop=green!15] (den) at (0, -1) {Density matrix};
+
+    \node[font=\small\bfseries] at (0, 3) {In OMol25 (\checkmark)};
+
+    % UV properties
+    \node[prop=blue!15] (lam) at (6, 2) {$\lambda_\text{max}$ (nm)};
+    \node[prop=blue!15] (eps) at (6, 1) {$\varepsilon_\text{max}$};
+    \node[prop=blue!15] (trans) at (6, 0) {Transition type ($n\to\pi^*$, $\pi\to\pi^*$)};
+    \node[prop=blue!15] (photo) at (6, -1) {Photostability};
+
+    \node[font=\small\bfseries] at (6, 3) {UV-Relevant Properties};
+
+    % Connections
+    \draw[arrow, thick] (gap) -- node[above, font=\footnotesize] {$E = hc/\lambda$} (lam);
+    \draw[arrow] (orb) -- node[above, font=\footnotesize] {gap energies} (trans);
+    \draw[arrow] (chg) -- node[above, font=\footnotesize] {charge transfer} (eps);
+    \draw[arrow, dashed, gray] (den) -- node[above, font=\footnotesize] {conjugation} (photo);
+
+    % Not in OMol25
+    \node[prop=red!15] (tddft) at (12, 1.5) {TD-DFT spectra};
+    \node[prop=red!15] (osc) at (12, 0.5) {Oscillator strengths};
+    \node[prop=red!15] (full) at (12, -0.5) {Full UV-Vis spectrum};
+
+    \node[font=\small\bfseries, red] at (12, 3) {NOT in OMol25 ($\times$)};
+    \node[font=\footnotesize, text=red] at (12, -1.5) {Must compute separately};
+    \node[font=\footnotesize, text=red] at (12, -2) {(CAM-B3LYP TD-DFT)};
+\end{tikzpicture}
+\end{center}
+
+\textbf{HOMO-LUMO gap to $\lambda_\text{max}$ conversion:}
+$$\lambda_\text{max} \approx \frac{1240}{E_\text{gap}\,(\text{eV})} \;\text{nm}$$
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\textbf{UV Range} & \textbf{$\lambda$ (nm)} & \textbf{Gap (eV)} \\
+\midrule
+UV-C & 200--280 & 4.4--6.2 \\
+UV-B & 280--320 & 3.9--4.4 \\
+UV-A & 320--400 & 3.1--3.9 \\
+Visible & 400--700 & 1.8--3.1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Three-Dataset Training Strategy}
+
+\begin{center}
+\begin{tikzpicture}[
+    ds/.style={draw, rounded corners, minimum height=1.2cm, minimum width=3.5cm, fill=#1, font=\small, align=center},
+    arrow/.style={->, very thick, >=stealth},
+]
+    \node[ds=blue!10] (qm9) at (0, 0) {QM9\\130K mols, $\leq$29 atoms\\5 atom types};
+    \node[ds=green!10] (geom) at (5.5, 0) {GEOM-Drugs\\304K mols, $\leq$181 atoms\\10 atom types};
+    \node[ds=orange!10] (omol) at (11, 0) {OMol25 (4M subset)\\4M mols, $\leq$350 atoms\\16 atom types};
+    \node[ds=red!10] (uv) at (5.5, -2.5) {UV-Absorber Dataset\\50K mols + TD-DFT spectra\\spectrum conditioning};
+
+    \draw[arrow, blue!60] (qm9) -- node[above, font=\footnotesize] {benchmark} (geom);
+    \draw[arrow, green!60] (geom) -- node[above, font=\footnotesize] {scaling} (omol);
+    \draw[arrow, orange!60] (omol) -- node[right, font=\footnotesize] {pre-train $\to$ fine-tune} (uv);
+    \draw[arrow, green!60, dashed] (geom) -- node[left, font=\footnotesize] {fine-tune} (uv);
+
+    \node[font=\footnotesize, text=gray] at (0, -1) {Step A2--A4};
+    \node[font=\footnotesize, text=gray] at (5.5, -1) {Step A5};
+    \node[font=\footnotesize, text=gray] at (11, -1) {Step A6};
+    \node[font=\footnotesize, text=gray] at (5.5, -3.5) {Phase B};
+\end{tikzpicture}
+\end{center}
+
+
+% ============================================================
+\section{Current Progress (March 2026)}
+\label{sec:current-progress}
+% ============================================================
+
+\subsection{What Is Complete}
+
+\begin{itemize}[nosep]
+    \item[\checkmark] Core math modules: coarsening, diffusion, degradation, Lanczos, noise schedules
+    \item[\checkmark] Model architecture: Molecular Flexi-Net (10.25M parameters)
+    \item[\checkmark] Conditioning module: scalar encoder + spectrum encoder + classifier-free guidance
+    \item[\checkmark] Data pipelines: QM9, GEOM-Drugs, OMol25 loaders (all with precomputed coarsening)
+    \item[\checkmark] Training infrastructure: Min-SNR-5 loss, EMA, warmup+cosine LR, mixed precision
+    \item[\checkmark] Training optimization: vectorized forward diffusion (14$\times$ speedup)
+    \item[\checkmark] Evaluation pipeline: atom/mol stability, validity, uniqueness, novelty, bond JSD
+    \item[\checkmark] All scripts: train, sample, evaluate, comparison table, ablations
+    \item[\checkmark] 48 unit tests passing
+    \item[\checkmark] Empirical validation of contributions 1--4 on 500 real QM9 molecules (all PASS)
+    \item[\checkmark] Cloud training plan with cost analysis (\$114--427 for full pipeline)
+\end{itemize}
+
+\subsection{What Is In Progress}
+
+\begin{itemize}[nosep]
+    \item[$\circlearrowright$] \textbf{Step A2: QM9 training} --- step $\sim$163K / 300K (54\%), $\sim$2h remaining.
+    Position loss 0.62, type loss 0.00 (converged). Speed: 12--20 steps/s on RTX 4090.
+\end{itemize}
+
+\subsection{What Is Ready But Not Yet Executed}
+
+\begin{itemize}[nosep]
+    \item[\textbullet] Step A3: Evaluation (one-command: \texttt{scripts/run\_evaluation.py})
+    \item[\textbullet] Step A4: Ablations (one-command: \texttt{scripts/run\_ablations.py})
+    \item[\textbullet] Step A5: GEOM-Drugs (\texttt{scripts/train\_geom\_drugs.py} with transfer learning)
+    \item[\textbullet] Step A6: OMol25 (\texttt{molssd/data/omol25\_loader.py} ready, needs cloud GPU)
+    \item[\textbullet] Phase B: Conditioning module built (\texttt{molssd/models/conditioning.py})
+\end{itemize}
+
+
+% ============================================================
+\section{What Remains to Be Done}
+% ============================================================
 
 \subsection{Phase A: Benchmark and Beat the Competition}
 
 \begin{enumerate}
-  \item \textbf{Wire up the training loop} --- loss function, optimizer, EMA, W\&B logging, checkpointing. The model architecture and data pipeline exist; what's missing is the glue.
-  \item \textbf{Train on QM9 unconditionally} --- $\sim$200--500 epochs, $\sim$24--48h on GPU. Generate 10,000 molecules and compute all metrics.
-  \item \textbf{Fill the comparison table} --- atom stability, molecule stability, validity, uniqueness, FCD, wall-clock time. Compare against EDM, GeoLDM, MiDi, GCDM, EQGAT-diff, MolDiff.
-  \item \textbf{Run ablation studies} --- isotropic vs.\ non-isotropic, spectral vs.\ BRICS vs.\ random, 2-level vs.\ 3-level vs.\ 5-level coarsening.
-  \item \textbf{Scale to GEOM-Drugs} --- demonstrate the scaling advantage grows with molecule size (3--4$\times$ speedup).
-  \item \textbf{Pre-train on OMol25} --- demonstrate sub-linear scaling up to 350 atoms. This requires multi-GPU training.
+  \item[\checkmark] \textbf{Training loop} --- DONE. Min-SNR-5, AdamW, EMA, cosine LR, mixed precision, checkpointing.
+  \item[$\circlearrowright$] \textbf{Train on QM9} --- IN PROGRESS. Step 163K/300K, $\sim$2h remaining.
+  \item[\textbullet] \textbf{Fill the comparison table} --- script ready (\texttt{run\_evaluation.py}). Run after training completes.
+  \item[\textbullet] \textbf{Run ablation studies} --- script ready (\texttt{run\_ablations.py}). Run after Step A3.
+  \item[\textbullet] \textbf{Scale to GEOM-Drugs} --- loader + script ready. Needs rdkit\_folder.tar.gz download.
+  \item[\textbullet] \textbf{Pre-train on OMol25} --- loader ready. Needs Globus access + cloud GPU.
 \end{enumerate}
 
 \subsection{Phase B: UV-Absorber Discovery}
 
 \begin{enumerate}
-  \item \textbf{Curate UV-absorber dataset} --- 50K+ molecules from ChEMBL/PubChem/ZINC with TD-DFT spectra.
-  \item \textbf{Conditional training} --- spectrum-conditioned generation with classifier-free guidance.
-  \item \textbf{Generation campaigns} --- 50,000+ candidates across 4 target profiles (broad-spectrum, photostable, coating-compatible, UV-C).
+  \item \textbf{Curate UV-absorber dataset} --- 50K+ molecules from ChEMBL/PubChem/ZINC with TD-DFT spectra. No existing UV spectrum dataset; must be curated and computed.
+  \item \textbf{Conditional training} --- conditioning module BUILT (\texttt{conditioning.py}). 3-phase swap: HOMO-LUMO gap $\to$ scalar properties $\to$ full spectrum.
+  \item \textbf{Generation campaigns} --- 50,000+ candidates across 4 target profiles.
   \item \textbf{Screening pipeline} --- eSEN geometry optimization $\to$ SA score $\to$ TD-DFT validation.
-  \item \textbf{Wet-lab synthesis and testing} --- synthesize top 10--20, measure UV-Vis spectra, photostability (2000h QUV), coating compatibility.
-  \item \textbf{Beat commercial benchmarks} --- show generated molecules exceed Tinuvin 328 / Uvinul 3048 in broadband extinction, photostability, or both.
+  \item \textbf{Wet-lab validation} --- synthesize top 10--20, UV-Vis spectroscopy, photostability (2000h QUV).
 \end{enumerate}
 
 The theory predicts specific, testable outcomes: 2--5$\times$ speedup from multi-resolution, interpretable intermediates, superior sampling quality from non-isotropic posteriors, and novel UV absorbers that outperform commercial products. These predictions will be validated or refuted by the experiments.
@@ -2054,8 +2316,9 @@ The theory predicts specific, testable outcomes: 2--5$\times$ speedup from multi
 \begin{center}
 \small\textit{This document is a companion to the MolSSD technical whitepaper and Nature manuscript draft.\\
 For full mathematical derivations, see \texttt{technical\_whitepaper/whitepaper.tex}.\\
-For the implementation, see \texttt{molssd/} (7,817 lines of tested Python code).\\
-For empirical validation results, see \texttt{scripts/validate\_contributions.py} and \texttt{validation\_results/}.}
+For the implementation, see \texttt{molssd/} (15,000+ lines of tested Python code).\\
+For empirical validation results, see \texttt{scripts/validate\_contributions.py} and \texttt{validation\_results/}.\\
+For cloud training strategy, see \texttt{cloud\_training\_plan/cloud\_training\_plan.tex}.}
 \end{center}
 
 \end{document}

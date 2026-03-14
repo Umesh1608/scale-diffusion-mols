@@ -16,8 +16,6 @@ import torch
 import torch.nn as nn
 from torch.amp import GradScaler, autocast
 
-from molssd.core.coarsening import CoarseningLevel
-from molssd.core.degradation import DegradationOperator
 from molssd.core.diffusion import MolSSDDiffusion
 from molssd.core.noise_schedules import NoiseSchedule, ResolutionSchedule
 from molssd.models.flexi_net import MolecularFlexiNet
@@ -33,12 +31,6 @@ try:
     _HAS_WANDB = True
 except ImportError:
     _HAS_WANDB = False
-
-
-def _edge_index_from_adj(adj: torch.Tensor) -> torch.Tensor:
-    """Extract COO edge_index ``(2, E)`` from a dense adjacency matrix."""
-    row, col = torch.where(adj > 0)
-    return torch.stack([row, col], dim=0)
 
 
 def _select_amp_dtype() -> torch.dtype:
@@ -132,89 +124,64 @@ class MolSSDTrainer:
     def _forward_diffuse_batch(
         self, batch: Dict[str, Any], t: int
     ) -> Dict[str, Any]:
-        """Run per-molecule forward diffusion and reassemble into a batch.
+        """Run forward diffusion — fully vectorised at all resolution levels.
 
-        For each molecule, builds a DegradationOperator from its coarsening
-        hierarchy, runs ``diffusion.forward_process`` to get ``(x_t, epsilon,
-        coarsened_types)``, and extracts the edge_index at the target
-        resolution level. The results are concatenated with appropriate
-        node-offset shifts to form a single batched graph.
+        Uses precomputed coarsened positions/types/edges from the collate
+        function, so no per-molecule Python loop is needed.
 
         Returns dict with: x_t, epsilon, coarsened_types, edge_index,
         batch_vector, resolution_level, num_nodes_list.
         """
-        positions = batch["positions"]
-        atom_types = batch["atom_types"]
-        num_atoms_list = batch["num_atoms_list"]
-        adj_list = batch["adj_list"]
-        hierarchies = batch["coarsening_hierarchies"]
-        batch_size = batch["batch_size"]
+        r_t = self.resolution_schedule.resolution_level(t).item()
 
-        x_t_parts: List[torch.Tensor] = []
-        eps_parts: List[torch.Tensor] = []
-        types_parts: List[torch.Tensor] = []
-        ei_parts: List[torch.Tensor] = []
-        bvec_parts: List[torch.Tensor] = []
-
-        node_offset = 0       # into the original concatenated positions
-        coarse_offset = 0     # for the coarsened batched graph
-
-        resolution_level: int = 0
-
-        for i in range(batch_size):
-            n_i = num_atoms_list[i]
-            x0_i = positions[node_offset: node_offset + n_i].to(self.device)
-            types_i = atom_types[node_offset: node_offset + n_i].to(self.device)
-            adj_i = adj_list[i].to(self.device)
-            hierarchy_i: List[CoarseningLevel] = hierarchies[i]
-
-            # Build degradation operator (needed to query resolution level)
-            degradation_op = DegradationOperator(
-                coarsening_hierarchy=hierarchy_i,
-                noise_schedule=self.noise_schedule,
-                resolution_schedule=self.resolution_schedule,
-            ).to(self.device)
-
-            # Forward process -> x_t, epsilon, coarsened_types
-            x_t_i, eps_i, ctypes_i = self.diffusion.forward_process(
-                x0_i, types_i, t, hierarchy_i
-            )
-
-            # Resolution level (consistent across molecules for the same t)
-            r_t = degradation_op.get_resolution_at(t)
-            resolution_level = r_t
-
-            # Edge index at the target resolution
-            if r_t == 0:
-                adj_at_level = adj_i
-            elif r_t <= len(hierarchy_i):
-                adj_at_level = hierarchy_i[r_t - 1].coarsened_adj.to(self.device)
+        # Pick the right precomputed level data
+        if r_t == 0:
+            positions = batch["positions"].to(self.device)
+            atom_types = batch["atom_types"].to(self.device)
+            edge_index = batch["edge_index"].to(self.device)
+            batch_idx = batch["batch_idx"].to(self.device)
+            num_nodes_list = batch["num_atoms_list"]
+        else:
+            coarsened_levels = batch.get("coarsened_levels")
+            lev_idx = r_t - 1  # coarsened_levels[0] = level 1
+            if (
+                coarsened_levels is not None
+                and lev_idx < len(coarsened_levels)
+                and coarsened_levels[lev_idx] is not None
+            ):
+                lev_data = coarsened_levels[lev_idx]
+                positions = lev_data["positions"].to(self.device)
+                atom_types = lev_data["atom_types"].to(self.device)
+                edge_index = lev_data["edge_index"].to(self.device)
+                batch_idx = lev_data["batch_idx"].to(self.device)
+                num_nodes_list = lev_data["num_nodes_list"]
             else:
-                # Hierarchy is shallower than the requested level; use coarsest
-                adj_at_level = hierarchy_i[-1].coarsened_adj.to(self.device)
+                # Fallback: use full-resolution data
+                positions = batch["positions"].to(self.device)
+                atom_types = batch["atom_types"].to(self.device)
+                edge_index = batch["edge_index"].to(self.device)
+                batch_idx = batch["batch_idx"].to(self.device)
+                num_nodes_list = batch["num_atoms_list"]
+                r_t = 0
 
-            ei_i = _edge_index_from_adj(adj_at_level) + coarse_offset
-            n_coarse = x_t_i.shape[0]
+        alpha_bar_t = self.noise_schedule.alpha_bar(t).to(
+            device=self.device, dtype=positions.dtype
+        )
+        sigma_t = self.noise_schedule.sigma(t).to(
+            device=self.device, dtype=positions.dtype
+        )
 
-            x_t_parts.append(x_t_i)
-            eps_parts.append(eps_i)
-            types_parts.append(ctypes_i)
-            ei_parts.append(ei_i)
-            bvec_parts.append(
-                torch.full((n_coarse,), i, dtype=torch.long, device=self.device)
-            )
-
-            node_offset += n_i
-            coarse_offset += n_coarse
+        epsilon = torch.randn_like(positions)
+        x_t = alpha_bar_t * positions + sigma_t * epsilon
 
         return {
-            "x_t": torch.cat(x_t_parts, dim=0),
-            "epsilon": torch.cat(eps_parts, dim=0),
-            "coarsened_types": torch.cat(types_parts, dim=0),
-            "edge_index": torch.cat(ei_parts, dim=1),
-            "batch_vector": torch.cat(bvec_parts, dim=0),
-            "resolution_level": resolution_level,
-            "num_nodes_list": [x.shape[0] for x in x_t_parts],
+            "x_t": x_t,
+            "epsilon": epsilon,
+            "coarsened_types": atom_types,
+            "edge_index": edge_index,
+            "batch_vector": batch_idx,
+            "resolution_level": r_t,
+            "num_nodes_list": num_nodes_list,
         }
 
     # ------------------------------------------------------------------

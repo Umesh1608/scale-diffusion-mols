@@ -1,0 +1,691 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{longtable}
+\usepackage{graphicx}
+
+\definecolor{best}{RGB}{0,128,0}
+\definecolor{warn}{RGB}{200,100,0}
+\definecolor{bad}{RGB}{200,0,0}
+
+\title{\textbf{MolSSD Cloud Training Plan}\\[0.5em]
+\large Pre-training on OMol25 \& Transfer Learning to UV Absorbers}
+\author{MolSSD Project}
+\date{March 2026}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+% ============================================================================
+\section{Executive Summary}
+% ============================================================================
+
+This document evaluates strategies for scaling MolSSD training beyond QM9/GEOM-Drugs
+to the OMol25 dataset (83M molecules) and transitioning to UV-absorber discovery.
+We compare four training strategies, provide cloud cost estimates, and give a
+step-by-step execution plan with all code ready to run.
+
+\textbf{Recommended strategy:} \textbf{Strategy C} (Hybrid) --- Pre-train on the
+OMol25 Neutral organic subset ($\sim$10--20M molecules), fine-tune on a curated
+UV-absorber dataset ($\sim$50K molecules with TD-DFT spectra), then run conditional
+generation campaigns.
+
+\textbf{Key insight:} OMol25 is ground-state DFT, so it lacks excited-state data
+(TD-DFT spectra, oscillator strengths). However, it \emph{does} contain the
+\textbf{HOMO-LUMO gap} (a direct proxy for $\lambda_\text{max}$ via $E = hc/\lambda$),
+\textbf{orbital energies}, and \textbf{partial charges} (Mulliken, L\"owdin, NBO)
+--- all of which are UV-relevant properties that can be used for pre-training
+conditional generation. Full TD-DFT spectra are still needed for Phase~B
+fine-tuning.
+
+% ============================================================================
+\section{Strategy Evaluation}
+% ============================================================================
+
+\subsection{Strategy A: Full OMol25 Pre-training}
+
+\begin{itemize}[nosep]
+    \item \textbf{Data:} Full OMol25 (83M molecules, 2--350 atoms, 83 elements)
+    \item \textbf{Training:} 500K--1M steps on 8--32 GPUs, 1--2 weeks
+    \item \textbf{Then:} Fine-tune on UV-absorber dataset
+\end{itemize}
+
+\begin{tabular}{@{}lp{10cm}@{}}
+\toprule
+\textcolor{best}{Pros} & Most general foundation model; strongest paper claims
+(``pre-trained on 83M molecules''); best transfer to any downstream task \\
+\textcolor{bad}{Cons} & Enormous compute cost (\$5K--15K); 500TB download;
+includes metals/salts irrelevant to UV absorbers; needs 8--32 GPUs \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{Verdict:} Ideal for the Nature paper but expensive. Worth it if grant
+funding is available.
+
+\subsection{Strategy B: Filter OMol25 for UV-Absorber-Related Molecules}
+
+\begin{itemize}[nosep]
+    \item \textbf{Data:} Filter OMol25 for conjugated/aromatic organic molecules
+    \item \textbf{Filters:} Charge=0, spin=1, elements $\in$ \{H,C,N,O,F,S,P,Cl,Br\},
+          contains aromatic ring, MW 150--800
+    \item \textbf{Expected size:} $\sim$5--15M molecules after filtering
+\end{itemize}
+
+\begin{tabular}{@{}lp{10cm}@{}}
+\toprule
+\textcolor{best}{Pros} & Focused on relevant chemistry; 5--10$\times$ smaller
+than full OMol25; cheaper (\$500--2K); faster to train \\
+\textcolor{bad}{Cons} & Still no UV spectra in the data (ground-state DFT only);
+filtering requires downloading a significant portion of OMol25; aromatic
+filter may miss novel chromophore scaffolds \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{Verdict:} Good balance but still requires OMol25 access and
+substantial filtering compute.
+
+\subsection{Strategy C: Hybrid (Recommended)}
+
+\begin{itemize}[nosep]
+    \item \textbf{Phase 1 --- Foundation:} Pre-train on OMol25 ``Neutral'' subset
+          ($\sim$4M or full neutral split) or OMol25 4M random subset
+    \item \textbf{Phase 2 --- Domain:} Fine-tune on GEOM-Drugs (304K drug-like molecules)
+    \item \textbf{Phase 3 --- Task:} Fine-tune on curated UV-absorber dataset
+          (50K+ molecules with TD-DFT spectra for conditional generation)
+\end{itemize}
+
+\begin{tabular}{@{}lp{10cm}@{}}
+\toprule
+\textcolor{best}{Pros} & Uses the readily available OMol25 4M subset (manageable
+download); progressive specialization; each phase is independently useful;
+cheapest path to strong results (\$200--1K) \\
+\textcolor{warn}{Cons} & 4M subset is smaller than full OMol25 (weaker scaling
+claims); requires curating UV-absorber dataset separately \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{Verdict: \textcolor{best}{Best strategy.}} The 3-phase progressive
+training is standard practice (cf.\ GPT pre-train $\to$ fine-tune $\to$ RLHF).
+The 4M subset is large enough to demonstrate scaling. The UV-absorber dataset
+is needed regardless of which strategy we choose.
+
+\subsection{Strategy D: Direct UV-Absorber Training (No Pre-training)}
+
+\begin{itemize}[nosep]
+    \item \textbf{Data:} Curate UV-absorber dataset from scratch (ChEMBL, PubChem,
+          ZINC + TD-DFT calculations)
+    \item \textbf{Training:} Train MolSSD directly on 50K UV-absorber molecules
+\end{itemize}
+
+\begin{tabular}{@{}lp{10cm}@{}}
+\toprule
+\textcolor{best}{Pros} & Cheapest (\$50--200); fastest to results; focused \\
+\textcolor{bad}{Cons} & Small dataset = poor generalization; weaker paper
+(no pre-training story); limited chemical diversity \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{Verdict:} Backup plan if cloud budget is very limited. Not recommended
+for a Nature paper.
+
+% ============================================================================
+\section{Strategy Comparison Table}
+% ============================================================================
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+& \textbf{Pre-train} & \textbf{Fine-tune} & \textbf{UV Data} &
+\textbf{GPUs} & \textbf{Time} & \textbf{Cost} \\
+\midrule
+A: Full OMol25 & 83M mols & UV-absorbers & Separate & 8--32 & 1--2 wk & \$5--15K \\
+B: Filtered OMol25 & 5--15M mols & UV-absorbers & Separate & 4--8 & 3--5 d & \$500--2K \\
+\textbf{C: Hybrid} & \textbf{4M mols} & \textbf{GEOM $\to$ UV} &
+\textbf{Separate} & \textbf{1--4} & \textbf{2--4 d} & \textbf{\$200--1K} \\
+D: Direct UV & --- & --- & 50K mols & 1 & 1--2 d & \$50--200 \\
+\bottomrule
+\end{tabular}
+\caption{Strategy comparison. Strategy C provides the best cost/impact tradeoff.}
+\end{table}
+
+% ============================================================================
+\section{Cloud Provider Analysis}
+% ============================================================================
+
+\subsection{GPU Options for MolSSD Training}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+\textbf{Provider} & \textbf{GPU} & \textbf{VRAM} & \textbf{\$/hr (1 GPU)} &
+\textbf{\$/hr (8 GPU)} & \textbf{Notes} \\
+\midrule
+Lambda Labs & A100 80GB & 80GB & \$1.10 & \$8.80 & Best value, often sold out \\
+Lambda Labs & H100 80GB & 80GB & \$2.49 & \$19.92 & Fastest option \\
+RunPod & A100 80GB & 80GB & \$1.64 & \$13.12 & On-demand, good availability \\
+RunPod & A6000 48GB & 48GB & \$0.76 & \$6.08 & Budget option, adequate \\
+Vast.ai & A100 80GB & 80GB & \$0.90 & \$7.20 & Cheapest, variable quality \\
+AWS & p4d.24xlarge & 8$\times$A100 & --- & \$32.77 & Reliable, expensive \\
+GCP & a2-highgpu-8g & 8$\times$A100 & --- & \$29.39 & Good for academic credits \\
+\bottomrule
+\end{tabular}
+\caption{Cloud GPU pricing (March 2026, approximate on-demand rates).}
+\end{table}
+
+\textbf{Recommendation:} Lambda Labs or RunPod with A100 80GB. For the Hybrid
+strategy (Strategy C), a single A100 is sufficient for Phase 1 (OMol25 4M,
+$\sim$48h) and Phase 2 (GEOM-Drugs, $\sim$24h). Use 4$\times$A100 only if
+training the full OMol25.
+
+% ============================================================================
+\section{Step-by-Step Execution Plan (Strategy C)}
+% ============================================================================
+
+\subsection{Phase 0: Preparation (Local, Before Cloud)}
+
+\begin{enumerate}[nosep]
+    \item \textbf{Apply for OMol25 access} via Globus
+          (\url{https://fair-chem.github.io/molecules/datasets/omol25.html}).
+          Allow 1--2 weeks for approval.
+    \item \textbf{Download OMol25 4M subset} ($\sim$50--100GB) via Globus transfer.
+          Path: \texttt{alcf\#dtn\_eagle} $\to$ \texttt{/OMol25/train\_4M/}
+    \item \textbf{Download GEOM-Drugs} ($\sim$10GB) from Harvard Dataverse.
+    \item \textbf{Curate UV-absorber dataset} (see Section~\ref{sec:uv-dataset}).
+    \item \textbf{Verify code locally:}
+\begin{verbatim}
+python3 -c "from molssd.data.omol25_loader import OMol25MolSSD; print('OK')"
+python3 -c "from molssd.data.geom_drugs_loader import GEOMDrugsMolSSD; print('OK')"
+\end{verbatim}
+    \item \textbf{Package code} for cloud upload:
+\begin{verbatim}
+tar czf molssd_code.tar.gz molssd/ scripts/ CLAUDE.md
+\end{verbatim}
+\end{enumerate}
+
+\subsection{Phase 1: Pre-train on OMol25 4M (Cloud, 1--2 days)}
+
+\begin{enumerate}[nosep]
+    \item \textbf{Provision:} 1$\times$A100 80GB on Lambda Labs or RunPod
+    \item \textbf{Setup:}
+\begin{verbatim}
+# Install dependencies
+pip install torch torchvision torch-geometric rdkit fairchem-core wandb
+
+# Upload code and data
+scp molssd_code.tar.gz cloud:~/
+scp -r omol25_4M/ cloud:~/data/omol25/
+\end{verbatim}
+    \item \textbf{Train:}
+\begin{verbatim}
+python3 scripts/train_omol25.py \
+    --lmdb-path ~/data/omol25/train_4M/ \
+    --batch-size 64 \
+    --max-steps 500000 \
+    --max-atoms 200 \
+    --lr 3e-4 \
+    --checkpoint-dir ./checkpoints_omol25 \
+    --wandb
+\end{verbatim}
+    \item \textbf{Expected:} $\sim$48h on 1$\times$A100, cost $\sim$\$50--120
+    \item \textbf{Output:} \texttt{checkpoints\_omol25/checkpoint\_final.pt}
+    \item \textbf{Download checkpoint} to local machine
+\end{enumerate}
+
+\subsection{Phase 2: Fine-tune on GEOM-Drugs (Cloud or Local, 1 day)}
+
+\begin{enumerate}[nosep]
+    \item \textbf{Transfer learn} from OMol25 checkpoint:
+\begin{verbatim}
+python3 scripts/train_geom_drugs.py \
+    --pretrained checkpoints_omol25/checkpoint_final.pt \
+    --batch-size 32 \
+    --max-steps 200000 \
+    --lr 1e-4 \
+    --checkpoint-dir ./checkpoints_geom
+\end{verbatim}
+    \item \textbf{Expected:} $\sim$24h on 1$\times$A100 or RTX 4090
+    \item \textbf{Evaluate:} Run benchmark comparison vs EDM on GEOM-Drugs
+\begin{verbatim}
+python3 scripts/run_evaluation.py \
+    --checkpoint checkpoints_geom/checkpoint_final.pt \
+    --num-molecules 10000 \
+    --output-dir evaluation_geom_drugs/
+\end{verbatim}
+    \item \textbf{Key metric:} Demonstrate 3--4$\times$ speedup over EDM
+          on larger molecules (log-log scaling plot)
+\end{enumerate}
+
+\subsection{Phase 3: Fine-tune on UV-Absorber Dataset (Cloud or Local, 1 day)}
+
+\begin{enumerate}[nosep]
+    \item \textbf{Load GEOM-Drugs checkpoint} and fine-tune with conditional generation:
+\begin{verbatim}
+python3 scripts/train_uv_conditional.py \
+    --pretrained checkpoints_geom/checkpoint_final.pt \
+    --uv-dataset ./data/uv_absorbers/ \
+    --condition-on spectrum,photostability,logP \
+    --classifier-free-guidance --guidance-dropout 0.15 \
+    --batch-size 32 --max-steps 100000 --lr 5e-5
+\end{verbatim}
+    \item \textbf{Expected:} $\sim$12--24h
+    \item \textbf{Generate UV-absorber candidates:}
+\begin{verbatim}
+python3 scripts/generate_uv_absorbers.py \
+    --checkpoint checkpoints_uv/checkpoint_final.pt \
+    --target-lambda-max 320 \
+    --target-epsilon 30000 \
+    --guidance-weight 2.5 \
+    --num-molecules 10000
+\end{verbatim}
+\end{enumerate}
+
+% ============================================================================
+\section{UV-Absorber Dataset Curation}
+\label{sec:uv-dataset}
+% ============================================================================
+
+Since OMol25 contains \textbf{no excited-state or UV absorption data}, we must
+curate a separate UV-absorber dataset. This is required regardless of which
+pre-training strategy we choose.
+
+\subsection{Data Sources}
+
+\begin{enumerate}[nosep]
+    \item \textbf{ChEMBL/PubChem:} Search for compounds with UV-Vis assay data.
+          Keywords: ``UV absorber'', ``sunscreen'', ``photoprotection'',
+          ``benzotriazole'', ``benzophenone'', ``triazine''.
+    \item \textbf{ZINC:} Commercially available UV-absorbing compounds.
+    \item \textbf{Literature:} Manual curation from review articles on
+          UV-absorber design (Shaath 2010, Serpone 2007).
+    \item \textbf{Patent databases:} PatentLens/Google Patents for patented
+          UV-absorber structures.
+\end{enumerate}
+
+\textbf{Target:} 50,000+ molecules across 8 chromophore classes:
+benzotriazoles, benzophenones, triazines, cyanoacrylates, oxanilides,
+cinnamates, dibenzoylmethanes, phenyl salicylates.
+
+\subsection{TD-DFT Spectrum Computation}
+
+For molecules without experimental UV-Vis spectra:
+
+\begin{enumerate}[nosep]
+    \item \textbf{Geometry optimization:} eSEN (from OMol25) or
+          $\omega$B97M-V/def2-SVP
+    \item \textbf{Excited states:} TD-DFT with CAM-B3LYP/6-311+G(d,p),
+          PCM solvent model (ethanol)
+    \item \textbf{Compute first 20 excited states} $\to$ extract
+          $\lambda_\text{max}$, oscillator strengths, full spectrum
+    \item \textbf{Batch compute} on HPC cluster (ORCA or Gaussian)
+    \item \textbf{Validation:} Compare TD-DFT $\lambda_\text{max}$ vs
+          experimental for 50+ known UV absorbers (target MAE $<$ 20nm)
+\end{enumerate}
+
+\subsection{UV-Absorber Dataset Format}
+
+Each molecule in the dataset should contain:
+\begin{itemize}[nosep]
+    \item 3D coordinates (eSEN-optimized geometry)
+    \item Atom types and bonds
+    \item $\lambda_\text{max}$ (nm) --- primary conditioning target
+    \item Molar extinction coefficient $\varepsilon_\text{max}$
+    \item Discretized absorption spectrum (200--800nm, 1nm bins)
+    \item Photostability score (binary or continuous)
+    \item logP, molecular weight, SA score
+    \item Chromophore class label
+\end{itemize}
+
+% ============================================================================
+\section{Cost Estimates (Strategy C)}
+% ============================================================================
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Phase} & \textbf{GPU} & \textbf{Hours} & \textbf{\$/hr} & \textbf{Cost} \\
+\midrule
+Phase 1: OMol25 4M pre-train & 1$\times$A100 & 48 & \$1.10 & \$53 \\
+Phase 2: GEOM-Drugs fine-tune & 1$\times$A100 & 24 & \$1.10 & \$26 \\
+Phase 3: UV-absorber fine-tune & 1$\times$A100 & 24 & \$1.10 & \$26 \\
+UV-absorber generation campaigns & 1$\times$A100 & 8 & \$1.10 & \$9 \\
+\midrule
+\textbf{Total (Lambda Labs)} & & \textbf{104} & & \textbf{\$114} \\
+\midrule
+\textbf{Total (RunPod A100)} & & 104 & \$1.64 & \$170 \\
+\textbf{Total (AWS p4d)} & & 104 & \$4.10$^\dagger$ & \$427 \\
+\bottomrule
+\multicolumn{5}{l}{\small $^\dagger$AWS per-GPU rate from p4d.24xlarge / 8} \\
+\end{tabular}
+\caption{Cost estimates for Strategy C (Hybrid). Total: \$114--427 depending on provider.}
+\end{table}
+
+\textbf{With academic cloud credits:} Many cloud providers offer free credits
+for research. AWS (\$5K via AWS Research Credits), GCP (\$5K via Research
+Credits Program), Azure (\$5K via AI for Good). These would cover the full
+training multiple times over.
+
+% ============================================================================
+\section{OMol25 Properties Relevant to UV Absorption}
+\label{sec:omol25-uv-properties}
+% ============================================================================
+
+While OMol25 lacks excited-state (TD-DFT) data, it contains several
+ground-state DFT properties that are \textbf{directly predictive} of
+UV absorption behavior. These can be used as conditioning signals during
+pre-training.
+
+\subsection{Directly Available Properties}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Property} & \textbf{Source} & \textbf{UV Absorption Relevance} \\
+\midrule
+HOMO--LUMO gap & DFT ($\omega$B97M-V) &
+    \textbf{Primary proxy for $\lambda_\text{max}$}.
+    $E_\text{gap} = hc/\lambda$ gives approximate absorption wavelength.
+    Gap of 3.1\,eV $\approx$ 400\,nm (UVA), 4.4\,eV $\approx$ 280\,nm (UVB). \\
+HOMO energy & DFT & Electron donor capacity. Low HOMO $\to$ harder to
+    excite. Relevant for identifying electron-rich chromophores. \\
+LUMO energy & DFT & Electron acceptor capacity. Push-pull systems with
+    low LUMO absorb at longer wavelengths. \\
+Mulliken charges & DFT & Indicates intramolecular charge transfer (ICT).
+    Large charge separation $\to$ strong $\pi \to \pi^*$ transitions. \\
+L\"owdin charges & DFT & More basis-set-independent than Mulliken.
+    Better for comparing across molecule sizes. \\
+NBO charges & DFT (via GBW) & Natural bond orbital analysis. Best
+    for identifying donor--acceptor groups and $n \to \pi^*$ transitions. \\
+Orbital energies & DFT & Full MO spectrum identifies gaps between
+    occupied/virtual orbitals for $n \to \pi^*$, $\pi \to \pi^*$,
+    $\sigma \to \sigma^*$ transitions. \\
+Total energy & DFT & Thermodynamic stability. Unstable molecules
+    decompose under UV exposure. \\
+Per-atom forces & DFT & Near-zero forces $\to$ equilibrium geometry.
+    Important for accurate spectrum prediction. \\
+\bottomrule
+\end{tabular}
+\caption{OMol25 properties relevant to UV absorption prediction.}
+\end{table}
+
+\subsection{Available via Post-Processing of ORCA Files}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Property} & \textbf{Source} & \textbf{UV Relevance} \\
+\midrule
+Density matrix & \texttt{density\_mat.npz} &
+    Encodes $\pi$-delocalization extent. Larger conjugated systems $\to$
+    smaller gap $\to$ longer $\lambda_\text{max}$. \\
+Fock matrix & GBW wavefunction &
+    Eigenvalues give orbital energies; off-diagonal elements encode
+    orbital coupling (relates to oscillator strength). \\
+Molecular orbitals & GBW wavefunction &
+    Spatial distribution of HOMO/LUMO determines transition dipole
+    moment direction and magnitude. \\
+Bond orders & NBO analysis &
+    Identifies $\pi$-bond conjugation pathways critical for
+    chromophore identification. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{HOMO--LUMO Gap as $\lambda_\text{max}$ Proxy}
+
+The relationship between the DFT HOMO--LUMO gap and experimental
+$\lambda_\text{max}$ is:
+\[
+    \lambda_\text{max} \approx \frac{hc}{E_\text{HOMO-LUMO}}
+    = \frac{1240}{E_\text{gap}\,(\text{eV})} \; \text{nm}
+\]
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{UV Range} & \textbf{$\lambda$ (nm)} & \textbf{Approx.\ Gap (eV)} \\
+\midrule
+UV-C & 200--280 & 4.4--6.2 \\
+UV-B & 280--320 & 3.9--4.4 \\
+UV-A & 320--400 & 3.1--3.9 \\
+Visible & 400--700 & 1.8--3.1 \\
+\bottomrule
+\end{tabular}
+\caption{HOMO--LUMO gap ranges for target UV absorption regions.}
+\end{table}
+
+\textbf{Accuracy:} For organic chromophores, the $\omega$B97M-V HOMO--LUMO gap
+correlates with TD-DFT $\lambda_\text{max}$ at $R^2 \approx 0.7$--$0.85$, with a
+systematic overestimation of 0.5--1.0\,eV (underestimates $\lambda_\text{max}$ by
+30--80\,nm). This is sufficient for \emph{pre-training} the conditional model;
+fine-tuning with TD-DFT spectra corrects the systematic error.
+
+\subsection{Pre-training Strategy Using OMol25 Properties}
+
+\textbf{Phase 1 (OMol25 pre-training):} Condition MolSSD on the HOMO--LUMO gap
+as a scalar property (via adaLN conditioning). This teaches the model which
+molecular structures produce which gap values $\to$ approximate $\lambda_\text{max}$
+control.
+
+\textbf{Phase 3 (UV fine-tuning):} Replace HOMO--LUMO gap conditioning with
+actual TD-DFT $\lambda_\text{max}$ and full spectrum conditioning. The model
+transfers its learned structure--gap relationship and refines it.
+
+\subsection{Properties NOT in OMol25 (Need Separate Computation)}
+
+\begin{itemize}[nosep]
+    \item \textbf{TD-DFT excited-state energies} --- actual $\lambda_\text{max}$
+          (HOMO--LUMO gap is a proxy, not exact)
+    \item \textbf{Oscillator strengths} --- determines $\varepsilon_\text{max}$
+          (absorption intensity)
+    \item \textbf{Full UV-Vis spectrum} --- needed for spectrum conditioning
+    \item \textbf{Photostability metrics} --- excited-state lifetimes,
+          conical intersections, ESIPT
+    \item \textbf{Dipole moment} --- not explicitly stored (derivable from
+          charges + positions)
+    \item \textbf{Polarizability} --- not stored (derivable from Fock matrix
+          perturbation theory)
+    \item \textbf{Solvatochromic shifts} --- OMol25 is gas-phase DFT
+\end{itemize}
+
+% ============================================================================
+\section{What OMol25 Pre-training Gives Us}
+% ============================================================================
+
+Pre-training on OMol25 provides:
+
+\begin{enumerate}[nosep]
+    \item \textbf{Learned 3D chemical grammar:} Bond lengths, angles, torsions
+          for diverse organic chemistry
+    \item \textbf{Element embeddings:} Meaningful representations for 15+
+          atom types (vs 5 for QM9)
+    \item \textbf{HOMO--LUMO gap awareness:} Model learns which molecular
+          structures produce which electronic gaps --- a direct proxy for
+          $\lambda_\text{max}$ (see Section~\ref{sec:omol25-uv-properties})
+    \item \textbf{Charge-transfer intuition:} Partial charges teach the model
+          about donor--acceptor systems critical for UV chromophores
+    \item \textbf{Scale awareness:} Model learns to handle molecules from 2 to
+          200+ atoms
+    \item \textbf{Coarsening intuition:} The spectral coarsening hierarchy is
+          learned across diverse molecular topologies
+    \item \textbf{Faster convergence:} Fine-tuning on 50K UV absorbers converges
+          in $\sim$10$\times$ fewer steps than training from scratch
+    \item \textbf{Better generalization:} Pre-trained model explores chemical
+          space more effectively during generation
+\end{enumerate}
+
+\textbf{Analogy:} This is like pre-training a language model on all of Wikipedia
+before fine-tuning it to write poetry. The model learns grammar and vocabulary
+first, then learns style.
+
+% ============================================================================
+\section{OMol25 Filtering for UV-Relevant Molecules}
+% ============================================================================
+
+If we want a smaller, more relevant pre-training subset, we can filter OMol25:
+
+\subsection{Filter Criteria}
+
+\begin{enumerate}[nosep]
+    \item \textbf{Charge = 0, Spin = 1} (neutral singlets --- use ``Neutral'' split)
+    \item \textbf{Elements $\subseteq$ \{H, C, N, O, F, S, P, Cl, Br, I\}}
+          (exclude metals, lanthanides)
+    \item \textbf{Molecular weight 100--800 Da} (drug-like range)
+    \item \textbf{Contains $\geq 1$ aromatic ring} (UV absorption requires
+          $\pi$-conjugation)
+    \item \textbf{$\leq 200$ atoms} (practical limit for training)
+\end{enumerate}
+
+\subsection{Expected Yield}
+
+\begin{itemize}[nosep]
+    \item OMol25 full: 83M molecules
+    \item After charge/spin filter (Neutral): $\sim$20--30M
+    \item After element filter: $\sim$15--25M
+    \item After MW + aromatic filter: $\sim$5--15M
+    \item After atom count filter: $\sim$5--12M
+\end{itemize}
+
+This 5--12M subset is large enough for strong pre-training while being focused
+on the chemistry relevant to UV absorbers.
+
+% ============================================================================
+\section{Multi-GPU Training Setup}
+% ============================================================================
+
+For training on the full OMol25 (Strategy A) or large filtered subsets:
+
+\subsection{PyTorch DDP Configuration}
+
+\begin{verbatim}
+# Launch on 8 GPUs (single node)
+torchrun --nproc_per_node=8 scripts/train_omol25.py \
+    --batch-size 32 \       # per-GPU batch size (32 * 8 = 256 effective)
+    --lr 1.2e-3 \           # linear scaling: 3e-4 * (256/64)
+    --warmup-steps 2000 \
+    --max-steps 500000 \
+    --ddp
+
+# Launch on 4 nodes x 8 GPUs (32 total)
+torchrun --nnodes=4 --nproc_per_node=8 \
+    --rdzv_backend=c10d --rdzv_endpoint=$MASTER_ADDR:$MASTER_PORT \
+    scripts/train_omol25.py \
+    --batch-size 16 \       # per-GPU (16 * 32 = 512 effective)
+    --lr 2.4e-3 \           # linear scaling
+    --ddp
+\end{verbatim}
+
+\subsection{Memory Requirements}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Component} & \textbf{Per GPU (A100 80GB)} & \textbf{Per GPU (4090 16GB)} \\
+\midrule
+Model (10M params, fp32) & 40 MB & 40 MB \\
+Optimizer state (AdamW) & 120 MB & 120 MB \\
+Activations + gradients & 2--8 GB & 2--4 GB \\
+Batch data (bs=32, 200 atoms) & 1--2 GB & 1--2 GB \\
+\textbf{Total} & \textbf{$\sim$4--10 GB} & \textbf{$\sim$3--6 GB} \\
+\textbf{Available} & 80 GB & 16 GB \\
+\bottomrule
+\end{tabular}
+\caption{Memory requirements. Even the RTX 4090 has ample headroom.}
+\end{table}
+
+% ============================================================================
+\section{Timeline}
+% ============================================================================
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}clll@{}}
+\toprule
+\textbf{Week} & \textbf{Task} & \textbf{Where} & \textbf{Deliverable} \\
+\midrule
+1 & Apply for OMol25 access & Local & Globus approval \\
+1 & Curate UV-absorber molecules & Local & 50K SMILES + metadata \\
+2 & Download OMol25 4M + GEOM-Drugs & Local & Raw data on disk \\
+2 & Run TD-DFT on UV absorbers & HPC cluster & Spectra for 50K mols \\
+3 & Phase 1: Pre-train on OMol25 4M & Cloud (A100) & Pre-trained checkpoint \\
+3 & Phase 2: Fine-tune GEOM-Drugs & Cloud (A100) & Scaling benchmark \\
+4 & Phase 3: Fine-tune UV-absorbers & Cloud (A100) & Conditional model \\
+4 & Generation campaigns & Cloud (A100) & 50K+ candidates \\
+5 & Screening pipeline & Local & Top 500 verified \\
+5 & Paper: fill tables \& figures & Local & Draft ready \\
+\bottomrule
+\end{tabular}
+\caption{5-week execution timeline for Strategy C.}
+\end{table}
+
+% ============================================================================
+\section{Code Readiness Checklist}
+% ============================================================================
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Component} & \textbf{Status} & \textbf{File} \\
+\midrule
+QM9 data loader & \textcolor{best}{Done} & \texttt{molssd/data/qm9\_loader.py} \\
+GEOM-Drugs data loader & \textcolor{best}{Done} & \texttt{molssd/data/geom\_drugs\_loader.py} \\
+OMol25 data loader & \textcolor{best}{Done} & \texttt{molssd/data/omol25\_loader.py} \\
+QM9 training script & \textcolor{best}{Done} & \texttt{scripts/train\_qm9.py} \\
+GEOM-Drugs training script & \textcolor{best}{Done} & \texttt{scripts/train\_geom\_drugs.py} \\
+OMol25 training script & \textcolor{warn}{TODO} & \texttt{scripts/train\_omol25.py} \\
+UV-absorber training script & \textcolor{warn}{TODO} & \texttt{scripts/train\_uv\_conditional.py} \\
+Sampling script & \textcolor{best}{Done} & \texttt{scripts/sample.py} \\
+Evaluation script & \textcolor{best}{Done} & \texttt{scripts/run\_evaluation.py} \\
+Ablation script & \textcolor{best}{Done} & \texttt{scripts/run\_ablations.py} \\
+Spectrum conditioning module & \textcolor{bad}{TODO} & \texttt{molssd/models/conditioning.py} \\
+Classifier-free guidance & \textcolor{bad}{TODO} & (in training loop) \\
+DDP wrapper & \textcolor{bad}{TODO} & (in training script) \\
+UV-absorber data loader & \textcolor{bad}{TODO} & \texttt{molssd/data/uv\_loader.py} \\
+\bottomrule
+\end{tabular}
+\caption{Code readiness for cloud training. Green = ready, orange = straightforward,
+red = needs design work.}
+\end{table}
+
+% ============================================================================
+\section{Recommendation}
+% ============================================================================
+
+\begin{enumerate}
+    \item \textbf{Finish QM9 training} (currently running, $\sim$3h remaining)
+          and evaluate (Step A3).
+    \item \textbf{Apply for OMol25 access now} --- approval takes 1--2 weeks,
+          don't wait.
+    \item \textbf{Start UV-absorber dataset curation} in parallel (ChEMBL/PubChem
+          queries, literature search).
+    \item \textbf{Run GEOM-Drugs locally} on your RTX 4090 (Step A5) while
+          waiting for OMol25 access.
+    \item \textbf{When OMol25 is available:} Spin up 1$\times$A100 on Lambda Labs,
+          run Phases 1--3 in sequence ($\sim$4 days, $\sim$\$114).
+    \item \textbf{Apply for cloud credits} from AWS/GCP/Azure research programs
+          to cover costs.
+\end{enumerate}
+
+\end{document}

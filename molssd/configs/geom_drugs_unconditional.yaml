@@ -1,0 +1,34 @@
+# GEOM-Drugs Unconditional Generation Config
+# Larger molecules (up to 181 atoms) — deeper hierarchy, more atom types
+
+defaults:
+  - defaults
+
+data:
+  dataset: geom_drugs
+  max_atoms: 181
+  max_heavy_atoms: 91
+
+model:
+  num_atom_types: 10          # H, C, N, O, F, S, P, Cl, Br, I
+  level_configs:
+    - {num_blocks: 4, hidden_dim: 128}   # Level 0 (finest)
+    - {num_blocks: 3, hidden_dim: 256}   # Level 1
+    - {num_blocks: 3, hidden_dim: 384}   # Level 2
+    - {num_blocks: 2, hidden_dim: 512}   # Level 3
+    - {num_blocks: 2, hidden_dim: 512}   # Level 4 (coarsest)
+
+resolution:
+  max_levels: 5               # Deeper hierarchy for larger molecules
+  coarsening_ratio: 3         # ~181 -> ~60 -> ~20 -> ~7 -> ~2 -> 1
+
+training:
+  batch_size: 32              # Smaller batch (larger molecules)
+  max_steps: 500000
+  lr: 2.0e-4
+
+loss:
+  lambda_prop: 0.0
+
+logging:
+  wandb_project: molssd-geom-drugs

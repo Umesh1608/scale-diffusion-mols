@@ -191,14 +191,21 @@ class DegradationOperator(nn.Module):
     def get_resolution_at(self, t: Union[int, torch.Tensor]) -> int:
         """Get the resolution level at timestep t.
 
+        The returned level is clamped to the maximum available level in this
+        molecule's coarsening hierarchy, so small molecules with fewer
+        coarsening levels are handled gracefully.
+
         Returns
         -------
         int
-            Resolution level in ``[0, num_levels - 1]``.
+            Resolution level in ``[0, num_composed - 1]``.
         """
         t_int = self._scalar_t(t)
         level_tensor = self.resolution_schedule.resolution_level(t_int)
-        return level_tensor.item()
+        level = level_tensor.item()
+        # Clamp to available hierarchy depth
+        max_level = self._num_composed - 1
+        return min(level, max_level)
 
     def is_resolution_change(self, t: Union[int, torch.Tensor]) -> bool:
         """Whether the resolution changes at timestep t (i.e. r(t) != r(t-1)).
