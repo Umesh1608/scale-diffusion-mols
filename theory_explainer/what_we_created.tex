@@ -1867,23 +1867,186 @@ These are pre-training validations: they confirm that the mathematical framework
 
 
 % ============================================================
-\section{What Remains to Be Done (Experimentally)}
+\section{Benchmarking: How We Prove MolSSD Is Better}
 % ============================================================
 
-The theoretical framework, code implementation, and pre-training validations (contributions 1--4) are complete. What remains:
+A rigorous head-to-head comparison against existing molecular generative models is \textbf{the central empirical claim of the paper}. The theory (contributions 1--6) means nothing if the model doesn't outperform the competition on standard benchmarks. This section lays out exactly which models we compete against, on which datasets, with which metrics, and what we expect.
+
+\subsection{The Competitive Landscape}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{lp{3.2cm}p{2cm}p{5.5cm}}
+\toprule
+\textbf{Model} & \textbf{Type} & \textbf{Year} & \textbf{Key idea and limitation} \\
+\midrule
+\textbf{EDM} & E(3)-equivariant diffusion & 2022 & First equivariant 3D mol diffusion. Single-resolution, isotropic noise everywhere. Our primary baseline. \\
+\textbf{GeoLDM} & Geometric latent diffusion & 2023 & Diffusion in latent space of a geometric autoencoder. Faster sampling but lossy encoding. \\
+\textbf{MiDi} & Mixed discrete--continuous & 2023 & Joint atom type + position diffusion. Handles bond generation. Single resolution. \\
+\textbf{GCDM} & Geometry-complete diffusion & 2024 & Uses angles and dihedrals for completeness. Still single-resolution, $O(N^2)$ cost. \\
+\textbf{EQGAT-diff} & Equivariant GAT diffusion & 2023 & Attention-based equivariant architecture. High quality but expensive per step. \\
+\textbf{MolDiff} & Atom + bond diffusion & 2023 & Generates atoms and bonds jointly. No multi-scale structure. \\
+\textbf{DiGress} & Discrete graph diffusion & 2023 & Noise on discrete adjacency matrices. Different paradigm (2D, not 3D). \\
+\textbf{HierDiff} & Hierarchical diffusion & 2023 & BRICS-based fragmentation + diffusion. Uses heuristic decomposition (16 fixed rules). \\
+\textbf{JT-VAE} & VAE (non-diffusion) & 2018 & Junction tree variational autoencoder. Older, non-diffusion baseline. \\
+\textbf{GraphAF} & Autoregressive flow & 2020 & Autoregressive generation (atom-by-atom). Slower but high validity. \\
+\textbf{G-SchNet} & Autoregressive GNN & 2019 & SchNet-based autoregressive generation. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Benchmark Datasets}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{lcccp{4.5cm}}
+\toprule
+\textbf{Dataset} & \textbf{Molecules} & \textbf{Max atoms} & \textbf{Avg atoms} & \textbf{Why this dataset} \\
+\midrule
+\textbf{QM9} & 134K & 29 (9 heavy) & 18 & Standard small-molecule benchmark. Every baseline reports QM9 numbers. Apples-to-apples comparison. \\
+\textbf{GEOM-Drugs} & 304K & 181 (44 heavy) & 44 & Drug-like molecules. Tests scaling to larger, more complex structures. \\
+\textbf{OMol25} & 83M & 350 & varies & Pre-training dataset. Tests if MolSSD scales to millions of molecules and large atom counts. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Metrics: What We Measure}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{lp{6cm}p{4.5cm}}
+\toprule
+\textbf{Metric} & \textbf{What it measures} & \textbf{Why it matters} \\
+\midrule
+\textbf{Atom stability (\%)} & Fraction of atoms with correct valence (e.g., carbon has 4 bonds) & Basic chemical correctness \\
+\textbf{Molecule stability (\%)} & Fraction of molecules where \emph{all} atoms are stable & Stricter than atom stability --- one bad atom fails the whole molecule \\
+\textbf{Validity (\%)} & Fraction that pass RDKit sanitization (kekulization, valence check) & Can the molecule actually exist? \\
+\textbf{Uniqueness (\%)} & Fraction of unique molecules among all generated & Model not just memorising one good molecule \\
+\textbf{Novelty (\%)} & Fraction not present in training set & Actually generating new molecules, not regurgitating training data \\
+\textbf{FCD} & Fr\'{e}chet ChemNet Distance between generated and reference distributions & Distributional similarity --- are generated molecules ``drug-like'' in the same way as the training set? Lower is better. \\
+\textbf{Wall-clock time} & Minutes to generate 10,000 molecules on 1$\times$ A100 & Practical speed --- this is where MolSSD should dominate \\
+\textbf{Scaling exponent} & $\text{Time} \propto N^{\alpha}$; measure $\alpha$ & EDM: $\alpha \approx 1.9$. MolSSD target: $\alpha \approx 1.4$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{What We Expect to Show}
+
+Based on the theory, MolSSD should demonstrate advantages in three categories:
+
+\paragraph{1. Comparable or better generation quality.}
+We expect MolSSD to \emph{match} the best existing models on quality metrics (atom stability, molecule stability, validity, uniqueness, FCD) on QM9. The non-isotropic posterior (contribution 2) should give a small quality edge over models that use isotropic noise at all steps, because the sampling distribution is \emph{mathematically correct} at resolution transitions rather than approximate. Target: $\geq 98\%$ atom stability, $\geq 82\%$ molecule stability, $\geq 99\%$ validity on QM9.
+
+\paragraph{2. Significant speed advantage (the main win).}
+This is where MolSSD should clearly dominate:
+\begin{itemize}
+  \item \textbf{QM9} (small molecules): 2--3$\times$ speedup over EDM. The advantage is moderate because QM9 molecules are small (9 heavy atoms $\to$ only 2--3 coarsening levels).
+  \item \textbf{GEOM-Drugs} (medium molecules): 3--4$\times$ speedup. Deeper coarsening hierarchies (4--5 levels) mean more steps at cheap, coarse resolution.
+  \item \textbf{Large molecules} ($>$100 atoms): 4--6$\times$ speedup. This is the regime where the scaling exponent difference ($N^{1.4}$ vs $N^{1.9}$) dominates. \textbf{No existing model can match this}.
+\end{itemize}
+
+\paragraph{3. Interpretable intermediates (unique to MolSSD).}
+No other diffusion model produces chemically meaningful intermediate states. MolSSD's coarse-to-fine generation creates interpretable snapshots at each resolution level:
+\begin{itemize}
+  \item Centroid $\to$ skeleton $\to$ fragments $\to$ functional groups $\to$ atoms
+  \item A chemist can inspect intermediates and understand \emph{what the model is doing}
+  \item This enables chemist-in-the-loop design (intervene at any scale)
+  \item None of EDM, GeoLDM, MiDi, GCDM, EQGAT-diff, MolDiff, or DiGress have this
+\end{itemize}
+
+\subsection{Ablation Studies: Proving Each Contribution Matters}
+
+Ablations strip out one contribution at a time to show its individual impact:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{lp{5cm}p{5cm}}
+\toprule
+\textbf{Ablation} & \textbf{What we change} & \textbf{Expected result} \\
+\midrule
+MolSSD (full) & All contributions active & Best overall \\
+$-$ non-isotropic & Replace with $\sigma^2 \bm{I}$ at transitions & Quality drops (especially bond geometry), speed unchanged \\
+$-$ spectral coarsening & Replace with random atom grouping & Quality drops sharply (bond connectivity collapses from 60\% to 11\%) \\
+$-$ spectral (use BRICS) & Replace with BRICS fragmentation & Quality comparable on small molecules, fails on molecules without BRICS-breakable bonds \\
+$-$ multi-resolution & Single-resolution (like EDM) & Quality similar, speed drops to $1\times$ (no speedup) \\
+$-$ Flexi-Net levels & Use fixed-width network at all levels & Speed drops (no compute savings at coarse levels) \\
+2-level only & Only full + 1 coarse level & Moderate speedup ($\sim$1.5$\times$) \\
+5-level & Deep hierarchy & Maximum speedup but risk of quality loss at very coarse levels \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{The Comparison Table We Need to Fill}
+
+This is the table that will appear in the Nature paper. Every cell must have a real number:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\small
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{Method} & \textbf{Atom} & \textbf{Mol} & \textbf{Valid} & \textbf{Unique} & \textbf{Novel} & \textbf{FCD} & \textbf{Time} \\
+ & \textbf{Stab \%} & \textbf{Stab \%} & \textbf{\%} & \textbf{\%} & \textbf{\%} & $\downarrow$ & \textbf{(min)} \\
+\midrule
+G-SchNet & 95.7 & 68.1 & 85.5 & 80.3 & --- & --- & --- \\
+GraphAF & 94.9 & 67.0 & 82.1 & 88.6 & --- & --- & --- \\
+JT-VAE & --- & --- & 100.0 & 99.8 & --- & --- & --- \\
+EDM & 98.7 & 82.0 & 98.7 & 99.5 & --- & --- & 28.4 \\
+GeoLDM & 98.9 & 89.4 & 93.8 & 99.4 & --- & --- & --- \\
+MiDi & 99.0 & 83.3 & 99.0 & --- & --- & --- & --- \\
+GCDM & 99.0 & 85.7 & --- & --- & --- & --- & --- \\
+EQGAT-diff & 98.7 & 81.3 & 98.5 & 99.4 & --- & --- & --- \\
+MolDiff & 98.2 & 78.5 & 96.1 & 99.3 & --- & --- & --- \\
+\midrule
+\textbf{MolSSD} & \textbf{??} & \textbf{??} & \textbf{??} & \textbf{??} & \textbf{??} & \textbf{??} & \textbf{??} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{The ``??'' cells are what the QM9 training experiment will fill.} The baseline numbers above are from published papers. Some cells are ``---'' because not all papers report all metrics --- we will reproduce baselines using official code where needed.
+
+\subsection{Two-Phase Strategy}
+
+The experimental campaign has two phases:
 
 \begin{enumerate}
-  \item \textbf{Run QM9 baseline experiments} --- validate that the framework produces chemically valid molecules with competitive metrics (validity, uniqueness, novelty, FCD).
-  \item \textbf{Scale to GEOM-Drugs} --- demonstrate wall-clock speedup on larger molecules (50--180 atoms).
-  \item \textbf{Pre-train on OMol25} --- train on 40M+ molecules to learn general molecular priors.
-  \item \textbf{Curate UV-absorber dataset} --- assemble 50K UV absorbers with TD-DFT spectra.
-  \item \textbf{Conditional generation campaign} --- generate 10,000+ UV-absorber candidates.
-  \item \textbf{Screening and validation} --- eSEN filtering, SA scoring, TD-DFT validation.
-  \item \textbf{Wet-lab synthesis} --- synthesize top 10--20 candidates, measure spectra, test photostability.
-  \item \textbf{Ablation studies} --- verify each contribution's individual impact (isotropic vs.\ non-isotropic, spectral vs.\ BRICS, etc.).
+  \item \textbf{Phase A: Beat the baselines.} Train MolSSD on QM9, fill the table above, run ablations, demonstrate scaling on GEOM-Drugs. This is the core ML contribution --- ``our model is better.'' No chemistry needed yet.
+
+  \item \textbf{Phase B: Apply to UV absorbers.} Once Phase A confirms MolSSD works, apply it to the UV-absorber design problem (contribution 7). This is the materials science contribution --- ``our model discovers useful new molecules.'' This phase requires UV-absorber dataset curation, conditional training, TD-DFT validation, and wet-lab synthesis.
 \end{enumerate}
 
-The theory predicts specific, testable outcomes: 3--5$\times$ speedup from multi-resolution, interpretable intermediates, and superior generation quality from correct non-isotropic posteriors. These predictions will be validated or refuted by the experiments.
+Phase A must succeed before Phase B makes sense. If MolSSD doesn't beat EDM on QM9, there's no point doing UV-absorber campaigns with it.
+
+
+% ============================================================
+\section{What Remains to Be Done}
+% ============================================================
+
+The theoretical framework, code implementation, and pre-training validations (contributions 1--4) are complete. The remaining work falls into two phases:
+
+\subsection{Phase A: Benchmark and Beat the Competition}
+
+\begin{enumerate}
+  \item \textbf{Wire up the training loop} --- loss function, optimizer, EMA, W\&B logging, checkpointing. The model architecture and data pipeline exist; what's missing is the glue.
+  \item \textbf{Train on QM9 unconditionally} --- $\sim$200--500 epochs, $\sim$24--48h on GPU. Generate 10,000 molecules and compute all metrics.
+  \item \textbf{Fill the comparison table} --- atom stability, molecule stability, validity, uniqueness, FCD, wall-clock time. Compare against EDM, GeoLDM, MiDi, GCDM, EQGAT-diff, MolDiff.
+  \item \textbf{Run ablation studies} --- isotropic vs.\ non-isotropic, spectral vs.\ BRICS vs.\ random, 2-level vs.\ 3-level vs.\ 5-level coarsening.
+  \item \textbf{Scale to GEOM-Drugs} --- demonstrate the scaling advantage grows with molecule size (3--4$\times$ speedup).
+  \item \textbf{Pre-train on OMol25} --- demonstrate sub-linear scaling up to 350 atoms. This requires multi-GPU training.
+\end{enumerate}
+
+\subsection{Phase B: UV-Absorber Discovery}
+
+\begin{enumerate}
+  \item \textbf{Curate UV-absorber dataset} --- 50K+ molecules from ChEMBL/PubChem/ZINC with TD-DFT spectra.
+  \item \textbf{Conditional training} --- spectrum-conditioned generation with classifier-free guidance.
+  \item \textbf{Generation campaigns} --- 50,000+ candidates across 4 target profiles (broad-spectrum, photostable, coating-compatible, UV-C).
+  \item \textbf{Screening pipeline} --- eSEN geometry optimization $\to$ SA score $\to$ TD-DFT validation.
+  \item \textbf{Wet-lab synthesis and testing} --- synthesize top 10--20, measure UV-Vis spectra, photostability (2000h QUV), coating compatibility.
+  \item \textbf{Beat commercial benchmarks} --- show generated molecules exceed Tinuvin 328 / Uvinul 3048 in broadband extinction, photostability, or both.
+\end{enumerate}
+
+The theory predicts specific, testable outcomes: 2--5$\times$ speedup from multi-resolution, interpretable intermediates, superior sampling quality from non-isotropic posteriors, and novel UV absorbers that outperform commercial products. These predictions will be validated or refuted by the experiments.
 
 
 \vspace{1cm}
