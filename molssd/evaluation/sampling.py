@@ -448,13 +448,14 @@ def sample_molecules(
             continue
 
         # Build a fully connected adjacency matrix (no self-loops) as the
-        # dummy molecular graph for generation
-        adj = torch.ones(num_atoms, num_atoms, device=device)
-        adj.fill_diagonal_(0.0)
+        # dummy molecular graph for generation.
+        # Build on CPU first — coarsening uses eigendecomposition which
+        # must happen on CPU, then move the DegradationOperator to device.
+        adj_cpu = torch.ones(num_atoms, num_atoms) - torch.eye(num_atoms)
 
-        # Build the coarsening hierarchy
+        # Build the coarsening hierarchy (on CPU)
         coarsening_hierarchy = build_coarsening_hierarchy(
-            adj=adj,
+            adj=adj_cpu,
             num_atoms=num_atoms,
         )
 

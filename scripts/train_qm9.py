@@ -73,8 +73,10 @@ def parse_args() -> argparse.Namespace:
                         help="Total training steps (default: 300000)")
     parser.add_argument("--batch-size", type=int, default=64,
                         help="Training batch size (default: 64)")
-    parser.add_argument("--lr", type=float, default=3e-4,
-                        help="Peak learning rate (default: 3e-4)")
+    parser.add_argument("--lr", type=float, default=1e-4,
+                        help="Peak learning rate (default: 1e-4, matching EDM)")
+    parser.add_argument("--lambda-type", type=float, default=1.0,
+                        help="Atom type loss weight (default: 1.0)")
 
     # Diffusion
     parser.add_argument("--T", type=int, default=1000,
@@ -331,7 +333,7 @@ def main() -> None:
         diffusion=diffusion,
         noise_schedule=noise_schedule,
         resolution_schedule=resolution_schedule,
-        loss_fn=MolSSDLoss(lambda_type=0.1, snr_gamma=5.0),
+        loss_fn=MolSSDLoss(lambda_type=args.lambda_type, snr_gamma=5.0),
         lr=args.lr,
         warmup_steps=args.warmup_steps,
         max_steps=args.max_steps,

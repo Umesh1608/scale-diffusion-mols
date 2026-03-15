@@ -37,7 +37,7 @@ from molssd.evaluation.metrics import (
     bond_length_js_divergence,
     bond_angle_js_divergence,
 )
-from molssd.evaluation.sampling import sample_molecules
+from molssd.evaluation.batched_sampling import sample_molecules_batched
 from molssd.data.qm9_loader import QM9MolSSD
 
 logging.basicConfig(
@@ -199,15 +199,15 @@ def main():
     )
 
     t_start = time.time()
-    results = sample_molecules(
+    results = sample_molecules_batched(
         model=model,
-        diffusion=diffusion,
         noise_schedule=noise_schedule,
         resolution_schedule=resolution_schedule,
-        num_molecules=args.num_molecules,
         num_atoms_list=num_atoms_list,
+        num_atom_types=5,
         device=device,
         T_sample=args.T_sample,
+        batch_size=64,
     )
     sampling_time = time.time() - t_start
     sampling_time_min = sampling_time / 60.0

@@ -587,7 +587,10 @@ class MolecularFlexiNet(nn.Module):
         )
 
         # 4. Output heads.
-        eps_hat = self.output_pos_head[k](h_out)        # (N_k, 3)
-        type_logits = self.output_type_head[k](h_out)   # (N_k, num_atom_types)
+        # Position noise: use EGNN coordinate displacement (x_out - x_t).
+        # This is naturally equivariant and in the correct scale for noise
+        # prediction, unlike Linear(h_out) which outputs near-zero values.
+        eps_hat = x_out - x_t                            # (N_k, 3)
+        type_logits = self.output_type_head[k](h_out)    # (N_k, num_atom_types)
 
         return eps_hat, type_logits
