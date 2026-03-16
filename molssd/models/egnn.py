@@ -1,17 +1,16 @@
 """E(n)-Equivariant Graph Neural Network (EGNN) for MolSSD.
 
-Implements the EGNN architecture from Satorras et al. (2021),
-"E(n) Equivariant Graph Neural Networks" (arXiv:2102.09844),
-adapted for score-based diffusion on molecular graphs with
-time and resolution conditioning.
+Implements the EGNN architecture following the EDM (Hoogeboom et al., 2022)
+implementation with critical fixes for diffusion training:
+  - coord_diff normalization (prevents scale issues)
+  - Xavier init with gain=0.001 on final coord layer (prevents collapse)
+  - coords_range per layer (controls update magnitude)
+  - phi_x receives raw features, not processed messages (independent gradient path)
+  - No division by num_neighbours for coordinate updates
 
-Key equivariance properties:
-  - Position updates use difference vectors (x_i - x_j), preserving
-    translation equivariance.
-  - Feature updates use squared distances ||x_i - x_j||^2 (invariant
-    scalars), not raw positions.
-  - The network is equivariant to rotations, reflections, and translations
-    of the input coordinates.
+References:
+    - Satorras et al. (2021), "E(n) Equivariant Graph Neural Networks"
+    - Hoogeboom et al. (2022), "Equivariant Diffusion for Molecule Generation in 3D"
 """
 
 from __future__ import annotations
@@ -39,7 +38,6 @@ _ACTIVATIONS = {
 
 
 def _get_activation(name: str) -> nn.Module:
-    """Return an activation module by name."""
     if name not in _ACTIVATIONS:
         raise ValueError(
             f"Unknown activation '{name}'. Choose from {list(_ACTIVATIONS.keys())}."
@@ -48,63 +46,63 @@ def _get_activation(name: str) -> nn.Module:
 
 
 # ---------------------------------------------------------------------------
-# Helper: 2-layer MLP
+# coord2diff: normalized coordinate differences (following EDM)
 # ---------------------------------------------------------------------------
 
-def _build_mlp(
-    in_dim: int,
-    hidden_dim: int,
-    out_dim: int,
-    act_fn: str = "silu",
-) -> nn.Sequential:
-    """Construct a 2-layer MLP: Linear -> Act -> Linear."""
-    return nn.Sequential(
-        nn.Linear(in_dim, hidden_dim),
-        _get_activation(act_fn),
-        nn.Linear(hidden_dim, out_dim),
-    )
+def _coord2diff(
+    x: Tensor,
+    edge_index: Tensor,
+    norm_constant: float = 1.0,
+) -> Tuple[Tensor, Tensor]:
+    """Compute normalized coordinate differences and squared distances.
+
+    Following EDM: diff = (x_i - x_j) / (||x_i - x_j|| + norm_constant).
+    This makes diff roughly unit-length for typical bond distances (~1-2 Å),
+    preventing large coordinate shifts from distant atom pairs.
+
+    Returns:
+        dist_sq: Squared distances, shape (E, 1).
+        diff_norm: Normalized difference vectors, shape (E, 3).
+    """
+    src, dst = edge_index
+    diff = x[src] - x[dst]  # (E, 3)
+    dist_sq = (diff ** 2).sum(dim=-1, keepdim=True)  # (E, 1)
+    norm = torch.sqrt(dist_sq + 1e-8)  # (E, 1)
+    diff_norm = diff / (norm + norm_constant)  # (E, 3)
+    return dist_sq, diff_norm
 
 
 # ---------------------------------------------------------------------------
-# EGNNBlock
+# EGNNBlock (following EDM architecture)
 # ---------------------------------------------------------------------------
 
 class EGNNBlock(nn.Module):
     """Single E(n)-equivariant message-passing block.
 
-    Message computation::
-
-        m_ij = phi_e(h_i || h_j || ||x_i - x_j||^2 || edge_attr || t_emb)
-
-    Optional attention::
-
-        att_ij = sigmoid(phi_att(m_ij))
-        m_ij   = att_ij * m_ij
-
-    Coordinate update (equivariant)::
-
-        x_i' = x_i + (1 / (|N(i)| + 1)) * sum_j (x_i - x_j) * phi_x(m_ij)
-
-    Feature update (invariant, with residual)::
-
-        agg_i = sum_j m_ij
-        h_i'  = h_i + phi_h(h_i || agg_i)
+    Key differences from naive EGNN (matching EDM):
+      - phi_x receives raw [h_src, h_dst, edge_attr], not processed messages
+      - phi_x is 3-layer MLP with xavier_init(gain=0.001) on final layer
+      - coord_diff is normalized by (||diff|| + norm_constant)
+      - No division by num_neighbours for coordinate aggregation
+      - coords_range parameter controls max coordinate shift per layer
+      - tanh applied externally, then multiplied by coords_range
 
     Parameters
     ----------
     hidden_dim : int
-        Dimension of node feature vectors *h*.
+        Node feature dimension.
     edge_dim : int
-        Dimension of edge attribute vectors. 0 means no edge attributes.
+        Edge attribute dimension (0 = no edge attributes).
     time_dim : int
-        Dimension of the time/conditioning embedding. 0 means no conditioning.
+        Time/conditioning embedding dimension (0 = no conditioning).
     act_fn : str
-        Activation function name (``'silu'``, ``'relu'``, ``'gelu'``, etc.).
+        Activation function name.
     attention : bool
-        If ``True``, apply a learned scalar attention gate to messages.
-    normalize : bool
-        If ``True``, normalize the coordinate update by the number of
-        neighbours plus one, which prevents exploding position shifts.
+        Use attention gating on messages.
+    coords_range : float
+        Maximum coordinate shift per layer (EDM uses 15/n_layers).
+    norm_constant : float
+        Denominator offset for coord_diff normalization (EDM default: 1.0).
     """
 
     def __init__(
@@ -114,7 +112,8 @@ class EGNNBlock(nn.Module):
         time_dim: int = 0,
         act_fn: str = "silu",
         attention: bool = True,
-        normalize: bool = True,
+        coords_range: float = 2.5,
+        norm_constant: float = 1.0,
     ) -> None:
         super().__init__()
 
@@ -122,14 +121,19 @@ class EGNNBlock(nn.Module):
         self.edge_dim = edge_dim
         self.time_dim = time_dim
         self.attention = attention
-        self.normalize = normalize
+        self.coords_range = coords_range
+        self.norm_constant = norm_constant
 
         # ----- Edge message network phi_e -----
-        # Input: h_i || h_j || dist^2 || edge_attr || t_emb
+        # Input: h_src || h_dst || dist^2 || edge_attr || t_emb
         edge_input_dim = 2 * hidden_dim + 1 + edge_dim + time_dim
-        self.phi_e = _build_mlp(edge_input_dim, hidden_dim, hidden_dim, act_fn)
+        self.phi_e = nn.Sequential(
+            nn.Linear(edge_input_dim, hidden_dim),
+            _get_activation(act_fn),
+            nn.Linear(hidden_dim, hidden_dim),
+        )
 
-        # ----- Attention gate phi_att -----
+        # ----- Attention gate -----
         if self.attention:
             self.phi_att = nn.Sequential(
                 nn.Linear(hidden_dim, 1),
@@ -137,23 +141,25 @@ class EGNNBlock(nn.Module):
             )
 
         # ----- Coordinate update network phi_x -----
-        # Outputs a *scalar* weight per message, gated by tanh to [-1, 1].
+        # Following EDM: 3-layer MLP on raw [h_src, h_dst, edge_attr]
+        # Outputs scalar weight per edge. Final layer: xavier_init(gain=0.001), no bias.
+        coord_input_dim = 2 * hidden_dim + edge_dim + time_dim
+        final_layer = nn.Linear(hidden_dim, 1, bias=False)
+        nn.init.xavier_uniform_(final_layer.weight, gain=0.001)
         self.phi_x = nn.Sequential(
+            nn.Linear(coord_input_dim, hidden_dim),
+            _get_activation(act_fn),
             nn.Linear(hidden_dim, hidden_dim),
             _get_activation(act_fn),
-            nn.Linear(hidden_dim, 1),
-            nn.Tanh(),
+            final_layer,
         )
 
         # ----- Node update network phi_h -----
-        # Input: h_i || agg_i  ->  residual added to h_i
         self.phi_h = nn.Sequential(
             nn.Linear(2 * hidden_dim, hidden_dim),
             _get_activation(act_fn),
             nn.Linear(hidden_dim, hidden_dim),
         )
-
-    # ------------------------------------------------------------------ #
 
     def forward(
         self,
@@ -165,84 +171,55 @@ class EGNNBlock(nn.Module):
     ) -> Tuple[Tensor, Tensor]:
         """Forward pass of one EGNN block.
 
-        Parameters
-        ----------
-        h : Tensor, shape ``(N, hidden_dim)``
-            Node feature vectors.
-        x : Tensor, shape ``(N, 3)``
-            Node 3-D coordinates.
-        edge_index : Tensor, shape ``(2, E)``
-            Edge indices in COO format ``[src, dst]``.
-        edge_attr : Tensor or None, shape ``(E, edge_dim)``
-            Optional edge attributes (e.g., bond type encoding).
-        t_emb : Tensor or None, shape ``(N, time_dim)``
-            Optional per-node time/resolution conditioning embedding.
-            When the conditioning is per-graph, the caller should expand
-            it to per-node before passing it here.
-
-        Returns
-        -------
-        h_out : Tensor, shape ``(N, hidden_dim)``
-            Updated node features.
-        x_out : Tensor, shape ``(N, 3)``
-            Updated node coordinates.
+        Returns (h_out, x_out) with updated features and coordinates.
         """
-        src, dst = edge_index  # src -> dst (messages flow src -> dst)
+        src, dst = edge_index
 
-        # --- Pairwise difference vectors and squared distances ---
-        diff = x[src] - x[dst]  # (E, 3)
-        dist_sq = (diff ** 2).sum(dim=-1, keepdim=True)  # (E, 1)
+        # --- Normalized coordinate differences (EDM-style) ---
+        dist_sq, diff_norm = _coord2diff(x, edge_index, self.norm_constant)
 
         # --- Build edge message input ---
-        msg_input_parts = [h[src], h[dst], dist_sq]
-
+        msg_parts = [h[src], h[dst], dist_sq]
         if edge_attr is not None:
-            msg_input_parts.append(edge_attr)
-
+            msg_parts.append(edge_attr)
         if t_emb is not None:
-            # Broadcast per-node time embedding onto edges (use source node).
-            msg_input_parts.append(t_emb[src])
-
-        msg_input = torch.cat(msg_input_parts, dim=-1)  # (E, edge_input_dim)
+            msg_parts.append(t_emb[src])
+        msg_input = torch.cat(msg_parts, dim=-1)
 
         # --- Compute messages ---
         m_ij = self.phi_e(msg_input)  # (E, hidden_dim)
 
-        # --- Optional attention gating ---
         if self.attention:
-            att = self.phi_att(m_ij)  # (E, 1)
-            m_ij = att * m_ij  # (E, hidden_dim)
+            att = self.phi_att(m_ij)
+            m_ij = att * m_ij
 
-        # --- Coordinate update (equivariant) ---
-        coord_weight = self.phi_x(m_ij)  # (E, 1)
-        coord_shift = diff * coord_weight  # (E, 3)
+        # --- Coordinate update (EDM-style) ---
+        # phi_x receives raw features [h_src, h_dst, edge_attr, t_emb]
+        # (independent gradient path from message network)
+        coord_parts = [h[src], h[dst]]
+        if edge_attr is not None:
+            coord_parts.append(edge_attr)
+        if t_emb is not None:
+            coord_parts.append(t_emb[src])
+        coord_input = torch.cat(coord_parts, dim=-1)
 
-        # Aggregate coordinate shifts per destination node.
+        # tanh applied externally, scaled by coords_range
+        coord_weight = torch.tanh(self.phi_x(coord_input))  # (E, 1) in [-1, 1]
+        coord_shift = diff_norm * coord_weight * self.coords_range  # (E, 3)
+
+        # Aggregate (sum, NO division by num_neighbours — following EDM)
         coord_agg = scatter(
             coord_shift, dst, dim=0, dim_size=x.size(0), reduce="sum"
-        )  # (N, 3)
+        )
 
-        if self.normalize:
-            # Count number of incoming edges per node + 1 (avoid div-by-zero
-            # and dampen the update).
-            num_neighbours = scatter(
-                torch.ones(dst.size(0), 1, device=x.device, dtype=x.dtype),
-                dst,
-                dim=0,
-                dim_size=x.size(0),
-                reduce="sum",
-            )  # (N, 1)
-            coord_agg = coord_agg / (num_neighbours + 1.0)
-
-        x_out = x + coord_agg  # (N, 3)
+        x_out = x + coord_agg
 
         # --- Feature update (invariant, with residual) ---
         msg_agg = scatter(
             m_ij, dst, dim=0, dim_size=h.size(0), reduce="sum"
-        )  # (N, hidden_dim)
-
-        h_input = torch.cat([h, msg_agg], dim=-1)  # (N, 2 * hidden_dim)
-        h_out = h + self.phi_h(h_input)  # residual connection
+        )
+        h_input = torch.cat([h, msg_agg], dim=-1)
+        h_out = h + self.phi_h(h_input)
 
         return h_out, x_out
 
@@ -252,27 +229,28 @@ class EGNNBlock(nn.Module):
 # ---------------------------------------------------------------------------
 
 class EGNNStack(nn.Module):
-    """Stack of :class:`EGNNBlock` layers with residual connections.
-
-    Each block receives the *same* time embedding ``t_emb`` so that
-    the conditioning signal is available at every depth.
+    """Stack of EGNNBlock layers.
 
     Parameters
     ----------
     hidden_dim : int
-        Node feature dimension shared across all blocks.
+        Node feature dimension.
     num_blocks : int
         Number of sequential EGNN blocks.
     edge_dim : int
-        Dimension of edge attributes.
+        Edge attribute dimension.
     time_dim : int
-        Dimension of time/resolution conditioning.
+        Time/conditioning embedding dimension.
     act_fn : str
         Activation function name.
     attention : bool
-        Whether to use attention gating inside each block.
+        Use attention gating.
     normalize : bool
-        Whether to normalize coordinate updates by neighbour count.
+        Ignored (kept for backward compat). EDM-style normalization is
+        always used (coord_diff normalization, not neighbour division).
+    total_coords_range : float
+        Total coordinate range budget, divided equally among layers.
+        EDM default: 15.0 with 6 layers → 2.5 per layer.
     """
 
     def __init__(
@@ -283,25 +261,24 @@ class EGNNStack(nn.Module):
         time_dim: int = 0,
         act_fn: str = "silu",
         attention: bool = True,
-        normalize: bool = True,
+        normalize: bool = True,  # ignored, kept for compat
+        total_coords_range: float = 15.0,
     ) -> None:
         super().__init__()
 
-        self.blocks = nn.ModuleList(
-            [
-                EGNNBlock(
-                    hidden_dim=hidden_dim,
-                    edge_dim=edge_dim,
-                    time_dim=time_dim,
-                    act_fn=act_fn,
-                    attention=attention,
-                    normalize=normalize,
-                )
-                for _ in range(num_blocks)
-            ]
-        )
+        coords_range_per_layer = total_coords_range / max(num_blocks, 1)
 
-    # ------------------------------------------------------------------ #
+        self.blocks = nn.ModuleList([
+            EGNNBlock(
+                hidden_dim=hidden_dim,
+                edge_dim=edge_dim,
+                time_dim=time_dim,
+                act_fn=act_fn,
+                attention=attention,
+                coords_range=coords_range_per_layer,
+            )
+            for _ in range(num_blocks)
+        ])
 
     def forward(
         self,
@@ -311,32 +288,7 @@ class EGNNStack(nn.Module):
         edge_attr: Optional[Tensor] = None,
         t_emb: Optional[Tensor] = None,
     ) -> Tuple[Tensor, Tensor]:
-        """Run the full stack of EGNN blocks.
-
-        Parameters
-        ----------
-        h : Tensor, shape ``(N, hidden_dim)``
-            Initial node features.
-        x : Tensor, shape ``(N, 3)``
-            Initial node coordinates.
-        edge_index : Tensor, shape ``(2, E)``
-            Edge connectivity in COO format.
-        edge_attr : Tensor or None, shape ``(E, edge_dim)``
-            Optional edge attributes.
-        t_emb : Tensor or None, shape ``(N, time_dim)``
-            Optional time/resolution conditioning (per-node).
-
-        Returns
-        -------
-        h : Tensor, shape ``(N, hidden_dim)``
-            Final node features after all blocks.
-        x : Tensor, shape ``(N, 3)``
-            Final node coordinates after all blocks.
-        """
+        """Run the full stack of EGNN blocks."""
         for block in self.blocks:
-            # Each EGNNBlock already applies internal residual connections
-            # (h_out = h + phi_h(...) and x_out = x + coord_agg), so we
-            # pass the outputs directly to the next block.
             h, x = block(h, x, edge_index, edge_attr=edge_attr, t_emb=t_emb)
-
         return h, x
